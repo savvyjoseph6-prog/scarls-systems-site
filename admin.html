@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Admin — SCARLS SYSTEMS</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/scarls-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html,body{ background:var(--black); }
+  .admin-wrap{ max-width:640px; margin:0 auto; padding:20px 16px calc(40px + env(safe-area-inset-bottom)); }
+
+  /* ---------- Password gate ---------- */
+  .gate{
+    min-height:100svh; min-height:100dvh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:32px 20px; text-align:center; gap:14px;
+  }
+  .gate h1{ font-family:var(--font-display); color:var(--white); font-size:22px; }
+  .gate input{
+    width:100%; max-width:280px; background:var(--graphite-1); border:1px solid var(--line);
+    color:var(--white); padding:12px 14px; font-size:14px; font-family:inherit; border-radius:8px;
+  }
+  .gate input:focus{ outline:none; border-color:var(--accent-blue); }
+  .gate button{
+    font-family:var(--font-mono); font-size:12.5px; padding:11px 24px; border-radius:8px;
+    background:var(--white); color:var(--black); border:none; cursor:pointer;
+  }
+  .gate .err{ color:#ff8b8b; font-size:12.5px; min-height:16px; }
+
+  /* ---------- Header ---------- */
+  .admin-header{ display:flex; align-items:center; justify-content:space-between; padding:6px 2px 20px; }
+  .admin-header h1{ font-family:var(--font-display); color:var(--white); font-size:19px; }
+  .admin-header span{ font-family:var(--font-mono); font-size:11px; color:var(--silver-dim); }
+
+  /* ---------- Section switch (Projects / Catalog) ---------- */
+  .section-switch{ display:flex; gap:6px; margin-bottom:16px; }
+  .section-switch button{
+    flex:1; font-family:var(--font-mono); font-size:12px; letter-spacing:.03em; text-transform:uppercase;
+    padding:10px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--silver);
+    cursor:pointer;
+  }
+  .section-switch button.active{ background:var(--white); color:var(--black); border-color:var(--white); }
+
+  /* ---------- Status / category tabs ---------- */
+  .tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
+  .tabs button{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:11px; letter-spacing:.03em; text-transform:uppercase;
+    padding:7px 13px; border-radius:100px; border:1px solid var(--line); background:transparent; color:var(--silver);
+    cursor:pointer; white-space:nowrap;
+  }
+  .tabs button.active{ background:var(--white); color:var(--black); border-color:var(--white); }
+
+  /* ---------- Cards (projects + services share this look) ---------- */
+  .project-card{
+    border:1px solid var(--line-soft); background:var(--graphite-0); border-radius:12px;
+    padding:16px; margin-bottom:14px;
+  }
+  .project-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
+  .project-card-top h3{ font-family:var(--font-display); color:var(--white); font-size:15.5px; line-height:1.3; }
+  .project-card-top p{ color:var(--silver-dim); font-size:12px; margin-top:2px; }
+  .badge{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase;
+    padding:4px 9px; border-radius:100px; border:1px solid var(--line); color:var(--silver); margin-left:6px;
+  }
+  .badge.paid{ color:#ffd479; border-color:#4a3f22; }
+  .badge.in_progress{ color:#7fb2ff; border-color:#22344a; }
+  .badge.review{ color:#c98bff; border-color:#3a224a; }
+  .badge.delivered{ color:#7ee0a8; border-color:#22452f; }
+  .badge.qualified{ color:#7ee0a8; border-color:#22452f; }
+  .badge.needs_more_information{ color:#ffd479; border-color:#4a3f22; }
+  .badge.human_review_required{ color:#ff8b8b; border-color:#4a2222; }
+  .badge.awaiting_admin{ color:#ffd479; border-color:#4a3f22; }
+  .badge.approved{ color:#7ee0a8; border-color:#22452f; }
+  .badge.rejected{ color:#ff8b8b; border-color:#4a2222; }
+  .badge.below_minimum{ color:#8a8f98; border-color:#33363c; }
+
+  .project-meta{ font-size:12.5px; color:var(--silver); line-height:1.7; margin-bottom:12px; }
+  .project-meta b{ color:var(--off-white); }
+
+  .field{ margin-bottom:10px; }
+  .field label{
+    display:block; font-family:var(--font-mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--silver-dim); margin-bottom:5px;
+  }
+  .field select, .field input, .field textarea{
+    width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
+    padding:9px 11px; font-size:13.5px; font-family:inherit; border-radius:7px;
+  }
+  .field select:focus, .field input:focus, .field textarea:focus{ outline:none; border-color:var(--accent-blue); }
+  .field textarea{ resize:vertical; min-height:52px; }
+  .field.checks{ display:flex; flex-wrap:wrap; gap:14px; }
+  .field.checks label{
+    display:flex; align-items:center; gap:6px; font-family:inherit; text-transform:none;
+    letter-spacing:0; font-size:13px; color:var(--silver); margin-bottom:0;
+  }
+  .field.checks input{ width:auto; }
+
+  .project-card-actions{ display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .save-btn{
+    font-family:var(--font-mono); font-size:12px; padding:9px 18px; border-radius:7px;
+    background:var(--white); color:var(--black); border:none; cursor:pointer;
+  }
+  .save-btn:disabled{ opacity:.5; cursor:default; }
+  .save-status{ font-size:11.5px; color:var(--silver-dim); }
+  .save-status.ok{ color:#7ee0a8; }
+  .save-status.err{ color:#ff8b8b; }
+
+  .empty-state{ text-align:center; color:var(--silver-dim); font-size:13px; padding:40px 20px; }
+
+  .add-btn{
+    display:block; width:100%; font-family:var(--font-mono); font-size:12.5px; padding:12px;
+    border-radius:8px; border:1px dashed var(--line); background:transparent; color:var(--silver);
+    cursor:pointer; margin-bottom:14px;
+  }
+
+  /* ---------- Service form sheet ---------- */
+  .scarls-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end;
+    justify-content:center; z-index:200;
+  }
+  .scarls-overlay.is-open{ display:flex; }
+  .scarls-sheet{
+    width:100%; max-width:640px; max-height:92vh; overflow-y:auto; background:var(--graphite-0);
+    border:1px solid var(--line-soft); border-radius:16px 16px 0 0; padding:18px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+  .sheet-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .sheet-header h2{ font-family:var(--font-display); color:var(--white); font-size:17px; }
+  .sheet-header button{
+    background:transparent; border:none; color:var(--silver); font-size:22px; line-height:1; cursor:pointer;
+    padding:4px 8px;
+  }
+
+  .pkg-row{
+    border:1px solid var(--line-soft); border-radius:9px; padding:10px; margin-bottom:8px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .pkg-row input, .pkg-row textarea{
+    width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
+    padding:8px 10px; font-size:13px; font-family:inherit; border-radius:6px;
+  }
+  .pkg-row textarea{ resize:vertical; min-height:40px; }
+  .pkg-row label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--silver); }
+  .pkg-remove-btn{
+    align-self:flex-start; background:transparent; border:none; color:#ff8b8b; font-family:var(--font-mono);
+    font-size:11px; cursor:pointer; padding:2px 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <h1>SCARLS Admin</h1>
+  <input type="password" id="gatePassword" placeholder="Admin password" autocomplete="current-password">
+  <button type="button" id="gateBtn">Enter</button>
+  <p class="err" id="gateErr"></p>
+</div>
+
+<div id="adminWrap" class="admin-wrap" style="display:none;">
+  <div class="admin-header">
+    <h1 id="sectionTitle">Projects</h1>
+    <span id="projectCount">—</span>
+  </div>
+
+  <div class="section-switch" id="sectionSwitch">
+    <button type="button" data-section="projects" class="active">Projects</button>
+    <button type="button" data-section="assessments">Assessments</button>
+    <button type="button" data-section="budget">Budget Requests</button>
+    <button type="button" data-section="aiquotes">AI Quotes</button>
+    <button type="button" data-section="catalog">Catalog</button>
+  </div>
+
+  <div id="projectsSection">
+    <div class="tabs" id="tabs"></div>
+    <div id="projectList"></div>
+  </div>
+
+  <div id="assessmentsSection" style="display:none;">
+    <div id="assessmentList"></div>
+  </div>
+
+  <div id="budgetSection" style="display:none;">
+    <div id="budgetList"></div>
+  </div>
+
+  <div id="aiquotesSection" style="display:none;">
+    <div id="aiQuoteList"></div>
+  </div>
+
+  <div id="catalogSection" style="display:none;">
+    <button type="button" class="add-btn" id="addServiceBtn">+ Add Service</button>
+    <div class="tabs" id="catTabs"></div>
+    <div id="serviceList"></div>
+  </div>
+</div>
+
+<div class="scarls-overlay" id="serviceFormOverlay">
+  <div class="scarls-sheet" id="serviceFormSheet">
+    <div class="sheet-header">
+      <h2 id="serviceFormTitle">Add Service</h2>
+      <button type="button" id="serviceFormClose" aria-label="Close">&times;</button>
+    </div>
+    <div id="serviceFormBody"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
+  var STATUS_LABELS = { paid: "Paid", in_progress: "In progress", review: "Review", delivered: "Delivered" };
+
+  var gate = document.getElementById('gate');
+  var gatePassword = document.getElementById('gatePassword');
+  var gateBtn = document.getElementById('gateBtn');
+  var gateErr = document.getElementById('gateErr');
+  var adminWrap = document.getElementById('adminWrap');
+  var sectionTitle = document.getElementById('sectionTitle');
+  var countEl = document.getElementById('projectCount');
+
+  var password = sessionStorage.getItem('scarls_admin_pw') || '';
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  /* ============================================================
+     Gate
+     ============================================================ */
+
+  function tryLoad(pw) {
+    fetch(SCARLS_FORM_ENDPOINT + '?action=adminList&password=' + encodeURIComponent(pw))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          gateErr.textContent = (data && data.error) ? data.error : 'Could not load projects.';
+          sessionStorage.removeItem('scarls_admin_pw');
+          return;
+        }
+        password = pw;
+        sessionStorage.setItem('scarls_admin_pw', pw);
+        allProjects = data.projects || [];
+        if (data.statuses && data.statuses.length) statuses = data.statuses;
+        gate.style.display = 'none';
+        adminWrap.style.display = 'block';
+        renderTabs();
+        renderList();
+      })
+      .catch(function () {
+        gateErr.textContent = 'Could not reach the server. Check your connection.';
+      });
+  }
+
+  gateBtn.addEventListener('click', function () {
+    var pw = gatePassword.value.trim();
+    if (!pw) return;
+    gateErr.textContent = '';
+    gateBtn.disabled = true;
+    gateBtn.textContent = 'Checking…';
+    tryLoad(pw);
+    setTimeout(function () { gateBtn.disabled = false; gateBtn.textContent = 'Enter'; }, 1200);
+  });
+  gatePassword.addEventListener('keydown', function (e) { if (e.key === 'Enter') gateBtn.click(); });
+
+  /* ============================================================
+     Section switch
+     ============================================================ */
+
+  var sectionSwitch = document.getElementById('sectionSwitch');
+  var projectsSection = document.getElementById('projectsSection');
+  var assessmentsSection = document.getElementById('assessmentsSection');
+  var budgetSection = document.getElementById('budgetSection');
+  var aiquotesSection = document.getElementById('aiquotesSection');
+  var catalogSection = document.getElementById('catalogSection');
+  var assessmentsLoaded = false;
+  var budgetLoaded = false;
+  var aiQuotesLoaded = false;
+
+  Array.prototype.forEach.call(sectionSwitch.querySelectorAll('button'), function (btn) {
+    btn.addEventListener('click', function () {
+      Array.prototype.forEach.call(sectionSwitch.querySelectorAll('button'), function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var section = btn.getAttribute('data-section');
+      projectsSection.style.display = section === 'projects' ? '' : 'none';
+      assessmentsSection.style.display = section === 'assessments' ? '' : 'none';
+      budgetSection.style.display = section === 'budget' ? '' : 'none';
+      aiquotesSection.style.display = section === 'aiquotes' ? '' : 'none';
+      catalogSection.style.display = section === 'catalog' ? '' : 'none';
+
+      if (section === 'projects') {
+        sectionTitle.textContent = 'Projects';
+        countEl.textContent = allProjects.length + (allProjects.length === 1 ? ' project' : ' projects');
+      } else if (section === 'assessments') {
+        sectionTitle.textContent = 'Assessments';
+        countEl.textContent = allAssessments.length + (allAssessments.length === 1 ? ' assessment' : ' assessments');
+        if (!assessmentsLoaded) loadAssessments();
+      } else if (section === 'budget') {
+        sectionTitle.textContent = 'Budget Requests';
+        countEl.textContent = allBudgetRequests.length + (allBudgetRequests.length === 1 ? ' request' : ' requests');
+        if (!budgetLoaded) loadBudgetRequests();
+      } else if (section === 'aiquotes') {
+        sectionTitle.textContent = 'AI Quotes';
+        countEl.textContent = allAiQuotes.length + (allAiQuotes.length === 1 ? ' quote' : ' quotes');
+        if (!aiQuotesLoaded) loadAiQuotes();
+      } else {
+        sectionTitle.textContent = 'Catalog';
+        countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
+        if (!catalogLoaded) loadCatalog();
+      }
+    });
+  });
+
+  /* ============================================================
+     PROJECTS
+     ============================================================ */
+
+  var tabsEl = document.getElementById('tabs');
+  var listEl = document.getElementById('projectList');
+
+  var allProjects = [];
+  var statuses = ["paid", "in_progress", "review", "delivered"];
+  var activeTab = "all";
+
+  function renderTabs() {
+    var tabs = ["all"].concat(statuses);
+    tabsEl.innerHTML = tabs.map(function (t) {
+      var label = t === "all" ? "All" : (STATUS_LABELS[t] || t);
+      return '<button type="button" data-tab="' + t + '" class="' + (t === activeTab ? 'active' : '') + '">' + escapeHtml(label) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(tabsEl.querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () {
+        activeTab = btn.getAttribute('data-tab');
+        renderTabs();
+        renderList();
+      });
+    });
+  }
+
+  function renderList() {
+    var filtered = activeTab === "all" ? allProjects : allProjects.filter(function (p) { return p.status === activeTab; });
+    countEl.textContent = filtered.length + (filtered.length === 1 ? ' project' : ' projects');
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="empty-state">Nothing here yet.</div>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(function (p) {
+      var statusOptions = statuses.map(function (s) {
+        return '<option value="' + s + '"' + (s === p.status ? ' selected' : '') + '>' + escapeHtml(STATUS_LABELS[s] || s) + '</option>';
+      }).join('');
+
+      return (
+        '<div class="project-card" data-id="' + escapeHtml(p.projectId) + '">' +
+          '<div class="project-card-top">' +
+            '<div>' +
+              '<h3>' + escapeHtml(p.fullName) + (p.businessName ? ' · ' + escapeHtml(p.businessName) : '') + '</h3>' +
+              '<p>' + escapeHtml(p.serviceName) + (p.packageName ? ' — ' + escapeHtml(p.packageName) : '') + '</p>' +
+            '</div>' +
+            '<span class="badge ' + escapeHtml(p.status) + '">' + escapeHtml(STATUS_LABELS[p.status] || p.status) + '</span>' +
+          '</div>' +
+          '<div class="project-meta">' +
+            '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (p.pricingModel === 'subscription' ? '/mo' : '') + '<br>' +
+            escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) + '<br>' +
+            'Ref: ' + escapeHtml(p.orderReference) +
+          '</div>' +
+          '<div class="field"><label>Status</label><select class="f-status">' + statusOptions + '</select></div>' +
+          '<div class="field"><label>Assigned to</label><input class="f-assignedTo" type="text" value="' + escapeHtml(p.assignedTo || '') + '" placeholder="Intern / team member name"></div>' +
+          '<div class="field"><label>Due date</label><input class="f-dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : '') + '"></div>' +
+          '<div class="field"><label>Delivery link</label><input class="f-deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || '') + '" placeholder="Link to the finished work"></div>' +
+          '<div class="field"><label>Notes</label><textarea class="f-notes" placeholder="Internal notes">' + escapeHtml(p.notes || '') + '</textarea></div>' +
+          '<div class="project-card-actions">' +
+            '<button type="button" class="save-btn">Save</button>' +
+            '<span class="save-status"></span>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(listEl.querySelectorAll('.project-card'), function (card) {
+      var saveBtn = card.querySelector('.save-btn');
+      var saveStatus = card.querySelector('.save-status');
+      saveBtn.addEventListener('click', function () {
+        var projectId = card.getAttribute('data-id');
+        var payload = {
+          action: 'adminUpdateProject',
+          password: password,
+          projectId: projectId,
+          status: card.querySelector('.f-status').value,
+          assignedTo: card.querySelector('.f-assignedTo').value.trim(),
+          dueDate: card.querySelector('.f-dueDate').value,
+          deliveryLink: card.querySelector('.f-deliveryLink').value.trim(),
+          notes: card.querySelector('.f-notes').value.trim()
+        };
+        saveBtn.disabled = true;
+        saveStatus.textContent = 'Saving…';
+        saveStatus.className = 'save-status';
+
+        fetch(SCARLS_FORM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            saveBtn.disabled = false;
+            if (data && data.ok) {
+              saveStatus.textContent = 'Saved';
+              saveStatus.className = 'save-status ok';
+              var local = allProjects.filter(function (p) { return p.projectId === projectId; })[0];
+              if (local) {
+                local.status = payload.status; local.assignedTo = payload.assignedTo;
+                local.dueDate = payload.dueDate; local.deliveryLink = payload.deliveryLink; local.notes = payload.notes;
+              }
+            } else {
+              saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
+              saveStatus.className = 'save-status err';
+            }
+          })
+          .catch(function () {
+            saveBtn.disabled = false;
+            saveStatus.textContent = 'Network error — try again.';
+            saveStatus.className = 'save-status err';
+          });
+      });
+    });
+  }
+
+  /* ============================================================
+     ASSESSMENTS — human review queue (spec §12/§13)
+     ============================================================ */
+
+  var assessmentListEl = document.getElementById('assessmentList');
+  var allAssessments = [];
+  var CONFIDENCE_LABELS = { qualified: 'Qualified', needs_more_information: 'Needs More Info', human_review_required: 'Human Review Required' };
+  var DECISION_LABELS = { approved: 'Approved', changes_required: 'Changes Required', modified: 'Modified', rejected: 'Rejected' };
+
+  function loadAssessments() {
+    assessmentListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListAssessments&password=' + encodeURIComponent(password))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          assessmentListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load assessments.') + '</div>';
+          return;
+        }
+        assessmentsLoaded = true;
+        allAssessments = data.assessments || [];
+        countEl.textContent = allAssessments.length + (allAssessments.length === 1 ? ' assessment' : ' assessments');
+        renderAssessmentList();
+      })
+      .catch(function () {
+        assessmentListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
+      });
+  }
+
+  function renderAssessmentList() {
+    if (!allAssessments.length) {
+      assessmentListEl.innerHTML = '<div class="empty-state">No completed assessments yet.</div>';
+      return;
+    }
+
+    assessmentListEl.innerHTML = allAssessments.map(function (a) {
+      var decisionOptions = ['', 'approved', 'changes_required', 'modified', 'rejected'].map(function (d) {
+        var label = d ? DECISION_LABELS[d] : 'No decision yet';
+        return '<option value="' + d + '"' + (d === a.adminDecision ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+      }).join('');
+
+      return (
+        '<div class="project-card" data-token="' + escapeHtml(a.token) + '">' +
+          '<div class="project-card-top">' +
+            '<div>' +
+              '<h3>' + escapeHtml(a.fullName) + (a.businessName ? ' · ' + escapeHtml(a.businessName) : '') + '</h3>' +
+              '<p>' + escapeHtml(a.recommendedServices.join(', ') || 'No recommendation yet') + '</p>' +
+            '</div>' +
+            '<span class="badge ' + escapeHtml(a.confidenceState) + '">' + escapeHtml(CONFIDENCE_LABELS[a.confidenceState] || a.confidenceState) + '</span>' +
+          '</div>' +
+          (a.escalationReason ? '<div class="project-meta"><b>Why it was escalated:</b><br>' + escapeHtml(a.escalationReason) + '</div>' : '') +
+          '<div class="project-meta">' +
+            (a.mainProblem ? '<b>Main problem:</b> ' + escapeHtml(a.mainProblem) + '<br>' : '') +
+            (a.reason ? '<b>Reasoning:</b> ' + escapeHtml(a.reason) + '<br>' : '') +
+            'Budget: ' + escapeHtml(a.clientBudget || '—') + ' · Timeline: ' + escapeHtml(a.timeline || '—') + '<br>' +
+            escapeHtml(a.email) + (a.whatsapp ? ' · ' + escapeHtml(a.whatsapp) : '') +
+          '</div>' +
+          '<div class="field"><label>Decision</label><select class="f-decision">' + decisionOptions + '</select></div>' +
+          '<div class="field"><label>Internal notes</label><textarea class="f-adminNotes" placeholder="Internal notes">' + escapeHtml(a.adminNotes || '') + '</textarea></div>' +
+          '<div class="field"><label>Message to client (optional — used for Changes Required / Rejected emails)</label><textarea class="f-customerMessage" placeholder="Leave blank to use the default message"></textarea></div>' +
+          '<div class="project-card-actions">' +
+            '<button type="button" class="save-btn">Save Decision</button>' +
+            '<span class="save-status"></span>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(assessmentListEl.querySelectorAll('.project-card'), function (card) {
+      var saveBtn = card.querySelector('.save-btn');
+      var saveStatus = card.querySelector('.save-status');
+      saveBtn.addEventListener('click', function () {
+        var token = card.getAttribute('data-token');
+        var decision = card.querySelector('.f-decision').value;
+        if (!decision) {
+          saveStatus.textContent = 'Choose a decision first.';
+          saveStatus.className = 'save-status err';
+          return;
+        }
+        var payload = {
+          action: 'adminUpdateAssessmentDecision',
+          password: password,
+          token: token,
+          decision: decision,
+          notes: card.querySelector('.f-adminNotes').value.trim(),
+          customerMessage: card.querySelector('.f-customerMessage').value.trim()
+        };
+        saveBtn.disabled = true;
+        saveStatus.textContent = 'Saving…';
+        saveStatus.className = 'save-status';
+
+        fetch(SCARLS_FORM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            saveBtn.disabled = false;
+            if (data && data.ok) {
+              saveStatus.textContent = 'Saved';
+              saveStatus.className = 'save-status ok';
+              var local = allAssessments.filter(function (a) { return a.token === token; })[0];
+              if (local) { local.adminDecision = decision; local.adminNotes = payload.notes; }
+            } else {
+              saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
+              saveStatus.className = 'save-status err';
+            }
+          })
+          .catch(function () {
+            saveBtn.disabled = false;
+            saveStatus.textContent = 'Network error — try again.';
+            saveStatus.className = 'save-status err';
+          });
+      });
+    });
+  }
+
+  /* ============================================================
+     BUDGET REQUESTS — Phase 5 budget-gated assessment queue
+     ============================================================ */
+
+  var budgetListEl = document.getElementById('budgetList');
+  var allBudgetRequests = [];
+  var BUDGET_STATUS_LABELS = {
+    in_progress: 'Chat in progress', awaiting_admin: 'Awaiting Decision',
+    approved: 'Approved', rejected: 'Rejected', below_minimum: 'Below Minimum (auto)'
+  };
+
+  function loadBudgetRequests() {
+    budgetListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListBudgetRequests&password=' + encodeURIComponent(password))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          budgetListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load budget requests.') + '</div>';
+          return;
+        }
+        budgetLoaded = true;
+        allBudgetRequests = data.requests || [];
+        countEl.textContent = allBudgetRequests.length + (allBudgetRequests.length === 1 ? ' request' : ' requests');
+        renderBudgetList();
+      })
+      .catch(function () {
+        budgetListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
+      });
+  }
+
+  function renderBudgetList() {
+    if (!allBudgetRequests.length) {
+      budgetListEl.innerHTML = '<div class="empty-state">No budget requests yet.</div>';
+      return;
+    }
+
+    budgetListEl.innerHTML = allBudgetRequests.map(function (r) {
+      var amountLabel = r.proposedAmount ? ('₦' + Number(r.proposedAmount).toLocaleString() + '/' + (r.proposedPeriod || '')) : '—';
+      var canDecide = r.status === 'awaiting_admin';
+
+      return (
+        '<div class="project-card" data-token="' + escapeHtml(r.token) + '">' +
+          '<div class="project-card-top">' +
+            '<div>' +
+              '<h3>' + escapeHtml(r.fullName) + '</h3>' +
+              '<p>' + escapeHtml(r.serviceName) + '</p>' +
+            '</div>' +
+            '<span class="badge ' + escapeHtml(r.status) + '">' + escapeHtml(BUDGET_STATUS_LABELS[r.status] || r.status) + '</span>' +
+          '</div>' +
+          '<div class="project-meta">' +
+            '<b>Proposed budget:</b> ' + escapeHtml(amountLabel) + '<br>' +
+            escapeHtml(r.email) + (r.whatsapp ? ' · ' + escapeHtml(r.whatsapp) : '') +
+            (r.decisionBy ? '<br>Decided by ' + escapeHtml(r.decisionBy) : '') +
+          '</div>' +
+          (canDecide ?
+            '<div class="project-card-actions">' +
+              '<button type="button" class="save-btn decide-btn" data-decision="approved">Approve</button>' +
+              '<button type="button" class="save-btn decide-btn" data-decision="rejected" style="background:transparent;color:#ff8b8b;border:1px solid #4a2222;">Reject</button>' +
+              '<span class="save-status"></span>' +
+            '</div>'
+            : '') +
+        '</div>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(budgetListEl.querySelectorAll('.project-card'), function (card) {
+      var saveStatus = card.querySelector('.save-status');
+      Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (btn) {
+        btn.addEventListener('click', function () {
+          var token = card.getAttribute('data-token');
+          var decision = btn.getAttribute('data-decision');
+          Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = true; });
+          if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
+
+          fetch(SCARLS_FORM_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'adminBudgetDecision', password: password, token: token, decision: decision })
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
+              if (data && data.ok) {
+                var local = allBudgetRequests.filter(function (r) { return r.token === token; })[0];
+                if (local) { local.status = decision; local.decisionBy = 'admin'; }
+                renderBudgetList();
+              } else if (saveStatus) {
+                saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
+                saveStatus.className = 'save-status err';
+              }
+            })
+            .catch(function () {
+              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
+              if (saveStatus) { saveStatus.textContent = 'Network error — try again.'; saveStatus.className = 'save-status err'; }
+            });
+        });
+      });
+    });
+  }
+
+  /* ============================================================
+     AI QUOTES
+     ============================================================ */
+
+  var aiQuoteListEl = document.getElementById('aiQuoteList');
+  var allAiQuotes = [];
+  var AI_QUOTE_STATUS_LABELS = {
+    in_progress: 'Chat in progress', awaiting_admin: 'Awaiting Decision',
+    ready_for_checkout: 'Approved', rejected: 'Rejected'
+  };
+
+  function loadAiQuotes() {
+    aiQuoteListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListAiQuotes&password=' + encodeURIComponent(password))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          aiQuoteListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load AI quotes.') + '</div>';
+          return;
+        }
+        aiQuotesLoaded = true;
+        allAiQuotes = data.quotes || [];
+        countEl.textContent = allAiQuotes.length + (allAiQuotes.length === 1 ? ' quote' : ' quotes');
+        renderAiQuoteList();
+      })
+      .catch(function () {
+        aiQuoteListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
+      });
+  }
+
+  function renderAiQuoteList() {
+    if (!allAiQuotes.length) {
+      aiQuoteListEl.innerHTML = '<div class="empty-state">No AI quotes yet.</div>';
+      return;
+    }
+
+    aiQuoteListEl.innerHTML = allAiQuotes.map(function (q) {
+      var totalLabel = q.totalNaira ? ('₦' + Number(q.totalNaira).toLocaleString()) : '—';
+      var daysLabel = q.days ? (q.days + ' day' + (Number(q.days) === 1 ? '' : 's')) : '—';
+      var canDecide = q.status === 'awaiting_admin';
+
+      return (
+        '<div class="project-card" data-token="' + escapeHtml(q.token) + '">' +
+          '<div class="project-card-top">' +
+            '<div>' +
+              '<h3>' + escapeHtml(q.fullName) + '</h3>' +
+              '<p>' + escapeHtml(q.serviceName) + '</p>' +
+            '</div>' +
+            '<span class="badge ' + escapeHtml(q.status) + '">' + escapeHtml(AI_QUOTE_STATUS_LABELS[q.status] || q.status) + '</span>' +
+          '</div>' +
+          '<div class="project-meta">' +
+            '<b>Drafted:</b> ' + escapeHtml(totalLabel) + ' for ' + escapeHtml(daysLabel) +
+            (q.dailyAdSpend ? ' (₦' + Number(q.dailyAdSpend).toLocaleString() + '/day + ₦' + Number(q.feeNaira || 0).toLocaleString() + ' fee)' : '') + '<br>' +
+            (q.escalationReason ? '<b>Flagged:</b> ' + escapeHtml(q.escalationReason) + '<br>' : '') +
+            escapeHtml(q.email) + (q.whatsapp ? ' · ' + escapeHtml(q.whatsapp) : '') +
+            (q.decisionBy ? '<br>Decided by ' + escapeHtml(q.decisionBy) : '') +
+          '</div>' +
+          (canDecide ?
+            '<div class="field"><label>Days</label><input class="q-days" type="number" value="' + escapeHtml(q.days || '') + '"></div>' +
+            '<div class="field"><label>Daily ad spend (₦)</label><input class="q-daily" type="number" value="' + escapeHtml(q.dailyAdSpend || '') + '"></div>' +
+            '<div class="field"><label>Fee (₦)</label><input class="q-fee" type="number" value="' + escapeHtml(q.feeNaira || '') + '"></div>' +
+            '<div class="field"><label>Total (₦) — leave blank to auto-sum days×daily+fee</label><input class="q-total" type="number" value="' + escapeHtml(q.totalNaira || '') + '"></div>' +
+            '<div class="project-card-actions">' +
+              '<button type="button" class="save-btn decide-btn" data-decision="approved">Approve</button>' +
+              '<button type="button" class="save-btn decide-btn" data-decision="rejected" style="background:transparent;color:#ff8b8b;border:1px solid #4a2222;">Reject</button>' +
+              '<span class="save-status"></span>' +
+            '</div>'
+            : '') +
+        '</div>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(aiQuoteListEl.querySelectorAll('.project-card'), function (card) {
+      var saveStatus = card.querySelector('.save-status');
+      Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (btn) {
+        btn.addEventListener('click', function () {
+          var token = card.getAttribute('data-token');
+          var decision = btn.getAttribute('data-decision');
+          var payload = { action: 'adminAiQuoteDecision', password: password, token: token, decision: decision };
+
+          if (decision === 'approved') {
+            var days = card.querySelector('.q-days').value;
+            var daily = card.querySelector('.q-daily').value;
+            var fee = card.querySelector('.q-fee').value;
+            var total = card.querySelector('.q-total').value;
+            if (days) payload.days = Number(days);
+            if (daily) payload.dailyAdSpend = Number(daily);
+            if (fee) payload.feeNaira = Number(fee);
+            if (total) payload.totalNaira = Number(total);
+          }
+
+          Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = true; });
+          if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
+
+          fetch(SCARLS_FORM_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
+              if (data && data.ok) {
+                loadAiQuotes();
+              } else if (saveStatus) {
+                saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
+                saveStatus.className = 'save-status err';
+              }
+            })
+            .catch(function () {
+              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
+              if (saveStatus) { saveStatus.textContent = 'Network error — try again.'; saveStatus.className = 'save-status err'; }
+            });
+        });
+      });
+    });
+  }
+
+  /* ============================================================
+     CATALOG
+     ============================================================ */
+
+  var catTabsEl = document.getElementById('catTabs');
+  var serviceListEl = document.getElementById('serviceList');
+  var addServiceBtn = document.getElementById('addServiceBtn');
+
+  var serviceFormOverlay = document.getElementById('serviceFormOverlay');
+  var serviceFormBody = document.getElementById('serviceFormBody');
+  var serviceFormTitle = document.getElementById('serviceFormTitle');
+  var serviceFormClose = document.getElementById('serviceFormClose');
+
+  var catalogData = { categories: [], services: [] };
+  var catalogLoaded = false;
+  var currentCatTab = 'all';
+  var editingServiceId = null;
+  var pkgRows = [];
+
+  function loadCatalog() {
+    serviceListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListCatalog&password=' + encodeURIComponent(password))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          serviceListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load catalog.') + '</div>';
+          return;
+        }
+        catalogData = { categories: data.categories || [], services: data.services || [] };
+        catalogLoaded = true;
+        countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
+        renderCatTabs();
+        renderServiceList();
+      })
+      .catch(function () {
+        serviceListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
+      });
+  }
+
+  function renderCatTabs() {
+    var cats = catalogData.categories.slice().sort(function (a, b) { return a.order - b.order; });
+    var tabs = [{ id: 'all', name: 'All' }].concat(cats);
+    catTabsEl.innerHTML = tabs.map(function (c) {
+      return '<button type="button" data-cat="' + escapeHtml(c.id) + '" class="' + (c.id === currentCatTab ? 'active' : '') + '">' + escapeHtml(c.name) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(catTabsEl.querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () {
+        currentCatTab = btn.getAttribute('data-cat');
+        renderCatTabs();
+        renderServiceList();
+      });
+    });
+  }
+
+  function renderServiceList() {
+    var list = currentCatTab === 'all' ? catalogData.services : catalogData.services.filter(function (s) { return s.category_id === currentCatTab; });
+    list = list.slice().sort(function (a, b) { return a.order - b.order; });
+
+    if (!list.length) {
+      serviceListEl.innerHTML = '<div class="empty-state">No services here yet.</div>';
+      return;
+    }
+
+    serviceListEl.innerHTML = list.map(function (s) {
+      var catName = (catalogData.categories.filter(function (c) { return c.id === s.category_id; })[0] || {}).name || s.category_id;
+      var flags = '';
+      if (!s.active) flags += '<span class="badge">Inactive</span>';
+      if (s.coming_soon) flags += '<span class="badge">Coming Soon</span>';
+      if (s.featured) flags += '<span class="badge paid">Featured</span>';
+      if (s.requires_consultation) flags += '<span class="badge">Consultation Required</span>';
+      if (s.requires_ai_quote) flags += '<span class="badge">AI Quote</span>';
+      return (
+        '<div class="project-card" data-id="' + escapeHtml(s.id) + '">' +
+          '<div class="project-card-top">' +
+            '<div><h3>' + escapeHtml(s.name) + '</h3><p>' + escapeHtml(catName) + ' · ' + escapeHtml(s.price_label || '') + '</p></div>' +
+            '<div>' + flags + '</div>' +
+          '</div>' +
+          '<div class="project-card-actions">' +
+            '<button type="button" class="save-btn svc-edit-btn">Edit</button>' +
+            '<button type="button" class="save-btn svc-delete-btn" style="background:#3a1f1f;color:#ff8b8b;">Delete</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(serviceListEl.querySelectorAll('.project-card'), function (card) {
+      var id = card.getAttribute('data-id');
+      card.querySelector('.svc-edit-btn').addEventListener('click', function () { openServiceForm(id); });
+      card.querySelector('.svc-delete-btn').addEventListener('click', function () { deleteService(id); });
+    });
+  }
+
+  function deleteService(id) {
+    var svc = catalogData.services.filter(function (s) { return s.id === id; })[0];
+    if (!confirm('Delete "' + (svc ? svc.name : id) + '"? This cannot be undone.')) return;
+
+    fetch(SCARLS_FORM_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'adminDeleteService', password: password, id: id })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.ok) {
+          catalogData.services = catalogData.services.filter(function (s) { return s.id !== id; });
+          countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
+          renderServiceList();
+        } else {
+          alert((data && data.error) || 'Could not delete service.');
+        }
+      })
+      .catch(function () { alert('Network error — try again.'); });
+  }
+
+  function linesToArray(str) {
+    return str.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  function openServiceForm(id) {
+    editingServiceId = id || null;
+    var svc = id ? catalogData.services.filter(function (s) { return s.id === id; })[0] : null;
+    serviceFormTitle.textContent = svc ? 'Edit Service' : 'Add Service';
+
+    var catOptions = catalogData.categories.slice().sort(function (a, b) { return a.order - b.order; }).map(function (c) {
+      return '<option value="' + escapeHtml(c.id) + '"' + (svc && svc.category_id === c.id ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
+    }).join('');
+
+    var pricingModels = ['one_time', 'subscription', 'both', 'custom'];
+    var pricingOptions = pricingModels.map(function (m) {
+      return '<option value="' + m + '"' + (svc && svc.pricing_model === m ? ' selected' : '') + '>' + m + '</option>';
+    }).join('');
+
+    serviceFormBody.innerHTML =
+      '<div class="field"><label>Name</label><input id="f_name" type="text" value="' + escapeHtml(svc ? svc.name : '') + '"></div>' +
+      '<div class="field"><label>Category</label><select id="f_category">' + catOptions + '</select></div>' +
+      '<div class="field"><label>Short description</label><textarea id="f_short">' + escapeHtml(svc ? svc.short_description : '') + '</textarea></div>' +
+      '<div class="field"><label>Full description</label><textarea id="f_full">' + escapeHtml(svc ? svc.full_description : '') + '</textarea></div>' +
+      '<div class="field"><label>Who it&#39;s for</label><textarea id="f_wholeFor">' + escapeHtml(svc ? svc.who_for : '') + '</textarea></div>' +
+      '<div class="field"><label>Included (one per line)</label><textarea id="f_included">' + escapeHtml(((svc && svc.included) || []).join('\n')) + '</textarea></div>' +
+      '<div class="field"><label>Excluded (one per line)</label><textarea id="f_excluded">' + escapeHtml(((svc && svc.excluded) || []).join('\n')) + '</textarea></div>' +
+      '<div class="field"><label>Deliverables (one per line)</label><textarea id="f_deliverables">' + escapeHtml(((svc && svc.deliverables) || []).join('\n')) + '</textarea></div>' +
+      '<div class="field"><label>Requirements (one per line)</label><textarea id="f_requirements">' + escapeHtml(((svc && svc.requirements) || []).join('\n')) + '</textarea></div>' +
+      '<div class="field"><label>Pricing model</label><select id="f_pricingModel">' + pricingOptions + '</select></div>' +
+      '<div class="field"><label>Starting price (₦, one-time)</label><input id="f_startingPrice" type="number" value="' + ((svc && svc.starting_price != null) ? svc.starting_price : '') + '"></div>' +
+      '<div class="field"><label>Price label (one-time)</label><input id="f_priceLabel" type="text" value="' + escapeHtml(svc ? svc.price_label : '') + '" placeholder="e.g. ₦20,000"></div>' +
+      '<div class="field"><label>Subscription price (₦/mo)</label><input id="f_subPrice" type="number" value="' + ((svc && svc.subscription_price != null) ? svc.subscription_price : '') + '"></div>' +
+      '<div class="field"><label>Subscription label</label><input id="f_subLabel" type="text" value="' + escapeHtml(svc ? svc.subscription_label : '') + '" placeholder="e.g. ₦50,000/mo"></div>' +
+      '<div class="field"><label>Delivery time</label><input id="f_delivery" type="text" value="' + escapeHtml(svc ? svc.delivery_time : '') + '"></div>' +
+      '<div class="field"><label>Order (sort position)</label><input id="f_order" type="number" value="' + ((svc && svc.order != null) ? svc.order : 99) + '"></div>' +
+      '<div class="field checks">' +
+        '<label><input type="checkbox" id="f_active"' + (!svc || svc.active ? ' checked' : '') + '> Active</label>' +
+        '<label><input type="checkbox" id="f_featured"' + (svc && svc.featured ? ' checked' : '') + '> Featured</label>' +
+        '<label><input type="checkbox" id="f_comingSoon"' + (svc && svc.coming_soon ? ' checked' : '') + '> Coming soon</label>' +
+        '<label><input type="checkbox" id="f_requiresConsultation"' + (svc && svc.requires_consultation ? ' checked' : '') + '> Requires SCARLS consultation before checkout</label>' +
+        '<label><input type="checkbox" id="f_requiresBudgetCheck"' + (svc && svc.requires_budget_check ? ' checked' : '') + '> Requires budget check before checkout</label>' +
+        '<label><input type="checkbox" id="f_requiresAiQuote"' + (svc && svc.requires_ai_quote ? ' checked' : '') + '> AI drafts a custom ad-budget quote (instead of a fixed price)</label>' +
+      '</div>' +
+      '<div class="field" id="budgetFields" style="' + (svc && svc.requires_budget_check ? '' : 'display:none;') + '">' +
+        '<label>Minimum budget (₦)</label><input id="f_minBudget" type="number" value="' + ((svc && svc.min_budget != null) ? svc.min_budget : '') + '">' +
+        '<label style="margin-top:8px;">Minimum budget period</label>' +
+        '<select id="f_minBudgetPeriod">' +
+          ['daily', 'weekly', 'monthly', 'total'].map(function (p) {
+            return '<option value="' + p + '"' + (svc && svc.min_budget_period === p ? ' selected' : '') + '>' + p + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      '<div class="field" id="quoteFields" style="' + (svc && svc.requires_ai_quote ? '' : 'display:none;') + '">' +
+        '<label>Cost per lead assumption (₦)</label><input id="f_quoteCpl" type="number" value="' + ((svc && svc.quote_cpl_naira != null) ? svc.quote_cpl_naira : 100) + '">' +
+        '<label style="margin-top:8px;">Target leads/day (min–max)</label>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<input id="f_quoteLeadsMin" type="number" placeholder="Min" value="' + ((svc && svc.quote_leads_min_per_day != null) ? svc.quote_leads_min_per_day : 25) + '">' +
+          '<input id="f_quoteLeadsMax" type="number" placeholder="Max" value="' + ((svc && svc.quote_leads_max_per_day != null) ? svc.quote_leads_max_per_day : 30) + '">' +
+        '</div>' +
+        '<label style="margin-top:8px;">Minimum daily ad spend (₦)</label><input id="f_quoteMinDaily" type="number" value="' + ((svc && svc.quote_min_daily_spend != null) ? svc.quote_min_daily_spend : '') + '">' +
+        '<label style="margin-top:8px;">Auto-quote up to this many days (longer → admin review)</label><input id="f_quoteMaxDays" type="number" value="' + ((svc && svc.quote_max_auto_days != null) ? svc.quote_max_auto_days : 30) + '">' +
+        '<label style="margin-top:8px;">Auto-quote up to this total ₦ (blank = no ceiling, higher → admin review)</label><input id="f_quoteMaxTotal" type="number" value="' + ((svc && svc.quote_max_auto_total_naira != null) ? svc.quote_max_auto_total_naira : '') + '">' +
+        '<label style="margin-top:8px;">SCARLS fee tiers — one per line, "maxDailySpend:fee"</label>' +
+        '<textarea id="f_quoteFeeTiers" placeholder="5000:2000&#10;15000:3500&#10;999999999:5000">' + escapeHtml(svc ? svc.quote_fee_tiers : '') + '</textarea>' +
+        '<p style="font-size:11.5px;color:var(--silver-dim);margin-top:4px;">This fee is added to the ad spend total silently — the client only ever sees one final number.</p>' +
+      '</div>' +
+      '<div class="field"><label>Packages</label><div id="pkgList"></div>' +
+        '<button type="button" class="save-btn" id="addPkgBtn" style="margin-top:6px;background:transparent;color:var(--silver);border:1px dashed var(--line);">+ Add package</button></div>' +
+      '<div class="project-card-actions">' +
+        '<button type="button" class="save-btn" id="serviceSaveBtn">Save</button>' +
+        '<span class="save-status" id="serviceSaveStatus"></span>' +
+      '</div>';
+
+    renderPkgList(svc ? svc.packages : []);
+    document.getElementById('addPkgBtn').addEventListener('click', function () { addPkgRow(); });
+    document.getElementById('serviceSaveBtn').addEventListener('click', saveServiceForm);
+    document.getElementById('f_requiresBudgetCheck').addEventListener('change', function (e) {
+      document.getElementById('budgetFields').style.display = e.target.checked ? '' : 'none';
+    });
+    document.getElementById('f_requiresAiQuote').addEventListener('change', function (e) {
+      document.getElementById('quoteFields').style.display = e.target.checked ? '' : 'none';
+    });
+
+    serviceFormOverlay.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function renderPkgList(packages) {
+    pkgRows = (packages || []).slice();
+    var pkgListEl = document.getElementById('pkgList');
+    pkgListEl.innerHTML = pkgRows.map(function (p) {
+      return (
+        '<div class="pkg-row">' +
+          '<input class="p-name" type="text" placeholder="Package name" value="' + escapeHtml(p.name || '') + '">' +
+          '<input class="p-price" type="number" placeholder="Price ₦" value="' + (p.price != null ? p.price : '') + '">' +
+          '<input class="p-label" type="text" placeholder="Price label" value="' + escapeHtml(p.price_label || '') + '">' +
+          '<textarea class="p-desc" placeholder="Description">' + escapeHtml(p.description || '') + '</textarea>' +
+          '<textarea class="p-features" placeholder="Features, one per line">' + escapeHtml((p.features || []).join('\n')) + '</textarea>' +
+          '<input class="p-delivery" type="text" placeholder="Delivery time" value="' + escapeHtml(p.delivery_time || '') + '">' +
+          '<label><input class="p-recommended" type="checkbox"' + (p.recommended ? ' checked' : '') + '> Recommended</label>' +
+          '<button type="button" class="pkg-remove-btn">Remove</button>' +
+        '</div>'
+      );
+    }).join('');
+    Array.prototype.forEach.call(pkgListEl.querySelectorAll('.pkg-row'), function (row, idx) {
+      row.querySelector('.pkg-remove-btn').addEventListener('click', function () {
+        pkgRows.splice(idx, 1);
+        renderPkgList(pkgRows);
+      });
+    });
+  }
+
+  function addPkgRow() {
+    pkgRows.push({ name: '', price: null, price_label: '', description: '', features: [], delivery_time: '', recommended: false, active: true });
+    renderPkgList(pkgRows);
+  }
+
+  function collectPkgRows() {
+    var rows = document.querySelectorAll('#pkgList .pkg-row');
+    return Array.prototype.map.call(rows, function (row) {
+      return {
+        name: row.querySelector('.p-name').value.trim(),
+        price: row.querySelector('.p-price').value ? Number(row.querySelector('.p-price').value) : null,
+        price_label: row.querySelector('.p-label').value.trim(),
+        description: row.querySelector('.p-desc').value.trim(),
+        features: linesToArray(row.querySelector('.p-features').value),
+        delivery_time: row.querySelector('.p-delivery').value.trim(),
+        recommended: row.querySelector('.p-recommended').checked,
+        active: true
+      };
+    }).filter(function (p) { return p.name; });
+  }
+
+  function saveServiceForm() {
+    var saveBtn = document.getElementById('serviceSaveBtn');
+    var saveStatus = document.getElementById('serviceSaveStatus');
+
+    var name = document.getElementById('f_name').value.trim();
+    var category_id = document.getElementById('f_category').value;
+    if (!name || !category_id) {
+      saveStatus.textContent = 'Name and category are required.';
+      saveStatus.className = 'save-status err';
+      return;
+    }
+
+    var svcPayload = {
+      id: editingServiceId || undefined,
+      name: name, category_id: category_id,
+      short_description: document.getElementById('f_short').value.trim(),
+      full_description: document.getElementById('f_full').value.trim(),
+      who_for: document.getElementById('f_wholeFor').value.trim(),
+      included: linesToArray(document.getElementById('f_included').value),
+      excluded: linesToArray(document.getElementById('f_excluded').value),
+      deliverables: linesToArray(document.getElementById('f_deliverables').value),
+      requirements: linesToArray(document.getElementById('f_requirements').value),
+      pricing_model: document.getElementById('f_pricingModel').value,
+      starting_price: document.getElementById('f_startingPrice').value ? Number(document.getElementById('f_startingPrice').value) : null,
+      price_label: document.getElementById('f_priceLabel').value.trim(),
+      subscription_price: document.getElementById('f_subPrice').value ? Number(document.getElementById('f_subPrice').value) : null,
+      subscription_label: document.getElementById('f_subLabel').value.trim(),
+      delivery_time: document.getElementById('f_delivery').value.trim(),
+      order: document.getElementById('f_order').value ? Number(document.getElementById('f_order').value) : 99,
+      active: document.getElementById('f_active').checked,
+      featured: document.getElementById('f_featured').checked,
+      coming_soon: document.getElementById('f_comingSoon').checked,
+      requires_consultation: document.getElementById('f_requiresConsultation').checked,
+      requires_budget_check: document.getElementById('f_requiresBudgetCheck').checked,
+      min_budget: document.getElementById('f_minBudget').value ? Number(document.getElementById('f_minBudget').value) : null,
+      min_budget_period: document.getElementById('f_minBudgetPeriod').value,
+      requires_ai_quote: document.getElementById('f_requiresAiQuote').checked,
+      quote_cpl_naira: document.getElementById('f_quoteCpl').value ? Number(document.getElementById('f_quoteCpl').value) : null,
+      quote_leads_min_per_day: document.getElementById('f_quoteLeadsMin').value ? Number(document.getElementById('f_quoteLeadsMin').value) : null,
+      quote_leads_max_per_day: document.getElementById('f_quoteLeadsMax').value ? Number(document.getElementById('f_quoteLeadsMax').value) : null,
+      quote_min_daily_spend: document.getElementById('f_quoteMinDaily').value ? Number(document.getElementById('f_quoteMinDaily').value) : null,
+      quote_max_auto_days: document.getElementById('f_quoteMaxDays').value ? Number(document.getElementById('f_quoteMaxDays').value) : null,
+      quote_max_auto_total_naira: document.getElementById('f_quoteMaxTotal').value ? Number(document.getElementById('f_quoteMaxTotal').value) : null,
+      quote_fee_tiers: document.getElementById('f_quoteFeeTiers').value.trim(),
+      packages: collectPkgRows()
+    };
+
+    saveBtn.disabled = true;
+    saveStatus.textContent = 'Saving…';
+    saveStatus.className = 'save-status';
+
+    fetch(SCARLS_FORM_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'adminSaveService', password: password, service: svcPayload })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        saveBtn.disabled = false;
+        if (data && data.ok) {
+          saveStatus.textContent = 'Saved';
+          saveStatus.className = 'save-status ok';
+          setTimeout(function () {
+            closeServiceForm();
+            loadCatalog();
+          }, 400);
+        } else {
+          saveStatus.textContent = (data && data.error) || 'Could not save.';
+          saveStatus.className = 'save-status err';
+        }
+      })
+      .catch(function () {
+        saveBtn.disabled = false;
+        saveStatus.textContent = 'Network error — try again.';
+        saveStatus.className = 'save-status err';
+      });
+  }
+
+  function closeServiceForm() {
+    serviceFormOverlay.classList.remove('is-open');
+    document.body.style.overflow = '';
+    editingServiceId = null;
+  }
+
+  addServiceBtn.addEventListener('click', function () { openServiceForm(null); });
+  serviceFormClose.addEventListener('click', closeServiceForm);
+  serviceFormOverlay.addEventListener('click', function (e) { if (e.target === serviceFormOverlay) closeServiceForm(); });
+
+  if (password) tryLoad(password);
+})();
+</script>
+</body>
+</html>

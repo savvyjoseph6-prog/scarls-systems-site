@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Your Project Assessment — SCARLS SYSTEMS</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/scarls-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html,body{ height:100%; overscroll-behavior:none; }
+
+  .chat-app{
+    display:flex; flex-direction:column;
+    height:100svh; height:100dvh;
+    background:var(--black);
+  }
+
+  /* ---------- Header ---------- */
+  .chat-header{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:14px 18px;
+    border-bottom:1px solid var(--line-soft);
+    background:var(--graphite-0);
+  }
+  .chat-header-brand{ display:flex; align-items:center; gap:9px; min-width:0; }
+  .chat-header-brand img{ width:24px; height:24px; flex:0 0 auto; }
+  .chat-header-brand span{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.06em; color:var(--silver);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .chat-header-status{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--silver-dim); border:1px solid var(--line); border-radius:100px;
+    padding:4px 10px; white-space:nowrap; flex:0 0 auto;
+  }
+
+  /* ---------- Loading / error states ---------- */
+  .state-screen{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:32px 20px; text-align:center; gap:10px;
+  }
+  .state-screen p{ color:var(--silver); font-size:14px; line-height:1.6; max-width:340px; }
+  .state-screen h1{ font-family:var(--font-display); color:var(--white); font-size:22px; }
+  .state-screen .eyebrow{ margin-bottom:2px; }
+  .state-screen .btn{ margin-top:10px; }
+
+  /* ---------- Chat body ---------- */
+  .chat-main{
+    flex:1; min-height:0; overflow-y:auto;
+    display:flex; flex-direction:column;
+    padding:20px 16px 12px;
+  }
+  .chat-intro{ padding:4px 2px 18px; border-bottom:1px solid var(--line-soft); margin-bottom:16px; }
+  .chat-intro h1{ font-family:var(--font-display); color:var(--white); font-size:21px; margin-bottom:8px; }
+  .chat-intro p{ color:var(--silver); font-size:13.5px; line-height:1.6; }
+
+  .chat-log{ display:flex; flex-direction:column; gap:10px; flex:1; }
+
+  .chat-bubble{
+    max-width:84%; padding:11px 14px; font-size:14px; line-height:1.55;
+    border-radius:14px; word-wrap:break-word;
+  }
+  .chat-bubble.model{
+    align-self:flex-start; background:var(--graphite-1); color:var(--off-white);
+    border:1px solid var(--line-soft); border-bottom-left-radius:4px;
+  }
+  .chat-bubble.user{
+    align-self:flex-end; background:var(--accent-grad); color:var(--white);
+    border-bottom-right-radius:4px;
+  }
+
+  .chat-recommend{
+    align-self:flex-start; display:flex; flex-wrap:wrap; gap:6px; max-width:88%; margin-top:2px;
+  }
+  .chat-recommend span{
+    font-family:var(--font-mono); font-size:10.5px; color:var(--silver);
+    border:1px solid var(--line); border-radius:100px; padding:5px 11px;
+  }
+
+  /* ---------- Typing indicator ---------- */
+  .chat-typing{
+    align-self:flex-start; display:flex; align-items:center; gap:8px;
+    color:var(--silver-dim); font-size:12.5px; font-family:var(--font-mono);
+    padding:2px 2px;
+  }
+  .chat-typing-dots{ display:flex; gap:3px; }
+  .chat-typing-dots span{
+    width:5px; height:5px; border-radius:50%; background:var(--silver-dim);
+    animation:typingBounce 1.2s infinite ease-in-out;
+  }
+  .chat-typing-dots span:nth-child(2){ animation-delay:.15s; }
+  .chat-typing-dots span:nth-child(3){ animation-delay:.3s; }
+  @keyframes typingBounce{
+    0%, 60%, 100%{ transform:translateY(0); opacity:.5; }
+    30%{ transform:translateY(-3px); opacity:1; }
+  }
+
+  /* ---------- Summary card ---------- */
+  .summary-card{
+    border:1px solid var(--line-soft); background:var(--graphite-1);
+    border-radius:12px; padding:16px; margin-top:10px;
+    display:none; flex-direction:column; gap:7px;
+  }
+  .summary-card.is-visible{ display:flex; }
+  .summary-card h4{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--silver-dim); }
+  .summary-card p{ font-size:13px; color:var(--off-white); line-height:1.5; }
+  .summary-card p strong{ color:var(--silver); }
+
+  /* ---------- Footer / input bar ---------- */
+  .chat-footer{
+    flex:0 0 auto; border-top:1px solid var(--line-soft); background:var(--graphite-0);
+    padding:10px 14px calc(12px + env(safe-area-inset-bottom));
+  }
+  .chat-error{ color:#ff8b8b; font-size:12px; margin:0 2px 8px; display:none; }
+  .chat-error.is-visible{ display:block; }
+  .chat-input-row{
+    display:flex; align-items:center; gap:8px;
+    background:var(--graphite-1); border:1px solid var(--line); border-radius:24px;
+    padding:6px 6px 6px 16px;
+  }
+  .chat-input-row input{
+    flex:1; min-width:0; background:transparent; border:none; outline:none;
+    color:var(--white); font-size:14.5px; font-family:inherit; padding:8px 0;
+  }
+  .chat-input-row input::placeholder{ color:var(--silver-dim); }
+  .chat-input-row button{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:12px; letter-spacing:.02em;
+    padding:10px 18px; border-radius:20px;
+    background:var(--white); color:var(--black); border:none; cursor:pointer;
+    white-space:nowrap; transition:opacity var(--dur-s) var(--ease);
+  }
+  .chat-input-row button:hover:not(:disabled){ opacity:.85; }
+  .chat-input-row button:disabled{ opacity:.35; cursor:default; }
+
+  /* Custom scrollbar, kept subtle */
+  .chat-main::-webkit-scrollbar{ width:5px; }
+  .chat-main::-webkit-scrollbar-thumb{ background:var(--line); border-radius:10px; }
+</style>
+</head>
+<body>
+
+<div class="chat-app">
+
+  <header class="chat-header">
+    <div class="chat-header-brand">
+      <img src="assets/scarls-logo.png" alt="SCARLS SYSTEMS logo">
+      <span>SCARLS SYSTEMS · Assessment</span>
+    </div>
+    <div class="chat-header-status" id="statusPill" style="display:none;">Status: <span id="offerStatus">—</span></div>
+  </header>
+
+  <div id="loadingState" class="state-screen">
+    <p>Loading your assessment…</p>
+  </div>
+
+  <div id="errorState" class="state-screen" style="display:none;">
+    <p class="eyebrow">Project Assessment</p>
+    <h1>We couldn't find that link.</h1>
+    <p id="errorMessage">This assessment link may be invalid or may have expired.</p>
+    <p>If you believe this is a mistake, reply to the confirmation email you received, or start a new request from the site.</p>
+    <a href="index.html" class="btn btn-ghost">Back to SCARLS SYSTEMS</a>
+  </div>
+
+  <main id="chatMain" class="chat-main" style="display:none;">
+    <div class="chat-intro" id="chatIntro">
+      <p class="eyebrow">Project Assessment</p>
+      <h1>Thanks, <span id="offerName">there</span>.</h1>
+      <p>Answer a few quick questions and SCARLS will recommend exactly what your project needs — no charge, no obligation.</p>
+    </div>
+    <div class="chat-log" id="chatLog"></div>
+    <div class="summary-card" id="summaryCard"></div>
+  </main>
+
+  <footer class="chat-footer" id="chatFooter" style="display:none;">
+    <p class="chat-error" id="chatError"></p>
+    <div class="chat-input-row" id="chatInputRow">
+      <input type="text" id="chatInput" placeholder="Type your answer…" autocomplete="off">
+      <button type="button" id="chatSendBtn">Send</button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  // Same Apps Script Web App URL used by the main site (data/catalog.js
+  // and catalog.js). Keep these in sync if you redeploy the backend.
+  var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
+
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('token');
+
+  var loadingEl = document.getElementById('loadingState');
+  var errorEl = document.getElementById('errorState');
+  var chatMain = document.getElementById('chatMain');
+  var chatFooter = document.getElementById('chatFooter');
+  var statusPill = document.getElementById('statusPill');
+  var chatLog = document.getElementById('chatLog');
+  var chatInput = document.getElementById('chatInput');
+  var chatSendBtn = document.getElementById('chatSendBtn');
+  var chatError = document.getElementById('chatError');
+  var summaryCard = document.getElementById('summaryCard');
+
+  function showError(message) {
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'flex';
+    if (message) document.getElementById('errorMessage').textContent = message;
+  }
+
+  if (!token) { showError('No assessment token was found in this link.'); return; }
+  if (!SCARLS_FORM_ENDPOINT || SCARLS_FORM_ENDPOINT.indexOf('PASTE_YOUR') === 0) {
+    showError('This site is not fully configured yet — the backend endpoint is missing.');
+    return;
+  }
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  function scrollToBottom() {
+    chatMain.scrollTop = chatMain.scrollHeight;
+  }
+
+  function appendBubble(role, text) {
+    var div = document.createElement('div');
+    div.className = 'chat-bubble ' + role;
+    div.textContent = text;
+    chatLog.appendChild(div);
+    scrollToBottom();
+  }
+
+  function appendRecommendations(services) {
+    if (!services || !services.length) return;
+    var div = document.createElement('div');
+    div.className = 'chat-recommend';
+    div.innerHTML = services.map(function (s) {
+      return '<span>' + escapeHtml(s.name) + ' — ' + escapeHtml(s.price_label || '') + '</span>';
+    }).join('');
+    chatLog.appendChild(div);
+    scrollToBottom();
+  }
+
+  function showTyping(show) {
+    var existing = document.getElementById('typingIndicator');
+    if (show && !existing) {
+      var div = document.createElement('div');
+      div.className = 'chat-typing';
+      div.id = 'typingIndicator';
+      div.innerHTML = 'SCARLS is typing <span class="chat-typing-dots"><span></span><span></span><span></span></span>';
+      chatLog.appendChild(div);
+      scrollToBottom();
+    } else if (!show && existing) {
+      existing.remove();
+    }
+  }
+
+  function renderSummary(summary) {
+    if (!summary) return;
+    summaryCard.classList.add('is-visible');
+    summaryCard.innerHTML =
+      '<h4>Project Summary</h4>' +
+      '<p><strong>Goal:</strong> ' + escapeHtml(summary.goal || '—') + '</p>' +
+      '<p><strong>Main problem:</strong> ' + escapeHtml(summary.main_problem || '—') + '</p>' +
+      (summary.secondary_problems ? '<p><strong>Also noted:</strong> ' + escapeHtml(summary.secondary_problems) + '</p>' : '') +
+      '<p><strong>Reason:</strong> ' + escapeHtml(summary.reason || '—') + '</p>' +
+      '<p><strong>Estimated scope:</strong> ' + escapeHtml(summary.estimated_scope || '—') + '</p>' +
+      (summary.client_budget ? '<p><strong>Budget:</strong> ' + escapeHtml(summary.client_budget) + '</p>' : '') +
+      (summary.timeline ? '<p><strong>Timeline:</strong> ' + escapeHtml(summary.timeline) + '</p>' : '') +
+      '<p style="margin-top:6px;color:var(--silver-dim);font-size:12.5px;">A member of the SCARLS team will follow up to prepare your proposal.</p>';
+    scrollToBottom();
+  }
+
+  function setInputEnabled(enabled) {
+    chatInput.disabled = !enabled;
+    chatSendBtn.disabled = !enabled;
+  }
+
+  function sendMessage(message) {
+    setInputEnabled(false);
+    showTyping(true);
+    chatError.classList.remove('is-visible');
+
+    fetch(SCARLS_FORM_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'assessmentMessage', token: token, message: message })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        showTyping(false);
+        if (!data || !data.ok) {
+          chatError.textContent = (data && data.error) ? data.error : 'Something went wrong. Please try again.';
+          chatError.classList.add('is-visible');
+          setInputEnabled(true);
+          return;
+        }
+        appendBubble('model', data.reply);
+        appendRecommendations(data.recommended_services);
+        if (data.done) {
+          renderSummary(data.summary);
+          setInputEnabled(false);
+          chatInput.placeholder = 'Assessment complete';
+        } else {
+          setInputEnabled(true);
+          chatInput.focus();
+        }
+      })
+      .catch(function () {
+        showTyping(false);
+        chatError.textContent = 'Could not reach the server. Please check your connection and try again.';
+        chatError.classList.add('is-visible');
+        setInputEnabled(true);
+      });
+  }
+
+  chatSendBtn.addEventListener('click', function () {
+    var val = chatInput.value.trim();
+    if (!val) return;
+    appendBubble('user', val);
+    chatInput.value = '';
+    sendMessage(val);
+  });
+  chatInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') chatSendBtn.click();
+  });
+
+  fetch(SCARLS_FORM_ENDPOINT + '?action=verifyOffer&token=' + encodeURIComponent(token))
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (!data || !data.ok) {
+        showError(data && data.error ? data.error : 'This link is invalid or has expired.');
+        return;
+      }
+      loadingEl.style.display = 'none';
+      chatMain.style.display = 'flex';
+      chatFooter.style.display = 'block';
+      statusPill.style.display = 'block';
+      document.getElementById('offerName').textContent = data.offer.fullName || 'there';
+      document.getElementById('offerStatus').textContent = data.offer.status || 'new';
+
+      // Reload any existing conversation (e.g. the customer refreshed the page).
+      return fetch(SCARLS_FORM_ENDPOINT + '?action=assessmentHistory&token=' + encodeURIComponent(token))
+        .then(function (res) { return res.json(); })
+        .then(function (histData) {
+          if (histData && histData.ok && histData.history && histData.history.length) {
+            histData.history.forEach(function (m) { appendBubble(m.role === 'model' ? 'model' : 'user', m.text); });
+            if (histData.status === 'completed') {
+              renderSummary(histData.summary);
+              setInputEnabled(false);
+              chatInput.placeholder = 'Assessment complete';
+              return;
+            }
+            setInputEnabled(true);
+          } else {
+            // Brand new assessment — let the AI open the conversation.
+            sendMessage('');
+          }
+        });
+    })
+    .catch(function () {
+      showError('Could not reach the server. Please check your connection and try again.');
+    });
+})();
+</script>
+</body>
+</html>

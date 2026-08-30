@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Project Status — SCARLS SYSTEMS</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/scarls-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html,body{ height:100%; background:var(--black); }
+  .wrap{
+    min-height:100svh; min-height:100dvh; display:flex; align-items:center; justify-content:center;
+    padding:32px 20px;
+  }
+  .card{ max-width:480px; width:100%; border:1px solid var(--line); background:var(--graphite-0); border-radius:14px; padding:28px 24px; text-align:left; }
+  .eyebrow{ margin-bottom:10px; }
+  .card h1{ font-family:var(--font-display); color:var(--white); font-size:22px; margin-bottom:6px; }
+  .card p.sub{ color:var(--silver); font-size:13.5px; margin-bottom:22px; }
+
+  .steps{ display:flex; justify-content:space-between; margin-bottom:26px; position:relative; }
+  .steps::before{
+    content:''; position:absolute; top:11px; left:11px; right:11px; height:2px; background:var(--line-soft); z-index:0;
+  }
+  .step{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
+  .step .dot{ width:22px; height:22px; border-radius:50%; background:var(--graphite-1); border:2px solid var(--line); }
+  .step.done .dot{ background:var(--accent-grad); border-color:transparent; }
+  .step.current .dot{ border-color:var(--accent-blue); }
+  .step span{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--silver-dim); text-align:center; }
+  .step.done span, .step.current span{ color:var(--silver-bright); }
+
+  .detail{ border-top:1px solid var(--line-soft); padding-top:18px; margin-top:4px; }
+  .detail-row{ display:flex; justify-content:space-between; gap:12px; font-size:13.5px; padding:7px 0; }
+  .detail-row b{ color:var(--silver-dim); font-weight:400; font-family:var(--font-mono); font-size:11px; letter-spacing:.03em; text-transform:uppercase; }
+  .detail-row span{ color:var(--off-white); text-align:right; }
+
+  .delivery-link{
+    display:block; margin-top:18px; text-align:center; padding:11px 18px; border-radius:8px;
+    background:var(--white); color:var(--black); text-decoration:none; font-family:var(--font-mono); font-size:12.5px;
+  }
+
+  .state-screen{ padding:20px 0; text-align:center; color:var(--silver); font-size:14px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <p class="eyebrow">— Project Status</p>
+    <div id="loading" class="state-screen">Loading your project…</div>
+    <div id="content" style="display:none;">
+      <h1 id="serviceTitle">—</h1>
+      <p class="sub" id="greeting">—</p>
+
+      <div class="steps" id="steps"></div>
+
+      <div class="detail">
+        <div class="detail-row"><b>Status</b><span id="statusLabel">—</span></div>
+        <div class="detail-row" id="dueDateRow" style="display:none;"><b>Due</b><span id="dueDateLabel">—</span></div>
+        <div class="detail-row"><b>Last updated</b><span id="updatedLabel">—</span></div>
+      </div>
+
+      <a href="#" id="deliveryLinkBtn" class="delivery-link" style="display:none;" target="_blank" rel="noopener">View your delivery</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
+  var STATUS_FLOW = ["paid", "in_progress", "review", "delivered"];
+  var STATUS_LABELS = { paid: "Paid", in_progress: "In progress", review: "Review", delivered: "Delivered" };
+
+  var params = new URLSearchParams(window.location.search);
+  var ref = params.get('ref');
+
+  var loadingEl = document.getElementById('loading');
+  var contentEl = document.getElementById('content');
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  function showError(message) {
+    loadingEl.textContent = message;
+  }
+
+  if (!ref) { showError('No project reference was found in this link.'); return; }
+
+  fetch(SCARLS_FORM_ENDPOINT + '?action=projectStatus&ref=' + encodeURIComponent(ref))
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (!data || !data.ok) {
+        showError((data && data.error) ? data.error : 'This link is invalid or has expired.');
+        return;
+      }
+      var p = data.project;
+      loadingEl.style.display = 'none';
+      contentEl.style.display = 'block';
+
+      document.getElementById('serviceTitle').textContent = p.serviceName + (p.packageName ? ' — ' + p.packageName : '');
+      document.getElementById('greeting').textContent = 'Hi ' + p.fullName + ', here\'s where your project stands.';
+      document.getElementById('statusLabel').textContent = STATUS_LABELS[p.status] || p.status;
+
+      if (p.updatedAt) {
+        var d = new Date(p.updatedAt);
+        document.getElementById('updatedLabel').textContent = isNaN(d) ? p.updatedAt : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+
+      if (p.dueDate) {
+        document.getElementById('dueDateRow').style.display = 'flex';
+        var dd = new Date(p.dueDate);
+        document.getElementById('dueDateLabel').textContent = isNaN(dd) ? p.dueDate : dd.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+
+      if (p.status === 'delivered' && p.deliveryLink) {
+        var btn = document.getElementById('deliveryLinkBtn');
+        btn.href = p.deliveryLink;
+        btn.style.display = 'block';
+      }
+
+      var currentIndex = STATUS_FLOW.indexOf(p.status);
+      var stepsEl = document.getElementById('steps');
+      stepsEl.innerHTML = STATUS_FLOW.map(function (s, i) {
+        var cls = i < currentIndex ? 'done' : (i === currentIndex ? 'current done' : '');
+        return '<div class="step ' + cls + '"><div class="dot"></div><span>' + escapeHtml(STATUS_LABELS[s]) + '</span></div>';
+      }).join('');
+    })
+    .catch(function () {
+      showError('Could not reach the server. Please check your connection and try again.');
+    });
+})();
+</script>
+</body>
+</html>
