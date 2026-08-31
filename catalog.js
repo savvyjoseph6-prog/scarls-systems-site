@@ -20,7 +20,7 @@
   // Public key — safe to expose in frontend code. Get yours from your
   // Paystack dashboard (Settings → API Keys & Webhooks). The matching
   // SECRET key lives only in Apps Script Script Properties, never here.
-  var PAYSTACK_PUBLIC_KEY = "pk_live_076f25749e6c5c488f536bbfd69161646571258e";
+  var PAYSTACK_PUBLIC_KEY = "pk_test_ee3f79b3474357635c974c75a60094231d79a6db";
 
   // Mirrors the same check PaymentEngine.gs makes server-side. A service
   // can only skip straight to Paystack checkout if its price is a single
