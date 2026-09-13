@@ -22,7 +22,7 @@
   // Public key — safe to expose in frontend code. Get yours from your
   // Paystack dashboard (Settings → API Keys & Webhooks). The matching
   // SECRET key lives only in Supabase secrets, never here.
-  var PAYSTACK_PUBLIC_KEY = "pk_test_ee3f79b3474357635c974c75a60094231d79a6db";
+  var PAYSTACK_PUBLIC_KEY = "pk_live_076f25749e6c5c488f536bbfd69161646571258e";
 
   // Mirrors the same check done server-side. A service can only skip
   // straight to Paystack checkout if its price is a single clean
