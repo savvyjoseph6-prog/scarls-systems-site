@@ -9,22 +9,24 @@
   var CATALOG = window.SCARLS_CATALOG;
   if (!CATALOG) return;
 
-  // Same endpoint the existing contact form posts to (backend/Code.gs).
-  // GET ?action=catalog reads the Categories/Services/Packages sheets
-  // and returns them in this exact shape — edit the sheets, not this
-  // file, to change what's live on the site.
-  // The "Make an Offer" submission below posts here too, tagged
-  // action:"offer".
+  // NOTE (migration): the old Apps Script "?action=catalog" endpoint
+  // is no longer used for reading the catalog — see fetchLiveCatalog()
+  // below, which now queries Supabase's categories/services/packages
+  // tables directly via PostgREST. SCARLS_FORM_ENDPOINT is left here
+  // only in case anything else in this file still references it.
   var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
+  var SUPABASE_URL = "https://zpytjifbhaxniuliopvp.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpweXRqaWZiaGF4bml1bGlvcHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyOTMyNjgsImV4cCI6MjEwMzg2OTI2OH0.QFGo9feUbsle_fGxNZvxMaBuRQzS55RKF2_i0oL0LYQ";
+  var SUPABASE_FUNCTIONS_BASE = "https://zpytjifbhaxniuliopvp.supabase.co/functions/v1";
 
   // Public key — safe to expose in frontend code. Get yours from your
   // Paystack dashboard (Settings → API Keys & Webhooks). The matching
-  // SECRET key lives only in Apps Script Script Properties, never here.
+  // SECRET key lives only in Supabase secrets, never here.
   var PAYSTACK_PUBLIC_KEY = "pk_test_ee3f79b3474357635c974c75a60094231d79a6db";
 
-  // Mirrors the same check PaymentEngine.gs makes server-side. A service
-  // can only skip straight to Paystack checkout if its price is a single
-  // clean figure (e.g. "₦20,000" or "₦200,000/mo") — ranges, "+", and
+  // Mirrors the same check done server-side. A service can only skip
+  // straight to Paystack checkout if its price is a single clean
+  // figure (e.g. "₦20,000" or "₦200,000/mo") — ranges, "+", and
   // "Custom" all need a human-scoped quote via Make an Offer instead.
   function isFixedPriceLabel(label) {
     return !!label && /^₦[\d,]+(\/mo)?$/.test(label.trim());
@@ -35,14 +37,49 @@
       Array.isArray(c.services) && c.services.length;
   }
 
+  // Reads the catalog straight from Supabase (categories + services,
+  // with each service's packages embedded via PostgREST's foreign-key
+  // embedding) and reshapes it into the exact {categories, services}
+  // shape the rest of this file already expects — so nothing else in
+  // this file needs to change. Uses the public anon key; RLS on these
+  // tables allows read-only access with it.
   function fetchLiveCatalog() {
-    if (!SCARLS_FORM_ENDPOINT || SCARLS_FORM_ENDPOINT.indexOf('PASTE_YOUR') === 0) return;
+    var headers = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+    };
 
-    fetch(SCARLS_FORM_ENDPOINT + '?action=catalog')
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data && data.ok && isValidCatalog(data.catalog)) {
-          CATALOG = data.catalog;
+    // NOTE: no ?order=... param here. "order" is a reserved word in
+    // Postgres/PostgREST, and a column literally named "order" needs
+    // special quoting to sort by via the API — not worth the hassle
+    // since activeCategories()/servicesFor() below already sort
+    // client-side by .order once the rows arrive.
+    var categoriesUrl = SUPABASE_URL + '/rest/v1/categories?select=*';
+    // Embed packages for each service via the services→packages
+    // foreign key. If your packages table's FK column isn't named
+    // service_id, PostgREST embedding still works automatically as
+    // long as a foreign key exists — no need to name it here.
+    var servicesUrl = SUPABASE_URL + '/rest/v1/services?select=*,packages(*)';
+
+    Promise.all([
+      fetch(categoriesUrl, { headers: headers }).then(function (res) { return res.json(); }),
+      fetch(servicesUrl, { headers: headers }).then(function (res) { return res.json(); })
+    ])
+      .then(function (results) {
+        var categories = results[0];
+        var services = results[1];
+
+        // PostgREST returns an object (not an array) on error, e.g.
+        // { message: "...", code: "..." } — guard against that before
+        // treating the result as a catalog.
+        if (!Array.isArray(categories) || !Array.isArray(services)) {
+          console.warn('Live catalog fetch returned an error from Supabase:', categories, services);
+          return;
+        }
+
+        var catalog = { categories: categories, services: services };
+        if (isValidCatalog(catalog)) {
+          CATALOG = catalog;
           renderTabs();
           renderGrid();
         } else {
@@ -394,15 +431,13 @@
     offerSubmitBtn.textContent = 'Submitting…';
     if (offerFormError) offerFormError.classList.remove('is-visible');
 
-    if (!SCARLS_FORM_ENDPOINT || SCARLS_FORM_ENDPOINT.indexOf('PASTE_YOUR') === 0) {
-      console.warn('SCARLS_FORM_ENDPOINT is not configured yet.');
-      showOfferSuccess();
-      return;
-    }
-
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/submit-offer', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
       body: JSON.stringify(payload)
     })
       .then(function (res) { return res.json(); })
@@ -515,12 +550,15 @@
       }
     });
   });
-
   function verifyPaymentOnServer_(payload) {
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/verify-payment', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: 'verifyPayment' }, payload))
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify(payload)
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
@@ -624,16 +662,19 @@
     budgetChatContactError.classList.remove('is-visible');
 
     var payload = {
-      action: 'budgetChatStart',
       serviceId: budgetChatSvc.id,
       fullName: budgetChatContactForm.fullName.value.trim(),
       email: budgetChatContactForm.email.value.trim(),
       whatsapp: budgetChatContactForm.whatsapp.value.trim()
     };
 
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/budget-chat-start', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
       body: JSON.stringify(payload)
     })
       .then(function (res) { return res.json(); })
@@ -666,10 +707,14 @@
   }
 
   function retryBudgetChatTurn_() {
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/budget-chat-message', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'budgetChatMessage', token: budgetChatToken, message: '' })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ token: budgetChatToken, message: '' })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) { handleBudgetChatStartResult_(data); })
@@ -691,10 +736,14 @@
     budgetChatMessageInput.disabled = true;
     budgetChatSendBtn.disabled = true;
 
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/budget-chat-message', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'budgetChatMessage', token: budgetChatToken, message: message })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ token: budgetChatToken, message: message })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
@@ -764,7 +813,9 @@
     stopBudgetChatPoll();
     budgetChatPollTimer = setInterval(function () {
       if (!budgetChatToken) return;
-      fetch(SCARLS_FORM_ENDPOINT + '?action=budgetChatStatus&token=' + encodeURIComponent(budgetChatToken))
+      fetch(SUPABASE_FUNCTIONS_BASE + '/budget-chat-status?token=' + encodeURIComponent(budgetChatToken), {
+        headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+      })
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) return;
@@ -867,16 +918,19 @@
     aiQuoteContactError.classList.remove('is-visible');
 
     var payload = {
-      action: 'aiQuoteStart',
       serviceId: aiQuoteSvc.id,
       fullName: aiQuoteContactForm.fullName.value.trim(),
       email: aiQuoteContactForm.email.value.trim(),
       whatsapp: aiQuoteContactForm.whatsapp.value.trim()
     };
 
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/ai-quote-start', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
       body: JSON.stringify(payload)
     })
       .then(function (res) { return res.json(); })
@@ -906,10 +960,14 @@
   }
 
   function retryAiQuoteTurn_() {
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/ai-quote-message', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'aiQuoteMessage', token: aiQuoteToken, message: '' })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ token: aiQuoteToken, message: '' })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) { handleAiQuoteStartResult_(data); })
@@ -931,10 +989,14 @@
     aiQuoteMessageInput.disabled = true;
     aiQuoteSendBtn.disabled = true;
 
-    fetch(SCARLS_FORM_ENDPOINT, {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/ai-quote-message', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'aiQuoteMessage', token: aiQuoteToken, message: message })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ token: aiQuoteToken, message: message })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
@@ -1003,7 +1065,9 @@
     stopAiQuotePoll();
     aiQuotePollTimer = setInterval(function () {
       if (!aiQuoteToken) return;
-      fetch(SCARLS_FORM_ENDPOINT + '?action=aiQuoteStatus&token=' + encodeURIComponent(aiQuoteToken))
+      fetch(SUPABASE_FUNCTIONS_BASE + '/ai-quote-status?token=' + encodeURIComponent(aiQuoteToken), {
+        headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+      })
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) return;
@@ -1050,7 +1114,9 @@
     window.history.replaceState(null, '', cleanUrl);
 
     if (budgetTokenParam) {
-      fetch(SCARLS_FORM_ENDPOINT + '?action=budgetChatStatus&token=' + encodeURIComponent(budgetTokenParam))
+      fetch(SUPABASE_FUNCTIONS_BASE + '/budget-chat-status?token=' + encodeURIComponent(budgetTokenParam), {
+        headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+      })
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) return;
@@ -1069,7 +1135,9 @@
         })
         .catch(function () { /* link may be stale — just leave the catalog page showing */ });
     } else if (aiQuoteTokenParam) {
-      fetch(SCARLS_FORM_ENDPOINT + '?action=aiQuoteStatus&token=' + encodeURIComponent(aiQuoteTokenParam))
+      fetch(SUPABASE_FUNCTIONS_BASE + '/ai-quote-status?token=' + encodeURIComponent(aiQuoteTokenParam), {
+        headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+      })
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) return;
