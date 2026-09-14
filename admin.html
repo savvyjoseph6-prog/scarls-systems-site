@@ -210,6 +210,17 @@
 <script>
 (function () {
   var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
+
+  // NOTE (migration): Projects now reads/writes through Supabase Edge
+  // Functions (admin-list-projects / admin-update-project) instead of
+  // the old Apps Script endpoint above — that endpoint no longer has
+  // any visibility into orders created since checkout moved to
+  // Supabase. Assessments / Budget Requests / AI Quotes / Catalog
+  // still use SCARLS_FORM_ENDPOINT for now, pending their own migration.
+  var SUPABASE_URL = "https://zpytjifbhaxniuliopvp.supabase.co";
+  var SUPABASE_FUNCTIONS_BASE = SUPABASE_URL + "/functions/v1";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpweXRqaWZiaGF4bml1bGlvcHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyOTMyNjgsImV4cCI6MjEwMzg2OTI2OH0.QFGo9feUbsle_fGxNZvxMaBuRQzS55RKF2_i0oL0LYQ";
+
   var STATUS_LABELS = { paid: "Paid", in_progress: "In progress", review: "Review", delivered: "Delivered" };
 
   var gate = document.getElementById('gate');
@@ -234,7 +245,14 @@
      ============================================================ */
 
   function tryLoad(pw) {
-    fetch(SCARLS_FORM_ENDPOINT + '?action=adminList&password=' + encodeURIComponent(pw))
+    // UPDATED: now calls the Supabase admin-list-projects function
+    // instead of the old Apps Script ?action=adminList endpoint.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-projects?password=' + encodeURIComponent(pw), {
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.ok) {
@@ -388,7 +406,6 @@
       saveBtn.addEventListener('click', function () {
         var projectId = card.getAttribute('data-id');
         var payload = {
-          action: 'adminUpdateProject',
           password: password,
           projectId: projectId,
           status: card.querySelector('.f-status').value,
@@ -401,9 +418,16 @@
         saveStatus.textContent = 'Saving…';
         saveStatus.className = 'save-status';
 
-        fetch(SCARLS_FORM_ENDPOINT, {
+        // UPDATED: now calls the Supabase admin-update-project function
+        // instead of the old Apps Script endpoint. Note the 'action'
+        // field is no longer needed since this function only does one thing.
+        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-update-project', {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY
+          },
           body: JSON.stringify(payload)
         })
           .then(function (res) { return res.json(); })
@@ -561,7 +585,13 @@
 
   function loadBudgetRequests() {
     budgetListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListBudgetRequests&password=' + encodeURIComponent(password))
+    // UPDATED: now calls the Supabase admin-list-budget-requests function.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-budget-requests?password=' + encodeURIComponent(password), {
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.ok) {
@@ -622,10 +652,15 @@
           Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = true; });
           if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
 
-          fetch(SCARLS_FORM_ENDPOINT, {
+          // UPDATED: now calls the Supabase admin-budget-decision function.
+          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-budget-decision', {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'adminBudgetDecision', password: password, token: token, decision: decision })
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+              'apikey': SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({ password: password, token: token, decision: decision })
           })
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -661,7 +696,13 @@
 
   function loadAiQuotes() {
     aiQuoteListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListAiQuotes&password=' + encodeURIComponent(password))
+    // UPDATED: now calls the Supabase admin-list-aiquotes function.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-aiquotes?password=' + encodeURIComponent(password), {
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.ok) {
@@ -726,7 +767,7 @@
         btn.addEventListener('click', function () {
           var token = card.getAttribute('data-token');
           var decision = btn.getAttribute('data-decision');
-          var payload = { action: 'adminAiQuoteDecision', password: password, token: token, decision: decision };
+          var payload = { password: password, token: token, decision: decision };
 
           if (decision === 'approved') {
             var days = card.querySelector('.q-days').value;
@@ -742,9 +783,14 @@
           Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = true; });
           if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
 
-          fetch(SCARLS_FORM_ENDPOINT, {
+          // UPDATED: now calls the Supabase admin-aiquote-decision function.
+          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-aiquote-decision', {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+              'apikey': SUPABASE_ANON_KEY
+            },
             body: JSON.stringify(payload)
           })
             .then(function (res) { return res.json(); })
