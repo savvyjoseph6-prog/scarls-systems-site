@@ -845,7 +845,13 @@
 
   function loadCatalog() {
     serviceListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListCatalog&password=' + encodeURIComponent(password))
+    // UPDATED: now calls the Supabase admin-list-catalog function.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-catalog?password=' + encodeURIComponent(password), {
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.ok) {
@@ -920,10 +926,15 @@
     var svc = catalogData.services.filter(function (s) { return s.id === id; })[0];
     if (!confirm('Delete "' + (svc ? svc.name : id) + '"? This cannot be undone.')) return;
 
-    fetch(SCARLS_FORM_ENDPOINT, {
+    // UPDATED: now calls the Supabase admin-delete-service function.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-delete-service', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'adminDeleteService', password: password, id: id })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ password: password, id: id })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
@@ -1122,10 +1133,15 @@
     saveStatus.textContent = 'Saving…';
     saveStatus.className = 'save-status';
 
-    fetch(SCARLS_FORM_ENDPOINT, {
+    // UPDATED: now calls the Supabase admin-save-service function.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-service', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'adminSaveService', password: password, service: svcPayload })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ password: password, service: svcPayload })
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
