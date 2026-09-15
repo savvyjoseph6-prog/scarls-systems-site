@@ -466,7 +466,13 @@
 
   function loadAssessments() {
     assessmentListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SCARLS_FORM_ENDPOINT + '?action=adminListAssessments&password=' + encodeURIComponent(password))
+    // UPDATED: now calls the Supabase admin-list-assessments function.
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-assessments?password=' + encodeURIComponent(password), {
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data || !data.ok) {
@@ -534,7 +540,6 @@
           return;
         }
         var payload = {
-          action: 'adminUpdateAssessmentDecision',
           password: password,
           token: token,
           decision: decision,
@@ -545,17 +550,24 @@
         saveStatus.textContent = 'Saving…';
         saveStatus.className = 'save-status';
 
-        fetch(SCARLS_FORM_ENDPOINT, {
+        // UPDATED: now calls the Supabase admin-assessment-decision function.
+        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-assessment-decision', {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY
+          },
           body: JSON.stringify(payload)
         })
           .then(function (res) { return res.json(); })
           .then(function (data) {
             saveBtn.disabled = false;
             if (data && data.ok) {
-              saveStatus.textContent = 'Saved';
-              saveStatus.className = 'save-status ok';
+              // The function returns a warning if the decision saved but
+              // the client notification email couldn't be sent.
+              saveStatus.textContent = data.warning ? data.warning : 'Saved';
+              saveStatus.className = data.warning ? 'save-status err' : 'save-status ok';
               var local = allAssessments.filter(function (a) { return a.token === token; })[0];
               if (local) { local.adminDecision = decision; local.adminNotes = payload.notes; }
             } else {
