@@ -215,7 +215,8 @@
       return {
         serviceId: svc.id, packageId: selectedPackage.id, pricingModel: 'one_time',
         amountNaira: selectedPackage.price, priceLabel: selectedPackage.price_label,
-        serviceName: svc.name, packageName: selectedPackage.name
+        serviceName: svc.name, packageName: selectedPackage.name,
+        manualPaymentEnabled: !!svc.manual_payment_enabled
       };
     }
 
@@ -233,7 +234,8 @@
 
     return {
       serviceId: svc.id, packageId: null, pricingModel: model,
-      amountNaira: price, priceLabel: label, serviceName: svc.name, packageName: ''
+      amountNaira: price, priceLabel: label, serviceName: svc.name, packageName: '',
+      manualPaymentEnabled: !!svc.manual_payment_enabled
     };
   }
 
@@ -467,20 +469,65 @@
   var checkoutSummaryEl = document.getElementById('checkoutSummary');
   var currentCheckout = null;
 
+  // NEW (discounts): base price is kept separate from the possibly-
+  // discounted currentCheckout.amountNaira, so re-validating or clearing
+  // a code can always recompute from the true original price.
+  var checkoutBaseAmountNaira = null;
+  var checkoutBasePriceLabel = null;
+  var currentDiscountToken = null;
+
   function openCheckoutModal(checkout) {
     currentCheckout = checkout;
-    checkoutForm.style.display = '';
+    checkoutBaseAmountNaira = checkout.amountNaira;
+    checkoutBasePriceLabel = checkout.priceLabel;
+    currentDiscountToken = null;
+
+    var manualPanel = document.getElementById('manualPaymentPanel');
+    var isManual = !!checkout.manualPaymentEnabled;
+
     checkoutSuccess.classList.remove('is-visible');
-    checkoutForm.reset();
     checkoutFormError.classList.remove('is-visible');
     checkoutPayBtn.disabled = false;
     checkoutPayBtn.textContent = 'Pay with Paystack';
 
-    var label = checkout.serviceName + (checkout.packageName ? ' — ' + checkout.packageName : '');
-    checkoutSummaryEl.innerHTML = '<span>' + escapeHtml(label) + '</span><span>' + escapeHtml(checkout.priceLabel) + '</span>';
+    if (isManual) {
+      checkoutForm.style.display = 'none';
+      if (manualPanel) {
+        manualPanel.style.display = '';
+        var manualForm = document.getElementById('manualPaymentForm');
+        var manualSuccess = document.getElementById('manualPayFormSuccess');
+        var manualError = document.getElementById('manualPayFormError');
+        if (manualForm) { manualForm.style.display = ''; manualForm.reset(); }
+        if (manualSuccess) manualSuccess.classList.remove('is-visible');
+        if (manualError) manualError.classList.remove('is-visible');
+      }
+    } else {
+      checkoutForm.style.display = '';
+      checkoutForm.reset();
+      if (manualPanel) manualPanel.style.display = 'none';
+    }
+
+    var discountInput = document.getElementById('checkoutDiscountCode');
+    var discountBtn = document.getElementById('checkoutDiscountApplyBtn');
+    var discountMsg = document.getElementById('checkoutDiscountMsg');
+    if (discountInput) discountInput.value = '';
+    if (discountMsg) { discountMsg.textContent = ''; discountMsg.className = 'discount-msg'; }
+    if (discountBtn) { discountBtn.disabled = false; discountBtn.textContent = 'Apply'; }
+
+    renderCheckoutSummary();
 
     checkoutOverlay.classList.add('is-open');
     document.body.style.overflow = 'hidden';
+  }
+  function renderCheckoutSummary() {
+    var label = currentCheckout.serviceName + (currentCheckout.packageName ? ' — ' + currentCheckout.packageName : '');
+    if (currentDiscountToken) {
+      checkoutSummaryEl.innerHTML = '<span>' + escapeHtml(label) + '</span><span><s style="color:var(--silver-dim);margin-right:8px;">' + escapeHtml(checkoutBasePriceLabel) + '</s>' + escapeHtml(currentCheckout.priceLabel) + '</span>';
+    } else {
+      checkoutSummaryEl.innerHTML = '<span>' + escapeHtml(label) + '</span><span>' + escapeHtml(currentCheckout.priceLabel) + '</span>';
+    }
+    var manualAmountEl = document.getElementById('manualPaymentAmount');
+    if (manualAmountEl) manualAmountEl.textContent = currentCheckout.priceLabel;
   }
   function closeCheckoutModal() {
     checkoutOverlay.classList.remove('is-open');
@@ -488,6 +535,55 @@
   }
   document.getElementById('checkoutModalClose').addEventListener('click', closeCheckoutModal);
   checkoutOverlay.addEventListener('click', function (e) { if (e.target === checkoutOverlay) closeCheckoutModal(); });
+
+  // NEW (discounts): apply-code handler
+  var discountApplyBtnEl = document.getElementById('checkoutDiscountApplyBtn');
+  if (discountApplyBtnEl) {
+    discountApplyBtnEl.addEventListener('click', function () {
+      var input = document.getElementById('checkoutDiscountCode');
+      var msg = document.getElementById('checkoutDiscountMsg');
+      var code = input ? input.value.trim() : '';
+      if (!code || !currentCheckout) return;
+
+      discountApplyBtnEl.disabled = true;
+      discountApplyBtnEl.textContent = 'Checking…';
+      msg.textContent = '';
+      msg.className = 'discount-msg';
+
+      fetch(SUPABASE_FUNCTIONS_BASE + '/validate-discount', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ code: code, serviceId: currentCheckout.serviceId, packageId: currentCheckout.packageId })
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          discountApplyBtnEl.disabled = false;
+          if (data && data.ok) {
+            currentDiscountToken = data.token;
+            currentCheckout.amountNaira = data.discountedAmountNaira;
+            currentCheckout.priceLabel = data.priceLabel;
+            discountApplyBtnEl.textContent = 'Applied';
+            msg.textContent = 'Code applied!';
+            msg.className = 'discount-msg is-ok';
+            renderCheckoutSummary();
+          } else {
+            discountApplyBtnEl.textContent = 'Apply';
+            msg.textContent = (data && data.error) ? data.error : 'That code is not valid.';
+            msg.className = 'discount-msg is-err';
+          }
+        })
+        .catch(function () {
+          discountApplyBtnEl.disabled = false;
+          discountApplyBtnEl.textContent = 'Apply';
+          msg.textContent = 'Could not reach the server. Please try again.';
+          msg.className = 'discount-msg is-err';
+        });
+    });
+  }
 
   checkoutForm.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -529,6 +625,7 @@
         businessName: businessName,
         budgetToken: currentCheckout.budgetToken || '',
         quoteToken: currentCheckout.quoteToken || '',
+        discountToken: currentDiscountToken || '',
         custom_fields: [
           { display_name: 'Service', variable_name: 'service', value: currentCheckout.serviceName },
           { display_name: 'WhatsApp', variable_name: 'whatsapp', value: whatsapp }
@@ -541,7 +638,8 @@
           packageId: currentCheckout.packageId, pricingModel: currentCheckout.pricingModel,
           fullName: fullName, email: email, whatsapp: whatsapp, businessName: businessName,
           budgetToken: currentCheckout.budgetToken || '',
-          quoteToken: currentCheckout.quoteToken || ''
+          quoteToken: currentCheckout.quoteToken || '',
+          discountToken: currentDiscountToken || ''
         });
       },
       onCancel: function () {
@@ -579,6 +677,78 @@
     checkoutPayBtn.textContent = 'Pay with Paystack';
     checkoutFormError.textContent = message;
     checkoutFormError.classList.add('is-visible');
+  }
+
+  /* ---------------- Manual payment (bank/Opay transfer + screenshot) ---------------- */
+  var manualPaymentForm = document.getElementById('manualPaymentForm');
+  if (manualPaymentForm) {
+    manualPaymentForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!manualPaymentForm.checkValidity()) { manualPaymentForm.reportValidity(); return; }
+      if (!currentCheckout) return;
+
+      var fileInput = document.getElementById('manualPayScreenshot');
+      var submitBtn = document.getElementById('manualPaySubmitBtn');
+      var errorEl = document.getElementById('manualPayFormError');
+      var file = fileInput.files[0];
+      if (!file) { showManualPaymentError('Please attach a screenshot of your payment.'); return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading…';
+      errorEl.classList.remove('is-visible');
+
+      var reader = new FileReader();
+      reader.onload = function () {
+        fetch(SUPABASE_FUNCTIONS_BASE + '/submit-manual-payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            serviceId: currentCheckout.serviceId,
+            packageId: currentCheckout.packageId,
+            pricingModel: currentCheckout.pricingModel,
+            fullName: document.getElementById('manualPayFullName').value.trim(),
+            email: document.getElementById('manualPayEmail').value.trim(),
+            whatsapp: document.getElementById('manualPayWhatsapp').value.trim(),
+            businessName: document.getElementById('manualPayBusinessName').value.trim(),
+            discountToken: currentDiscountToken || '',
+            screenshotBase64: reader.result,
+            screenshotMimeType: file.type
+          })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit for Verification';
+            if (data && data.ok) {
+              manualPaymentForm.style.display = 'none';
+              document.getElementById('manualPayFormSuccess').classList.add('is-visible');
+            } else {
+              showManualPaymentError((data && data.error) ? data.error : 'Could not submit — please try again.');
+            }
+          })
+          .catch(function () {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit for Verification';
+            showManualPaymentError('Could not reach the server. Please check your connection and try again.');
+          });
+      };
+      reader.onerror = function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit for Verification';
+        showManualPaymentError('Could not read that file — please try a different image.');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  function showManualPaymentError(message) {
+    var submitBtn = document.getElementById('manualPaySubmitBtn');
+    var errorEl = document.getElementById('manualPayFormError');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit for Verification'; }
+    if (errorEl) { errorEl.textContent = message; errorEl.classList.add('is-visible'); }
   }
 
   /* ---------------- Budget check chat modal (Phase 5) ---------------- */
@@ -1097,6 +1267,136 @@
     if (e.key === 'Escape') { closeServiceModal(); closeOfferModal(); closeCheckoutModal(); closeBudgetChatModal(); closeAiQuoteModal(); }
   });
 
+  /* ---------------- Sale banner (auto Black Friday-style sales) ---------------- */
+  // Public read of sale_periods (RLS allows anon select) — purely
+  // cosmetic banner. The ACTUAL discount is always recomputed by
+  // verify-payment server-side, so nothing here needs to be trusted.
+  function renderSaleBanner() {
+    var headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY };
+    var nowIso = new Date().toISOString();
+    var url = SUPABASE_URL + '/rest/v1/sale_periods?active=eq.true&select=*';
+    fetch(url, { headers: headers })
+      .then(function (res) { return res.json(); })
+      .then(function (rows) {
+        if (!Array.isArray(rows)) return;
+        var active = rows.filter(function (s) {
+          var startsOk = !s.starts_at || new Date(s.starts_at) <= new Date(nowIso);
+          var endsOk = !s.ends_at || new Date(s.ends_at) >= new Date(nowIso);
+          return startsOk && endsOk;
+        });
+        if (!active.length) return;
+        var best = active.sort(function (a, b) { return b.percent_off - a.percent_off; })[0];
+        var bar = document.createElement('div');
+        bar.id = 'saleBanner';
+        bar.innerHTML = '<span>' + escapeHtml(best.name) + ' — ' + escapeHtml(String(best.percent_off)) + '% off' + (best.applies_to === 'all' ? ' everything' : '') + '</span>';
+        document.body.insertBefore(bar, document.body.firstChild);
+      })
+      .catch(function () { /* banner is cosmetic — fail silently */ });
+  }
+
+  /* ---------------- Sale Spotlight (popup: rotating slides + countdown + close) ---------------- */
+  // A second, flashier sale widget that sits alongside the pinned
+  // #saleBanner strip above — bottom-right popup, shows on every page
+  // visit, closable with an X, auto-rotates between sales if more than
+  // one is active, and counts down to the sale's ends_at. Purely
+  // cosmetic, same as the pinned banner: the real discount is always
+  // recomputed server-side by verify-payment, never trusted from here.
+  function renderSaleSpotlight() {
+    var headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY };
+    var nowIso = new Date().toISOString();
+    var url = SUPABASE_URL + '/rest/v1/sale_periods?active=eq.true&select=*';
+    fetch(url, { headers: headers })
+      .then(function (res) { return res.json(); })
+      .then(function (rows) {
+        if (!Array.isArray(rows)) return;
+        var active = rows.filter(function (s) {
+          var startsOk = !s.starts_at || new Date(s.starts_at) <= new Date(nowIso);
+          var endsOk = !s.ends_at || new Date(s.ends_at) >= new Date(nowIso);
+          return startsOk && endsOk;
+        });
+        if (!active.length) return;
+        active.sort(function (a, b) { return b.percent_off - a.percent_off; });
+        buildSaleSpotlight(active);
+      })
+      .catch(function () { /* cosmetic — fail silently */ });
+  }
+
+  function buildSaleSpotlight(sales) {
+    var box = document.createElement('div');
+    box.id = 'saleSpotlight';
+    box.innerHTML =
+      '<button type="button" class="sale-spotlight-close" aria-label="Close">&times;</button>' +
+      '<div class="sale-spotlight-badge">LIMITED TIME</div>' +
+      '<div class="sale-spotlight-name"></div>' +
+      '<div class="sale-spotlight-pct"></div>' +
+      '<div class="sale-spotlight-countdown"></div>' +
+      '<div class="sale-spotlight-dots"></div>';
+    document.body.appendChild(box);
+
+    var nameEl = box.querySelector('.sale-spotlight-name');
+    var pctEl = box.querySelector('.sale-spotlight-pct');
+    var cdEl = box.querySelector('.sale-spotlight-countdown');
+    var dotsEl = box.querySelector('.sale-spotlight-dots');
+    var closeBtn = box.querySelector('.sale-spotlight-close');
+    var countdownTimer, rotateTimer;
+
+    closeBtn.addEventListener('click', function () {
+      box.classList.add('is-closing');
+      clearInterval(rotateTimer);
+      clearInterval(countdownTimer);
+      setTimeout(function () { box.remove(); }, 250);
+    });
+
+    if (sales.length > 1) {
+      sales.forEach(function (_, i) {
+        var dot = document.createElement('span');
+        dot.className = 'sale-spotlight-dot' + (i === 0 ? ' is-active' : '');
+        dotsEl.appendChild(dot);
+      });
+    }
+
+    function renderCountdown(endsAt) {
+      clearInterval(countdownTimer);
+      if (!endsAt) { cdEl.textContent = ''; return; }
+      function tick() {
+        var diff = new Date(endsAt).getTime() - Date.now();
+        if (diff <= 0) { cdEl.textContent = 'Ends soon'; clearInterval(countdownTimer); return; }
+        var d = Math.floor(diff / 86400000);
+        var h = Math.floor((diff % 86400000) / 3600000);
+        var m = Math.floor((diff % 3600000) / 60000);
+        var s2 = Math.floor((diff % 60000) / 1000);
+        var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+        cdEl.textContent = (d > 0 ? d + 'd ' : '') + pad(h) + 'h ' + pad(m) + 'm ' + pad(s2) + 's';
+      }
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
+
+    function renderSlide(i) {
+      var s = sales[i];
+      nameEl.textContent = s.name;
+      pctEl.textContent = s.percent_off + '% OFF' + (s.applies_to === 'all' ? ' EVERYTHING' : '');
+      var dots = dotsEl.querySelectorAll('.sale-spotlight-dot');
+      dots.forEach(function (d, di) { d.classList.toggle('is-active', di === i); });
+      renderCountdown(s.ends_at);
+    }
+
+    var current = 0;
+    renderSlide(current);
+    requestAnimationFrame(function () { box.classList.add('is-visible'); });
+
+    if (sales.length > 1) {
+      rotateTimer = setInterval(function () {
+        current = (current + 1) % sales.length;
+        box.classList.add('is-fading');
+        setTimeout(function () {
+          renderSlide(current);
+          box.classList.remove('is-fading');
+        }, 200);
+      }, 4500);
+    }
+  }
+
   /* ---------------- Resume from an emailed link ---------------- */
   // A client whose chat went to admin review gets emailed a link back
   // to this exact conversation (?budgetToken=... or ?aiQuoteToken=...)
@@ -1162,5 +1462,7 @@
   renderTabs();
   renderGrid();
   fetchLiveCatalog();
+  renderSaleBanner();
+  renderSaleSpotlight();
   resumeFromUrl_();
 })();

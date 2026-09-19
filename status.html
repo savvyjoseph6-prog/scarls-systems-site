@@ -69,7 +69,7 @@
 
 <script>
 (function () {
-  var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
+  var SCARLS_FORM_ENDPOINT = "https://zpytjifbhaxniuliopvp.supabase.co/functions/v1/public-project-status";
   var STATUS_FLOW = ["paid", "in_progress", "review", "delivered"];
   var STATUS_LABELS = { paid: "Paid", in_progress: "In progress", review: "Review", delivered: "Delivered" };
 
@@ -92,7 +92,7 @@
 
   if (!ref) { showError('No project reference was found in this link.'); return; }
 
-  fetch(SCARLS_FORM_ENDPOINT + '?action=projectStatus&ref=' + encodeURIComponent(ref))
+  fetch(SCARLS_FORM_ENDPOINT + '?ref=' + encodeURIComponent(ref))
     .then(function (res) { return res.json(); })
     .then(function (data) {
       if (!data || !data.ok) {

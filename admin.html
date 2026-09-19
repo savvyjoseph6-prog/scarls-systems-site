@@ -37,7 +37,7 @@
   .admin-header span{ font-family:var(--font-mono); font-size:11px; color:var(--silver-dim); }
 
   /* ---------- Section switch (Projects / Catalog) ---------- */
-  .section-switch{ display:flex; gap:6px; margin-bottom:16px; }
+  .section-switch{ display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
   .section-switch button{
     flex:1; font-family:var(--font-mono); font-size:12px; letter-spacing:.03em; text-transform:uppercase;
     padding:10px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--silver);
@@ -171,6 +171,10 @@
     <button type="button" data-section="budget">Budget Requests</button>
     <button type="button" data-section="aiquotes">AI Quotes</button>
     <button type="button" data-section="catalog">Catalog</button>
+    <button type="button" data-section="discounts">Discounts</button>
+    <button type="button" data-section="sales">Sales</button>
+    <button type="button" data-section="tickets">Tickets</button>
+    <button type="button" data-section="manualpay">Manual Payments</button>
   </div>
 
   <div id="projectsSection">
@@ -194,6 +198,26 @@
     <button type="button" class="add-btn" id="addServiceBtn">+ Add Service</button>
     <div class="tabs" id="catTabs"></div>
     <div id="serviceList"></div>
+  </div>
+
+  <div id="discountsSection" style="display:none;">
+    <button type="button" class="add-btn" id="addDiscountBtn">+ Add Discount Code</button>
+    <div id="discountList"></div>
+  </div>
+
+  <div id="salesSection" style="display:none;">
+    <button type="button" class="add-btn" id="addSaleBtn">+ Add Sale Period</button>
+    <div id="saleList"></div>
+  </div>
+
+  <div id="ticketsSection" style="display:none;">
+    <div class="tabs" id="ticketTabs"></div>
+    <div id="ticketList"></div>
+  </div>
+
+  <div id="manualpaySection" style="display:none;">
+    <div class="tabs" id="manualpayTabs"></div>
+    <div id="manualpayList"></div>
   </div>
 </div>
 
@@ -295,6 +319,11 @@
   var budgetSection = document.getElementById('budgetSection');
   var aiquotesSection = document.getElementById('aiquotesSection');
   var catalogSection = document.getElementById('catalogSection');
+  var discountsSection = document.getElementById('discountsSection');
+  var salesSection = document.getElementById('salesSection');
+  var ticketsSection = document.getElementById('ticketsSection');
+  var manualpaySection = document.getElementById('manualpaySection');
+  var discountsLoaded = false, salesLoaded = false, ticketsLoaded = false, manualpayLoaded = false;
   var assessmentsLoaded = false;
   var budgetLoaded = false;
   var aiQuotesLoaded = false;
@@ -309,6 +338,10 @@
       budgetSection.style.display = section === 'budget' ? '' : 'none';
       aiquotesSection.style.display = section === 'aiquotes' ? '' : 'none';
       catalogSection.style.display = section === 'catalog' ? '' : 'none';
+      discountsSection.style.display = section === 'discounts' ? '' : 'none';
+      salesSection.style.display = section === 'sales' ? '' : 'none';
+      ticketsSection.style.display = section === 'tickets' ? '' : 'none';
+      manualpaySection.style.display = section === 'manualpay' ? '' : 'none';
 
       if (section === 'projects') {
         sectionTitle.textContent = 'Projects';
@@ -325,10 +358,22 @@
         sectionTitle.textContent = 'AI Quotes';
         countEl.textContent = allAiQuotes.length + (allAiQuotes.length === 1 ? ' quote' : ' quotes');
         if (!aiQuotesLoaded) loadAiQuotes();
-      } else {
+      } else if (section === 'catalog') {
         sectionTitle.textContent = 'Catalog';
         countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
         if (!catalogLoaded) loadCatalog();
+      } else if (section === 'discounts') {
+        sectionTitle.textContent = 'Discounts';
+        if (!discountsLoaded) loadDiscounts();
+      } else if (section === 'sales') {
+        sectionTitle.textContent = 'Sale Periods';
+        if (!salesLoaded) loadSales();
+      } else if (section === 'tickets') {
+        sectionTitle.textContent = 'Support Tickets';
+        if (!ticketsLoaded) loadTickets();
+      } else {
+        sectionTitle.textContent = 'Manual Payments';
+        if (!manualpayLoaded) loadManualPayments();
       }
     });
   });
@@ -991,6 +1036,7 @@
         '<label><input type="checkbox" id="f_requiresConsultation"' + (svc && svc.requires_consultation ? ' checked' : '') + '> Requires SCARLS consultation before checkout</label>' +
         '<label><input type="checkbox" id="f_requiresBudgetCheck"' + (svc && svc.requires_budget_check ? ' checked' : '') + '> Requires budget check before checkout</label>' +
         '<label><input type="checkbox" id="f_requiresAiQuote"' + (svc && svc.requires_ai_quote ? ' checked' : '') + '> AI drafts a custom ad-budget quote (instead of a fixed price)</label>' +
+        '<label><input type="checkbox" id="f_manualPaymentEnabled"' + (svc && svc.manual_payment_enabled ? ' checked' : '') + '> Manual payment (Opay transfer + screenshot, instead of Paystack)</label>' +
       '</div>' +
       '<div class="field" id="budgetFields" style="' + (svc && svc.requires_budget_check ? '' : 'display:none;') + '">' +
         '<label>Minimum budget (₦)</label><input id="f_minBudget" type="number" value="' + ((svc && svc.min_budget != null) ? svc.min_budget : '') + '">' +
@@ -1119,6 +1165,7 @@
       min_budget: document.getElementById('f_minBudget').value ? Number(document.getElementById('f_minBudget').value) : null,
       min_budget_period: document.getElementById('f_minBudgetPeriod').value,
       requires_ai_quote: document.getElementById('f_requiresAiQuote').checked,
+      manual_payment_enabled: document.getElementById('f_manualPaymentEnabled').checked,
       quote_cpl_naira: document.getElementById('f_quoteCpl').value ? Number(document.getElementById('f_quoteCpl').value) : null,
       quote_leads_min_per_day: document.getElementById('f_quoteLeadsMin').value ? Number(document.getElementById('f_quoteLeadsMin').value) : null,
       quote_leads_max_per_day: document.getElementById('f_quoteLeadsMax').value ? Number(document.getElementById('f_quoteLeadsMax').value) : null,
@@ -1174,6 +1221,302 @@
   addServiceBtn.addEventListener('click', function () { openServiceForm(null); });
   serviceFormClose.addEventListener('click', closeServiceForm);
   serviceFormOverlay.addEventListener('click', function (e) { if (e.target === serviceFormOverlay) closeServiceForm(); });
+
+  /* ============================================================
+     DISCOUNTS
+     ============================================================ */
+  var discountListEl = document.getElementById('discountList');
+  var allDiscounts = [];
+
+  function loadDiscounts() {
+    discountListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-discounts?password=' + encodeURIComponent(password), {
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) { discountListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load discounts.') + '</div>'; return; }
+        discountsLoaded = true;
+        allDiscounts = data.discounts || [];
+        renderDiscountList();
+      })
+      .catch(function () { discountListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
+  }
+
+  function renderDiscountList() {
+    if (!allDiscounts.length) { discountListEl.innerHTML = '<div class="empty-state">No discount codes yet.</div>'; return; }
+    discountListEl.innerHTML = allDiscounts.map(function (d) {
+      var valueLabel = d.type === 'percent' ? d.value + '% off' : '₦' + Number(d.value).toLocaleString() + ' off';
+      var usageLabel = (d.usage_limit != null) ? (d.used_count + ' / ' + d.usage_limit + ' used') : (d.used_count + ' used');
+      return '<div class="project-card" data-id="' + escapeHtml(d.id) + '">' +
+        '<div class="project-card-top"><div><h3>' + escapeHtml(d.code) + '</h3><p>' + escapeHtml(valueLabel) + ' · ' + escapeHtml(usageLabel) + '</p></div>' +
+        '<span class="badge">' + (d.active ? 'Active' : 'Inactive') + '</span></div>' +
+        '<div class="project-card-actions">' +
+        '<button type="button" class="save-btn disc-edit-btn">Edit</button>' +
+        '<button type="button" class="save-btn disc-delete-btn" style="background:#3a1f1f;color:#ff8b8b;">Delete</button>' +
+        '</div></div>';
+    }).join('');
+    Array.prototype.forEach.call(discountListEl.querySelectorAll('.project-card'), function (card) {
+      var id = card.getAttribute('data-id');
+      card.querySelector('.disc-edit-btn').addEventListener('click', function () { openDiscountForm(allDiscounts.filter(function (d) { return d.id === id; })[0]); });
+      card.querySelector('.disc-delete-btn').addEventListener('click', function () {
+        var d = allDiscounts.filter(function (x) { return x.id === id; })[0];
+        if (!confirm('Delete code "' + (d ? d.code : id) + '"?')) return;
+        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-delete-discount', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ password: password, id: id })
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (data && data.ok) { allDiscounts = allDiscounts.filter(function (x) { return x.id !== id; }); renderDiscountList(); }
+          else alert((data && data.error) || 'Could not delete.');
+        });
+      });
+    });
+  }
+
+  function openDiscountForm(d) {
+    var code = prompt('Discount code (e.g. BF25):', d ? d.code : '');
+    if (!code) return;
+    var typeChoice = prompt('Type: "percent" or "fixed"', d ? d.type : 'percent');
+    if (typeChoice !== 'percent' && typeChoice !== 'fixed') return;
+    var value = prompt('Value (percent number, e.g. 20, or naira amount off):', d ? d.value : '');
+    if (value == null || value === '') return;
+    var activeChoice = confirm('Make this code ACTIVE now? (Cancel = inactive)');
+
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-discount', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ password: password, discount: { id: d ? d.id : undefined, code: code, type: typeChoice, value: Number(value), active: activeChoice, applies_to: 'all' } })
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && data.ok) loadDiscounts(); else alert((data && data.error) || 'Could not save.');
+    });
+  }
+  document.getElementById('addDiscountBtn').addEventListener('click', function () { openDiscountForm(null); });
+
+  /* ============================================================
+     SALE PERIODS (Black Friday etc.)
+     ============================================================ */
+  var saleListEl = document.getElementById('saleList');
+  var allSales = [];
+
+  function loadSales() {
+    saleListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-sales?password=' + encodeURIComponent(password), {
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) { saleListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load sales.') + '</div>'; return; }
+        salesLoaded = true;
+        allSales = data.sales || [];
+        renderSaleList();
+      })
+      .catch(function () { saleListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
+  }
+
+  function renderSaleList() {
+    if (!allSales.length) { saleListEl.innerHTML = '<div class="empty-state">No sale periods yet.</div>'; return; }
+    saleListEl.innerHTML = allSales.map(function (s) {
+      return '<div class="project-card" data-id="' + escapeHtml(s.id) + '">' +
+        '<div class="project-card-top"><div><h3>' + escapeHtml(s.name) + '</h3><p>' + escapeHtml(String(s.percent_off)) + '% off · ' + escapeHtml(s.applies_to) + '</p></div>' +
+        '<span class="badge">' + (s.active ? 'ACTIVE' : 'Off') + '</span></div>' +
+        '<div class="project-card-actions">' +
+        '<button type="button" class="save-btn sale-toggle-btn">' + (s.active ? 'Turn Off' : 'Turn On') + '</button>' +
+        '<button type="button" class="save-btn sale-edit-btn">Edit</button>' +
+        '</div></div>';
+    }).join('');
+    Array.prototype.forEach.call(saleListEl.querySelectorAll('.project-card'), function (card) {
+      var id = card.getAttribute('data-id');
+      var s = allSales.filter(function (x) { return x.id === id; })[0];
+      card.querySelector('.sale-toggle-btn').addEventListener('click', function () { saveSale(Object.assign({}, s, { id: id, active: !s.active })); });
+      card.querySelector('.sale-edit-btn').addEventListener('click', function () { openSaleForm(s); });
+    });
+  }
+
+  function saveSale(payload) {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-sale', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ password: password, sale: payload })
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && data.ok) loadSales(); else alert((data && data.error) || 'Could not save.');
+    });
+  }
+
+  function openSaleForm(s) {
+    var name = prompt('Sale name (e.g. "Black Friday 2026"):', s ? s.name : '');
+    if (!name) return;
+    var percent = prompt('Percent off (e.g. 25):', s ? s.percent_off : '');
+    if (percent == null || percent === '') return;
+    var starts = prompt('Start date/time (YYYY-MM-DDTHH:MM, blank = starts now):', s && s.starts_at ? s.starts_at.slice(0, 16) : '');
+    var ends = prompt('End date/time (YYYY-MM-DDTHH:MM, blank = no end):', s && s.ends_at ? s.ends_at.slice(0, 16) : '');
+    var activeChoice = confirm('Make this sale ACTIVE right now? (Cancel = save but keep off)');
+    saveSale({
+      id: s ? s.id : undefined, name: name, percent_off: Number(percent), active: activeChoice,
+      starts_at: starts || null, ends_at: ends || null, applies_to: 'all'
+    });
+  }
+  document.getElementById('addSaleBtn').addEventListener('click', function () { openSaleForm(null); });
+
+  /* ============================================================
+     SUPPORT TICKETS (chatbot escalations)
+     ============================================================ */
+  var ticketListEl = document.getElementById('ticketList');
+  var ticketTabsEl = document.getElementById('ticketTabs');
+  var allTickets = [];
+  var ticketTab = 'open';
+
+  function loadTickets() {
+    ticketListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-tickets?password=' + encodeURIComponent(password), {
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) { ticketListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load tickets.') + '</div>'; return; }
+        ticketsLoaded = true;
+        allTickets = data.tickets || [];
+        renderTicketTabs();
+        renderTicketList();
+      })
+      .catch(function () { ticketListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
+  }
+
+  function renderTicketTabs() {
+    var tabs = ['open', 'in_progress', 'resolved', 'all'];
+    ticketTabsEl.innerHTML = tabs.map(function (t) {
+      return '<button type="button" data-tab="' + t + '" class="' + (t === ticketTab ? 'active' : '') + '">' + t.replace('_', ' ') + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(ticketTabsEl.querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () { ticketTab = btn.getAttribute('data-tab'); renderTicketTabs(); renderTicketList(); });
+    });
+  }
+
+  function renderTicketList() {
+    var filtered = ticketTab === 'all' ? allTickets : allTickets.filter(function (t) { return t.status === ticketTab; });
+    if (!filtered.length) { ticketListEl.innerHTML = '<div class="empty-state">Nothing here.</div>'; return; }
+    ticketListEl.innerHTML = filtered.map(function (t) {
+      return '<div class="project-card" data-id="' + escapeHtml(t.id) + '">' +
+        '<div class="project-card-top"><div><h3>' + escapeHtml(t.full_name || 'Anonymous visitor') + '</h3>' +
+        '<p>' + escapeHtml(t.email || '') + (t.whatsapp ? ' · ' + escapeHtml(t.whatsapp) : '') + '</p></div>' +
+        '<span class="badge">' + escapeHtml(t.status) + '</span></div>' +
+        '<div class="project-meta">' + escapeHtml((t.summary || '').slice(0, 400)) + '</div>' +
+        '<div class="field"><label>Status</label><select class="t-status">' +
+        ['open', 'in_progress', 'resolved'].map(function (s) { return '<option value="' + s + '"' + (s === t.status ? ' selected' : '') + '>' + s.replace('_', ' ') + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div class="field"><label>Notes</label><textarea class="t-notes">' + escapeHtml(t.admin_notes || '') + '</textarea></div>' +
+        '<div class="project-card-actions"><button type="button" class="save-btn t-save-btn">Save</button><span class="save-status"></span></div>' +
+        '</div>';
+    }).join('');
+    Array.prototype.forEach.call(ticketListEl.querySelectorAll('.project-card'), function (card) {
+      var id = card.getAttribute('data-id');
+      var saveStatus = card.querySelector('.save-status');
+      card.querySelector('.t-save-btn').addEventListener('click', function () {
+        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-ticket-update', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ password: password, id: id, status: card.querySelector('.t-status').value, adminNotes: card.querySelector('.t-notes').value.trim() })
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (data && data.ok) { saveStatus.textContent = 'Saved'; saveStatus.className = 'save-status ok'; loadTickets(); }
+          else { saveStatus.textContent = (data && data.error) || 'Could not save.'; saveStatus.className = 'save-status err'; }
+        });
+      });
+    });
+  }
+
+  /* ============================================================
+     MANUAL PAYMENTS (bank/Opay transfer + screenshot review)
+     ============================================================ */
+  var manualpayListEl = document.getElementById('manualpayList');
+  var manualpayTabsEl = document.getElementById('manualpayTabs');
+  var allManualPayments = [];
+  var manualpayTab = 'pending';
+
+  function loadManualPayments() {
+    manualpayListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-manual-payments?password=' + encodeURIComponent(password), {
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) { manualpayListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load manual payments.') + '</div>'; return; }
+        manualpayLoaded = true;
+        allManualPayments = data.payments || [];
+        renderManualpayTabs();
+        renderManualpayList();
+      })
+      .catch(function () { manualpayListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
+  }
+
+  function renderManualpayTabs() {
+    var tabs = ['pending', 'verified', 'rejected', 'all'];
+    manualpayTabsEl.innerHTML = tabs.map(function (t) {
+      return '<button type="button" data-tab="' + t + '" class="' + (t === manualpayTab ? 'active' : '') + '">' + t + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(manualpayTabsEl.querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () { manualpayTab = btn.getAttribute('data-tab'); renderManualpayTabs(); renderManualpayList(); });
+    });
+  }
+
+  function renderManualpayList() {
+    var filtered = manualpayTab === 'all' ? allManualPayments : allManualPayments.filter(function (p) { return p.status === manualpayTab; });
+    if (!filtered.length) { manualpayListEl.innerHTML = '<div class="empty-state">Nothing here.</div>'; return; }
+
+    manualpayListEl.innerHTML = filtered.map(function (p) {
+      var canDecide = p.status === 'pending';
+      return (
+        '<div class="project-card" data-id="' + escapeHtml(p.id) + '">' +
+          '<div class="project-card-top">' +
+            '<div><h3>' + escapeHtml(p.fullName) + (p.businessName ? ' · ' + escapeHtml(p.businessName) : '') + '</h3>' +
+            '<p>' + escapeHtml(p.serviceName) + (p.packageName ? ' — ' + escapeHtml(p.packageName) : '') + '</p></div>' +
+            '<span class="badge ' + (p.status === 'verified' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'awaiting_admin') + '">' + escapeHtml(p.status) + '</span>' +
+          '</div>' +
+          '<div class="project-meta">' +
+            '<b>Claimed amount:</b> ₦' + Number(p.amount || 0).toLocaleString() + '<br>' +
+            escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) +
+            (p.adminNotes ? '<br><b>Notes:</b> ' + escapeHtml(p.adminNotes) : '') +
+          '</div>' +
+          (p.screenshotUrl ? '<a href="' + escapeHtml(p.screenshotUrl) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(p.screenshotUrl) + '" alt="Payment screenshot" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin-bottom:10px;display:block;"></a>' : '') +
+          (canDecide ?
+            '<div class="field"><label>Notes (optional)</label><textarea class="mp-notes" placeholder="Internal / message to client if rejecting"></textarea></div>' +
+            '<div class="project-card-actions">' +
+              '<button type="button" class="save-btn mp-decide-btn" data-decision="verified">Verified</button>' +
+              '<button type="button" class="save-btn mp-decide-btn" data-decision="rejected" style="background:transparent;color:#ff8b8b;border:1px solid #4a2222;">Reject</button>' +
+              '<span class="save-status"></span>' +
+            '</div>'
+            : '') +
+        '</div>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(manualpayListEl.querySelectorAll('.project-card'), function (card) {
+      var id = card.getAttribute('data-id');
+      var saveStatus = card.querySelector('.save-status');
+      Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (btn) {
+        btn.addEventListener('click', function () {
+          var decision = btn.getAttribute('data-decision');
+          var notesEl = card.querySelector('.mp-notes');
+          if (decision === 'verified' && !confirm('Confirm this payment is genuine? This creates the project and emails the client immediately.')) return;
+          Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (b) { b.disabled = true; });
+          if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
+
+          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-verify-manual-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+            body: JSON.stringify({ password: password, id: id, decision: decision, notes: notesEl ? notesEl.value.trim() : '' })
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              if (data && data.ok) { loadManualPayments(); }
+              else {
+                Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (b) { b.disabled = false; });
+                if (saveStatus) { saveStatus.textContent = (data && data.error) || 'Could not save.'; saveStatus.className = 'save-status err'; }
+              }
+            })
+            .catch(function () {
+              Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (b) { b.disabled = false; });
+              if (saveStatus) { saveStatus.textContent = 'Network error — try again.'; saveStatus.className = 'save-status err'; }
+            });
+        });
+      });
+    });
+  }
 
   if (password) tryLoad(password);
 })();

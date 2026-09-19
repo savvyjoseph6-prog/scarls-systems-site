@@ -394,6 +394,12 @@
 
     <div class="scarls-modal-price" id="checkoutSummary"></div>
 
+    <div class="discount-row">
+      <input type="text" id="checkoutDiscountCode" placeholder="Discount code" autocomplete="off">
+      <button type="button" class="btn btn-ghost" id="checkoutDiscountApplyBtn">Apply</button>
+    </div>
+    <p class="discount-msg" id="checkoutDiscountMsg"></p>
+
     <form class="offer-form" id="checkoutForm" novalidate>
       <div class="form-grid">
         <div class="form-field full">
@@ -428,6 +434,55 @@
       </div>
       <h3 id="checkoutSuccessTitle">Payment received.</h3>
       <p>A confirmation email is on its way, and a member of the SCARLS team will be in touch to begin your project.</p>
+    </div>
+
+    <!-- Shown instead of the Paystack form/button above when the service has
+         manual payment switched on in the admin Catalog tab. -->
+    <div class="manual-payment-panel" id="manualPaymentPanel" style="display:none;">
+      <div class="manual-payment-details">
+        <p class="manual-payment-label">Pay by transfer to:</p>
+        <p class="manual-payment-line"><strong>Opay</strong> — 9049637356</p>
+        <p class="manual-payment-line">Account name: Saviour Akpantekpe</p>
+        <p class="manual-payment-line">Amount: <strong id="manualPaymentAmount"></strong></p>
+      </div>
+
+      <form class="offer-form" id="manualPaymentForm" novalidate>
+        <div class="form-grid">
+          <div class="form-field full">
+            <label for="manualPayFullName">Full Name</label>
+            <input type="text" id="manualPayFullName" required autocomplete="name">
+          </div>
+          <div class="form-field">
+            <label for="manualPayEmail">Email</label>
+            <input type="email" id="manualPayEmail" required autocomplete="email">
+          </div>
+          <div class="form-field">
+            <label for="manualPayWhatsapp">WhatsApp</label>
+            <input type="tel" id="manualPayWhatsapp" required autocomplete="tel">
+          </div>
+          <div class="form-field full">
+            <label for="manualPayBusinessName">Business / Brand Name (optional)</label>
+            <input type="text" id="manualPayBusinessName" autocomplete="organization">
+          </div>
+          <div class="form-field full">
+            <label for="manualPayScreenshot">Payment Screenshot</label>
+            <input type="file" id="manualPayScreenshot" accept="image/*" required>
+          </div>
+          <div class="form-submit">
+            <button type="submit" class="btn btn-primary btn-block" id="manualPaySubmitBtn">Submit for Verification</button>
+            <p class="form-note">A member of the SCARLS team will verify your payment and email you a confirmation link — usually within a few hours.</p>
+            <p class="form-error" id="manualPayFormError" role="alert"></p>
+          </div>
+        </div>
+      </form>
+
+      <div class="form-success" id="manualPayFormSuccess">
+        <div class="check">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-9" stroke="#4d7cff" stroke-width="1.6"/></svg>
+        </div>
+        <h3>Submitted for review.</h3>
+        <p>SCARLS will verify your payment and email you a confirmation link once approved.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -568,6 +623,61 @@
     animation:budget-chat-spin 0.8s linear infinite;
   }
   @keyframes budget-chat-spin{ to{ transform:rotate(360deg); } }
+
+  .discount-row{ display:flex; gap:8px; margin:-8px 0 4px; }
+  .discount-row input{
+    flex:1 1 auto; min-width:0; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
+    border-radius:8px; padding:10px 12px; font-size:13.5px; font-family:inherit;
+  }
+  .discount-row .btn{ flex:0 0 auto; padding:10px 16px; font-size:12.5px; }
+  .discount-msg{ font-size:12px; margin:0 0 18px; min-height:14px; }
+  .discount-msg.is-ok{ color:#7ee0a8; }
+  .discount-msg.is-err{ color:#ff8b8b; }
+
+  .manual-payment-details{
+    background:var(--graphite-1); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; margin:-8px 0 18px; font-size:13.5px; line-height:1.7;
+  }
+  .manual-payment-label{ color:var(--silver-dim); font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .manual-payment-line{ color:var(--white); }
+
+  #saleBanner{
+    position:relative; z-index:150; background:var(--accent-grad); color:var(--white);
+    text-align:center; padding:10px 16px; font-family:var(--font-mono); font-size:12.5px;
+    letter-spacing:.04em;
+  }
+
+  #saleSpotlight{
+    position:fixed; right:20px; bottom:20px; z-index:400; width:300px;
+    max-width:calc(100vw - 32px); background:var(--accent-grad); color:var(--white);
+    border-radius:16px; padding:18px 18px 16px; box-shadow:0 12px 32px rgba(0,0,0,.35);
+    font-family:var(--font-mono);
+    transform:translateY(24px) scale(.96); opacity:0; pointer-events:none;
+    transition:transform .35s ease, opacity .35s ease;
+  }
+  #saleSpotlight.is-visible{ transform:translateY(0) scale(1); opacity:1; pointer-events:auto; }
+  #saleSpotlight.is-closing{ transform:translateY(24px) scale(.96); opacity:0; }
+  #saleSpotlight.is-fading .sale-spotlight-name,
+  #saleSpotlight.is-fading .sale-spotlight-pct{ opacity:0; transition:opacity .2s ease; }
+  .sale-spotlight-close{
+    position:absolute; top:8px; right:10px; background:none; border:none; color:var(--white);
+    font-size:20px; line-height:1; cursor:pointer; opacity:.8; padding:4px;
+  }
+  .sale-spotlight-close:hover{ opacity:1; }
+  .sale-spotlight-badge{ font-size:10.5px; letter-spacing:.12em; opacity:.85; margin-bottom:6px; }
+  .sale-spotlight-name{ font-size:14px; font-weight:600; margin-bottom:4px; transition:opacity .2s ease; }
+  .sale-spotlight-pct{ font-size:22px; font-weight:700; letter-spacing:.02em; margin-bottom:10px; transition:opacity .2s ease; }
+  .sale-spotlight-countdown{
+    font-size:13px; background:rgba(0,0,0,.25); border-radius:8px; padding:6px 10px;
+    display:inline-block; margin-bottom:10px;
+  }
+  .sale-spotlight-dots{ display:flex; gap:6px; }
+  .sale-spotlight-dot{ width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.35); }
+  .sale-spotlight-dot.is-active{ background:var(--white); }
+
+  @media (max-width:480px){
+    #saleSpotlight{ left:16px; right:16px; bottom:16px; width:auto; }
+  }
 </style>
 
 <!-- ================= PROCESS ================= -->
@@ -804,6 +914,69 @@
     </div>
   </div>
 </footer>
+
+<button type="button" id="scarlsChatBtn" aria-label="Chat with SCARLS">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H7l-3 3V4z" stroke="currentColor" stroke-width="1.6"/></svg>
+</button>
+
+<div id="scarlsChatPanel">
+  <div class="scarls-chat-head">
+    <span>SCARLS Assistant</span>
+    <div>
+      <a href="https://wa.me/2349049637356" target="_blank" rel="noopener" id="scarlsChatWhatsapp" title="Chat on WhatsApp instead">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.36 5.07L2 22l5.09-1.32A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" opacity=".15"/><path d="M17.47 14.38c-.28-.14-1.65-.81-1.9-.9-.26-.1-.44-.14-.63.14-.19.28-.72.9-.88 1.08-.16.19-.32.21-.6.07-.28-.14-1.19-.44-2.26-1.4-.84-.75-1.4-1.67-1.57-1.95-.16-.28-.02-.43.12-.57.13-.13.28-.32.42-.49.14-.16.19-.28.28-.47.1-.19.05-.35-.02-.49-.07-.14-.63-1.52-.87-2.08-.23-.55-.46-.48-.63-.49-.16-.01-.35-.01-.54-.01-.19 0-.49.07-.75.35-.26.28-.98.96-.98 2.34s1 2.72 1.14 2.91c.14.19 1.97 3 4.77 4.21.67.29 1.19.46 1.6.59.67.21 1.28.18 1.76.11.54-.08 1.65-.67 1.88-1.32.23-.65.23-1.2.16-1.32-.07-.12-.26-.19-.54-.33z"/></svg>
+      </a>
+      <button type="button" id="scarlsChatClose" aria-label="Close">&times;</button>
+    </div>
+  </div>
+  <div class="scarls-chat-body" id="scarlsChatBody">
+    <div class="scarls-chat-msg model">Hi! I'm the SCARLS assistant — ask me anything about our services, pricing or process. If I can't help, I'll get a member of the team to follow up.</div>
+  </div>
+  <div class="scarls-chat-escalated" id="scarlsChatEscalated" style="display:none;">
+    This chat has been passed to the SCARLS team — they'll follow up by email/WhatsApp shortly.
+  </div>
+  <form class="scarls-chat-input-row" id="scarlsChatForm">
+    <input type="text" id="scarlsChatInput" placeholder="Type your message…" autocomplete="off" required>
+    <button type="submit" class="btn btn-primary" id="scarlsChatSend">Send</button>
+  </form>
+</div>
+
+<style>
+  #scarlsChatBtn{
+    position:fixed; right:20px; bottom:20px; z-index:180;
+    width:54px; height:54px; border-radius:50%;
+    background:var(--white); color:var(--black); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  #scarlsChatPanel{
+    position:fixed; right:20px; bottom:86px; z-index:180;
+    width:min(360px, calc(100vw - 40px)); max-height:min(70vh, 560px);
+    background:var(--graphite-0); border:1px solid var(--line); border-radius:14px;
+    display:none; flex-direction:column; overflow:hidden;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+  }
+  #scarlsChatPanel.is-open{ display:flex; }
+  .scarls-chat-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line-soft);
+    font-family:var(--font-display); color:var(--white); font-size:14.5px; font-weight:600;
+  }
+  .scarls-chat-head div{ display:flex; align-items:center; gap:10px; }
+  .scarls-chat-head a{ color:#25D366; display:flex; }
+  .scarls-chat-head button{ background:none; border:none; color:var(--silver); font-size:20px; cursor:pointer; line-height:1; }
+  .scarls-chat-body{ flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  .scarls-chat-msg{ max-width:86%; padding:9px 12px; border-radius:11px; font-size:13.5px; line-height:1.5; }
+  .scarls-chat-msg.model{ align-self:flex-start; background:var(--graphite-1); border:1px solid var(--line); color:var(--white); border-bottom-left-radius:3px; }
+  .scarls-chat-msg.user{ align-self:flex-end; background:var(--accent-blue); color:var(--black); border-bottom-right-radius:3px; }
+  .scarls-chat-escalated{ padding:10px 16px; font-size:12px; color:var(--silver); border-top:1px solid var(--line-soft); }
+  .scarls-chat-input-row{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line-soft); }
+  .scarls-chat-input-row input{ flex:1; min-width:0; background:var(--graphite-1); border:1px solid var(--line); color:var(--white); border-radius:8px; padding:10px 12px; font-size:13.5px; font-family:inherit; }
+  .scarls-chat-input-row .btn{ padding:10px 16px; font-size:12.5px; }
+  @media (max-width:600px){ #scarlsChatPanel{ right:12px; bottom:78px; } #scarlsChatBtn{ right:12px; bottom:12px; } }
+</style>
+
+<script src="chatbot-widget.js"></script>
 
 <script src="https://js.paystack.co/v2/inline.js"></script>
 <script src="catalog-data.js?v=6"></script>
