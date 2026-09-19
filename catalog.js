@@ -105,6 +105,42 @@
   }
   function findService(id) { return CATALOG.services.filter(function (s) { return s.id === id; })[0]; }
 
+  /* ---------------- Automatic sales (mirrors _shared/sales.ts on the server) ---------------- */
+  // The server (verify-payment and submit-manual-payment) works out the sale
+  // price on its own and rejects a card payment whose amount doesn't match it,
+  // so the price SHOWN and CHARGED here must follow exactly the same rules:
+  // an "all" sale applies to every service, a category sale only to that
+  // category, the largest percentage wins, and the rounding is the same.
+  var ACTIVE_SALES = [];
+
+  // Always resolves (never rejects). If the request fails, the last known
+  // sales list is kept.
+  function refreshSales() {
+    var headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY };
+    return fetch(SUPABASE_URL + '/rest/v1/sale_periods?active=eq.true&select=*', { headers: headers })
+      .then(function (res) { return res.json(); })
+      .then(function (rows) { if (Array.isArray(rows)) ACTIVE_SALES = rows; })
+      .catch(function () { /* keep whatever we had */ });
+  }
+
+  // The best sale that applies to this service right now, or null.
+  function bestSaleFor(serviceId) {
+    var svc = findService(serviceId);
+    if (!svc) return null;
+    var now = Date.now();
+    var best = null;
+    ACTIVE_SALES.forEach(function (s) {
+      var startsOk = !s.starts_at || new Date(s.starts_at).getTime() <= now;
+      var endsOk = !s.ends_at || new Date(s.ends_at).getTime() >= now;
+      var scopeOk = s.applies_to === 'all' || s.category_id === svc.category_id;
+      var pct = Number(s.percent_off) || 0;
+      if (s.active !== false && startsOk && endsOk && scopeOk && pct > 0) {
+        if (!best || pct > (Number(best.percent_off) || 0)) best = s;
+      }
+    });
+    return best;
+  }
+
   /* ---------------- Tabs ---------------- */
   var tabsEl = document.getElementById('catalogTabs');
   var taglineEl = document.getElementById('catalogTagline');
@@ -469,18 +505,56 @@
   var checkoutSummaryEl = document.getElementById('checkoutSummary');
   var currentCheckout = null;
 
-  // NEW (discounts): base price is kept separate from the possibly-
-  // discounted currentCheckout.amountNaira, so re-validating or clearing
-  // a code can always recompute from the true original price.
+  // Base price is kept separate from the possibly-reduced
+  // currentCheckout.amountNaira, so re-checking a sale or applying a
+  // code can always recompute from the true original price.
   var checkoutBaseAmountNaira = null;
   var checkoutBasePriceLabel = null;
   var currentDiscountToken = null;
+  var checkoutSale = null; // the automatic sale currently applied to this checkout, if any
+
+  // Applies the best active automatic sale to the open checkout (same
+  // maths as the server), or restores the list price if there is none.
+  // A discount code, AI quote or budget approval carries its own locked
+  // price from the server, so the sale is never layered on top of those.
+  function applySaleToCheckout_() {
+    if (!currentCheckout || currentDiscountToken) return;
+
+    var sale = null;
+    if (!currentCheckout.budgetToken && !currentCheckout.quoteToken) {
+      sale = bestSaleFor(currentCheckout.serviceId);
+    }
+
+    if (sale) {
+      var pct = Number(sale.percent_off) || 0;
+      var discounted = Math.max(0, Math.round(checkoutBaseAmountNaira * (1 - pct / 100)));
+      currentCheckout.amountNaira = discounted;
+      currentCheckout.priceLabel = '₦' + discounted.toLocaleString() + (currentCheckout.pricingModel === 'subscription' ? '/mo' : '');
+      checkoutSale = sale;
+    } else {
+      currentCheckout.amountNaira = checkoutBaseAmountNaira;
+      currentCheckout.priceLabel = checkoutBasePriceLabel;
+      checkoutSale = null;
+    }
+
+    var msg = document.getElementById('checkoutDiscountMsg');
+    if (msg) {
+      if (checkoutSale) {
+        msg.textContent = checkoutSale.name + ' — ' + checkoutSale.percent_off + '% off applied automatically';
+        msg.className = 'discount-msg is-ok';
+      } else {
+        msg.textContent = '';
+        msg.className = 'discount-msg';
+      }
+    }
+  }
 
   function openCheckoutModal(checkout) {
     currentCheckout = checkout;
     checkoutBaseAmountNaira = checkout.amountNaira;
     checkoutBasePriceLabel = checkout.priceLabel;
     currentDiscountToken = null;
+    checkoutSale = null;
 
     var manualPanel = document.getElementById('manualPaymentPanel');
     var isManual = !!checkout.manualPaymentEnabled;
@@ -514,14 +588,24 @@
     if (discountMsg) { discountMsg.textContent = ''; discountMsg.className = 'discount-msg'; }
     if (discountBtn) { discountBtn.disabled = false; discountBtn.textContent = 'Apply'; }
 
+    // Show the sale price straight away from what we already know, then
+    // refresh the sales list in the background and re-apply if it changed.
+    applySaleToCheckout_();
     renderCheckoutSummary();
 
     checkoutOverlay.classList.add('is-open');
     document.body.style.overflow = 'hidden';
+
+    refreshSales().then(function () {
+      if (currentCheckout === checkout && checkoutOverlay.classList.contains('is-open') && !currentDiscountToken) {
+        applySaleToCheckout_();
+        renderCheckoutSummary();
+      }
+    });
   }
   function renderCheckoutSummary() {
     var label = currentCheckout.serviceName + (currentCheckout.packageName ? ' — ' + currentCheckout.packageName : '');
-    if (currentDiscountToken) {
+    if (currentDiscountToken || checkoutSale) {
       checkoutSummaryEl.innerHTML = '<span>' + escapeHtml(label) + '</span><span><s style="color:var(--silver-dim);margin-right:8px;">' + escapeHtml(checkoutBasePriceLabel) + '</s>' + escapeHtml(currentCheckout.priceLabel) + '</span>';
     } else {
       checkoutSummaryEl.innerHTML = '<span>' + escapeHtml(label) + '</span><span>' + escapeHtml(currentCheckout.priceLabel) + '</span>';
@@ -536,7 +620,7 @@
   document.getElementById('checkoutModalClose').addEventListener('click', closeCheckoutModal);
   checkoutOverlay.addEventListener('click', function (e) { if (e.target === checkoutOverlay) closeCheckoutModal(); });
 
-  // NEW (discounts): apply-code handler
+  // Apply-code handler
   var discountApplyBtnEl = document.getElementById('checkoutDiscountApplyBtn');
   if (discountApplyBtnEl) {
     discountApplyBtnEl.addEventListener('click', function () {
@@ -606,46 +690,62 @@
     var reference = 'scarls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
 
     checkoutPayBtn.disabled = true;
-    checkoutPayBtn.textContent = 'Opening Paystack…';
+    checkoutPayBtn.textContent = 'Checking price…';
     checkoutFormError.classList.remove('is-visible');
 
-    var popup = new PaystackPop();
-    popup.newTransaction({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: email,
-      amount: Math.round(currentCheckout.amountNaira * 100),
-      currency: 'NGN',
-      ref: reference,
-      metadata: {
-        serviceId: currentCheckout.serviceId,
-        packageId: currentCheckout.packageId || '',
-        pricingModel: currentCheckout.pricingModel,
-        fullName: fullName,
-        whatsapp: whatsapp,
-        businessName: businessName,
-        budgetToken: currentCheckout.budgetToken || '',
-        quoteToken: currentCheckout.quoteToken || '',
-        discountToken: currentDiscountToken || '',
-        custom_fields: [
-          { display_name: 'Service', variable_name: 'service', value: currentCheckout.serviceName },
-          { display_name: 'WhatsApp', variable_name: 'whatsapp', value: whatsapp }
-        ]
-      },
-      onSuccess: function (transaction) {
-        checkoutPayBtn.textContent = 'Verifying payment…';
-        verifyPaymentOnServer_({
-          reference: transaction.reference, serviceId: currentCheckout.serviceId,
-          packageId: currentCheckout.packageId, pricingModel: currentCheckout.pricingModel,
-          fullName: fullName, email: email, whatsapp: whatsapp, businessName: businessName,
+    // Re-check the sales list right before charging. The server rejects a
+    // payment that doesn't match its own price, so if a sale started or
+    // ended since the checkout opened, show the new total instead of
+    // charging the old one.
+    var priceBefore = currentCheckout.amountNaira;
+    refreshSales().then(function () {
+      applySaleToCheckout_();
+      if (currentCheckout.amountNaira !== priceBefore) {
+        renderCheckoutSummary();
+        showCheckoutError('The price was just updated (a sale started or ended). Please check the new total, then click Pay again.');
+        return;
+      }
+
+      checkoutPayBtn.textContent = 'Opening Paystack…';
+
+      var popup = new PaystackPop();
+      popup.newTransaction({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: email,
+        amount: Math.round(currentCheckout.amountNaira * 100),
+        currency: 'NGN',
+        ref: reference,
+        metadata: {
+          serviceId: currentCheckout.serviceId,
+          packageId: currentCheckout.packageId || '',
+          pricingModel: currentCheckout.pricingModel,
+          fullName: fullName,
+          whatsapp: whatsapp,
+          businessName: businessName,
           budgetToken: currentCheckout.budgetToken || '',
           quoteToken: currentCheckout.quoteToken || '',
-          discountToken: currentDiscountToken || ''
-        });
-      },
-      onCancel: function () {
-        checkoutPayBtn.disabled = false;
-        checkoutPayBtn.textContent = 'Pay with Paystack';
-      }
+          discountToken: currentDiscountToken || '',
+          custom_fields: [
+            { display_name: 'Service', variable_name: 'service', value: currentCheckout.serviceName },
+            { display_name: 'WhatsApp', variable_name: 'whatsapp', value: whatsapp }
+          ]
+        },
+        onSuccess: function (transaction) {
+          checkoutPayBtn.textContent = 'Verifying payment…';
+          verifyPaymentOnServer_({
+            reference: transaction.reference, serviceId: currentCheckout.serviceId,
+            packageId: currentCheckout.packageId, pricingModel: currentCheckout.pricingModel,
+            fullName: fullName, email: email, whatsapp: whatsapp, businessName: businessName,
+            budgetToken: currentCheckout.budgetToken || '',
+            quoteToken: currentCheckout.quoteToken || '',
+            discountToken: currentDiscountToken || ''
+          });
+        },
+        onCancel: function () {
+          checkoutPayBtn.disabled = false;
+          checkoutPayBtn.textContent = 'Pay with Paystack';
+        }
+      });
     });
   });
   function verifyPaymentOnServer_(payload) {
@@ -1267,135 +1367,9 @@
     if (e.key === 'Escape') { closeServiceModal(); closeOfferModal(); closeCheckoutModal(); closeBudgetChatModal(); closeAiQuoteModal(); }
   });
 
-  /* ---------------- Sale banner (auto Black Friday-style sales) ---------------- */
-  // Public read of sale_periods (RLS allows anon select) — purely
-  // cosmetic banner. The ACTUAL discount is always recomputed by
-  // verify-payment server-side, so nothing here needs to be trusted.
-  function renderSaleBanner() {
-    var headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY };
-    var nowIso = new Date().toISOString();
-    var url = SUPABASE_URL + '/rest/v1/sale_periods?active=eq.true&select=*';
-    fetch(url, { headers: headers })
-      .then(function (res) { return res.json(); })
-      .then(function (rows) {
-        if (!Array.isArray(rows)) return;
-        var active = rows.filter(function (s) {
-          var startsOk = !s.starts_at || new Date(s.starts_at) <= new Date(nowIso);
-          var endsOk = !s.ends_at || new Date(s.ends_at) >= new Date(nowIso);
-          return startsOk && endsOk;
-        });
-        if (!active.length) return;
-        var best = active.sort(function (a, b) { return b.percent_off - a.percent_off; })[0];
-        var bar = document.createElement('div');
-        bar.id = 'saleBanner';
-        bar.innerHTML = '<span>' + escapeHtml(best.name) + ' — ' + escapeHtml(String(best.percent_off)) + '% off' + (best.applies_to === 'all' ? ' everything' : '') + '</span>';
-        document.body.insertBefore(bar, document.body.firstChild);
-      })
-      .catch(function () { /* banner is cosmetic — fail silently */ });
-  }
-
-  /* ---------------- Sale Spotlight (popup: rotating slides + countdown + close) ---------------- */
-  // A second, flashier sale widget that sits alongside the pinned
-  // #saleBanner strip above — bottom-right popup, shows on every page
-  // visit, closable with an X, auto-rotates between sales if more than
-  // one is active, and counts down to the sale's ends_at. Purely
-  // cosmetic, same as the pinned banner: the real discount is always
-  // recomputed server-side by verify-payment, never trusted from here.
-  function renderSaleSpotlight() {
-    var headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY };
-    var nowIso = new Date().toISOString();
-    var url = SUPABASE_URL + '/rest/v1/sale_periods?active=eq.true&select=*';
-    fetch(url, { headers: headers })
-      .then(function (res) { return res.json(); })
-      .then(function (rows) {
-        if (!Array.isArray(rows)) return;
-        var active = rows.filter(function (s) {
-          var startsOk = !s.starts_at || new Date(s.starts_at) <= new Date(nowIso);
-          var endsOk = !s.ends_at || new Date(s.ends_at) >= new Date(nowIso);
-          return startsOk && endsOk;
-        });
-        if (!active.length) return;
-        active.sort(function (a, b) { return b.percent_off - a.percent_off; });
-        buildSaleSpotlight(active);
-      })
-      .catch(function () { /* cosmetic — fail silently */ });
-  }
-
-  function buildSaleSpotlight(sales) {
-    var box = document.createElement('div');
-    box.id = 'saleSpotlight';
-    box.innerHTML =
-      '<button type="button" class="sale-spotlight-close" aria-label="Close">&times;</button>' +
-      '<div class="sale-spotlight-badge">LIMITED TIME</div>' +
-      '<div class="sale-spotlight-name"></div>' +
-      '<div class="sale-spotlight-pct"></div>' +
-      '<div class="sale-spotlight-countdown"></div>' +
-      '<div class="sale-spotlight-dots"></div>';
-    document.body.appendChild(box);
-
-    var nameEl = box.querySelector('.sale-spotlight-name');
-    var pctEl = box.querySelector('.sale-spotlight-pct');
-    var cdEl = box.querySelector('.sale-spotlight-countdown');
-    var dotsEl = box.querySelector('.sale-spotlight-dots');
-    var closeBtn = box.querySelector('.sale-spotlight-close');
-    var countdownTimer, rotateTimer;
-
-    closeBtn.addEventListener('click', function () {
-      box.classList.add('is-closing');
-      clearInterval(rotateTimer);
-      clearInterval(countdownTimer);
-      setTimeout(function () { box.remove(); }, 250);
-    });
-
-    if (sales.length > 1) {
-      sales.forEach(function (_, i) {
-        var dot = document.createElement('span');
-        dot.className = 'sale-spotlight-dot' + (i === 0 ? ' is-active' : '');
-        dotsEl.appendChild(dot);
-      });
-    }
-
-    function renderCountdown(endsAt) {
-      clearInterval(countdownTimer);
-      if (!endsAt) { cdEl.textContent = ''; return; }
-      function tick() {
-        var diff = new Date(endsAt).getTime() - Date.now();
-        if (diff <= 0) { cdEl.textContent = 'Ends soon'; clearInterval(countdownTimer); return; }
-        var d = Math.floor(diff / 86400000);
-        var h = Math.floor((diff % 86400000) / 3600000);
-        var m = Math.floor((diff % 3600000) / 60000);
-        var s2 = Math.floor((diff % 60000) / 1000);
-        var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
-        cdEl.textContent = (d > 0 ? d + 'd ' : '') + pad(h) + 'h ' + pad(m) + 'm ' + pad(s2) + 's';
-      }
-      tick();
-      countdownTimer = setInterval(tick, 1000);
-    }
-
-    function renderSlide(i) {
-      var s = sales[i];
-      nameEl.textContent = s.name;
-      pctEl.textContent = s.percent_off + '% OFF' + (s.applies_to === 'all' ? ' EVERYTHING' : '');
-      var dots = dotsEl.querySelectorAll('.sale-spotlight-dot');
-      dots.forEach(function (d, di) { d.classList.toggle('is-active', di === i); });
-      renderCountdown(s.ends_at);
-    }
-
-    var current = 0;
-    renderSlide(current);
-    requestAnimationFrame(function () { box.classList.add('is-visible'); });
-
-    if (sales.length > 1) {
-      rotateTimer = setInterval(function () {
-        current = (current + 1) % sales.length;
-        box.classList.add('is-fading');
-        setTimeout(function () {
-          renderSlide(current);
-          box.classList.remove('is-fading');
-        }, 200);
-      }, 4500);
-    }
-  }
+  // NOTE: the sale banner and the sale popup live in sale-banner.js. The old
+  // renderSaleBanner() / renderSaleSpotlight() copies that used to be here
+  // were removed so they don't show up twice.
 
   /* ---------------- Resume from an emailed link ---------------- */
   // A client whose chat went to admin review gets emailed a link back
@@ -1429,7 +1403,7 @@
           budgetChatDone.style.display = 'none';
           budgetChatDone.classList.remove('is-visible');
           budgetChatWaiting.style.display = 'none';
-          budgetChatModalOverlay.classList.add('is-open');
+          budgetChatOverlay.classList.add('is-open');
           document.body.style.overflow = 'hidden';
           handleBudgetChatTurn_(data);
         })
@@ -1462,7 +1436,6 @@
   renderTabs();
   renderGrid();
   fetchLiveCatalog();
-  renderSaleBanner();
-  renderSaleSpotlight();
+  refreshSales();
   resumeFromUrl_();
 })();
