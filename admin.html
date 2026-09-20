@@ -205,7 +205,18 @@
     <div id="discountList"></div>
   </div>
 
-  <div id="salesSection" style="display:none;">
+ <div id="salesSection" style="display:none;">
+    <div class="field" style="margin-bottom:16px;">
+      <label>Popup frequency (how often the sale popup shows to visitors)</label>
+      <select id="popupFrequencySelect">
+        <option value="always">Every page load / refresh</option>
+        <option value="once_per_session">Once per visit (until they close the tab)</option>
+        <option value="hours:1">Once every 1 hour</option>
+        <option value="hours:3">Once every 3 hours</option>
+        <option value="hours:12">Once every 12 hours</option>
+        <option value="hours:24">Once every 24 hours</option>
+      </select>
+    </div>
     <button type="button" class="add-btn" id="addSaleBtn">+ Add Sale Period</button>
     <div id="saleList"></div>
   </div>
@@ -368,6 +379,8 @@
       } else if (section === 'sales') {
         sectionTitle.textContent = 'Sale Periods';
         if (!salesLoaded) loadSales();
+        loadPopupFrequency();
+ 
       } else if (section === 'tickets') {
         sectionTitle.textContent = 'Support Tickets';
         if (!ticketsLoaded) loadTickets();
@@ -1311,6 +1324,29 @@
       })
       .catch(function () { saleListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
   }
+  function loadPopupFrequency() {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/public-active-sales', {
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.ok && data.popupFrequency) {
+          document.getElementById('popupFrequencySelect').value = data.popupFrequency;
+        }
+      })
+      .catch(function () { /* leave the default selected option showing */ });
+  }
+ 
+  document.getElementById('popupFrequencySelect').addEventListener('change', function (e) {
+    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-setting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ password: password, key: 'sale_popup_frequency', value: e.target.value })
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (!data || !data.ok) alert((data && data.error) || 'Could not save — please try again.');
+    });
+  });
+ 
 
   function renderSaleList() {
     if (!allSales.length) { saleListEl.innerHTML = '<div class="empty-state">No sale periods yet.</div>'; return; }
