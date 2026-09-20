@@ -19,6 +19,16 @@
     })
     .catch(function () { /* fail silently — a broken sale widget should never block the site */ });
 
+  // Announcement banner (message, link, colour, expiry — all managed from the admin page).
+  fetch(SUPABASE_FUNCTIONS_BASE + '/public-site-announcement', {
+    headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
+  })
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data && data.ok && data.announcement) renderAnnouncement(data.announcement);
+    })
+    .catch(function () { /* fail silently — a broken banner should never block the site */ });
+
   /* ---------- Small helpers ---------- */
 
   function isStillRunning(sale) {
@@ -82,7 +92,76 @@
     else if (frequency && frequency.indexOf('hours:') === 0) storageSet('localStorage', 'salePopupLastShown', String(Date.now()));
   }
 
-  /* ---------- Top strip banner: first sitewide ("all") sale, if any ---------- */
+  /* ---------- Pinned top bars (announcement + sale banner) ---------- */
+  // Both banners live inside one fixed container at the top of the screen, so they
+  // stack neatly and stay visible while scrolling. The container's height is
+  // published as --sale-banner-h, and the site's own menu bar is moved down by that
+  // amount (see injectBarStyles) so nothing overlaps.
+  var topBars = null;
+  var topBarsSync = null;
+  var topBarsObserver = null;
+
+  function getTopBars() {
+    if (topBars) return topBars;
+    injectBarStyles();
+    var root = document.documentElement;
+    var bars = document.createElement('div');
+    bars.id = 'topBars';
+    document.body.insertBefore(bars, document.body.firstChild);
+    topBars = bars;
+    topBarsSync = function () { root.style.setProperty('--sale-banner-h', bars.offsetHeight + 'px'); };
+    root.classList.add('has-sale-banner');
+    topBarsSync();
+    window.addEventListener('resize', topBarsSync);
+    if ('ResizeObserver' in window) {
+      topBarsObserver = new ResizeObserver(topBarsSync); // the text can wrap on small screens
+      topBarsObserver.observe(bars);
+    }
+    return topBars;
+  }
+
+  // Call after removing a bar: tidies everything up once no bars are left.
+  function releaseTopBars() {
+    if (!topBars || topBars.children.length) return;
+    window.removeEventListener('resize', topBarsSync);
+    if (topBarsObserver) { topBarsObserver.disconnect(); topBarsObserver = null; }
+    var root = document.documentElement;
+    root.classList.remove('has-sale-banner');
+    root.style.removeProperty('--sale-banner-h');
+    if (topBars.parentNode) topBars.parentNode.removeChild(topBars);
+    topBars = null;
+  }
+
+  function injectBarStyles() {
+    if (document.getElementById('topBarStyles')) return;
+    var style = document.createElement('style');
+    style.id = 'topBarStyles';
+    style.textContent =
+      // Fixed to the top of the screen, above the menu bar (z-index 100) but below pop-ups.
+      '#topBars{position:fixed;top:0;left:0;right:0;z-index:150;}' +
+      '#topBars > #saleBanner{position:static !important;margin:0 !important;}' +
+      // Keep the page content where it was, and slide the menu bar down under the bars.
+      'html.has-sale-banner body{padding-top:var(--sale-banner-h,0px);}' +
+      'html.has-sale-banner .nav{top:var(--sale-banner-h,0px);}' +
+      'html.has-sale-banner{scroll-padding-top:var(--sale-banner-h,0px);}' +
+      // Announcement banner
+      '#siteAnnouncement{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 12px;' +
+        'padding:11px 46px 11px 16px;text-align:center;font-family:var(--font-body,sans-serif);font-size:14px;font-weight:500;' +
+        'line-height:1.4;color:#fff;border-bottom:1px solid rgba(255,255,255,.12);}' +
+      '#siteAnnouncement.style-info{background:#1d2b53;}' +
+      '#siteAnnouncement.style-success{background:#12513a;}' +
+      '#siteAnnouncement.style-warning{background:#7a5200;}' +
+      '#siteAnnouncement .announcement-link{color:#fff;font-weight:700;text-decoration:underline;white-space:nowrap;}' +
+      '#siteAnnouncement .announcement-countdown{font-family:var(--font-mono,monospace);font-size:13px;padding:3px 10px;' +
+        'border-radius:100px;background:rgba(0,0,0,.25);white-space:nowrap;}' +
+      '#siteAnnouncement .announcement-close{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;' +
+        'border:none;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;font-size:18px;line-height:1;cursor:pointer;' +
+        'display:flex;align-items:center;justify-content:center;}' +
+      '#siteAnnouncement .announcement-close:hover{background:rgba(255,255,255,.28);}';
+    document.head.appendChild(style);
+  }
+
+  /* ---------- Sale banner: first sitewide ("all") sale, if any ---------- */
   function renderBanner(sales) {
     var siteWide = sales.filter(function (s) { return s.applies_to === 'all'; })[0];
     if (!siteWide) return;
@@ -92,7 +171,7 @@
     var base = siteWide.name + ' — ' + siteWide.percent_off + '% off sitewide';
     var countdown = formatCountdown(siteWide.ends_at);
     banner.textContent = base + (countdown ? ' · ' + countdown : '');
-    document.body.insertBefore(banner, document.body.firstChild);
+    getTopBars().appendChild(banner);
 
     if (siteWide.ends_at) {
       var bannerTimer = setInterval(function () {
@@ -101,10 +180,104 @@
           // The sale just ended while the page was open — take the banner down.
           clearInterval(bannerTimer);
           if (banner.parentNode) banner.parentNode.removeChild(banner);
+          releaseTopBars();
           return;
         }
         banner.textContent = base + ' · ' + c;
       }, 1000);
+    }
+  }
+
+  /* ---------- Announcement banner (managed from the admin page) ---------- */
+
+  // Only web addresses, site-relative paths and #anchors are allowed as links.
+  function safeUrl(u) {
+    u = String(u || '').trim();
+    if (/^https?:\/\//i.test(u) || /^\/(?!\/)/.test(u) || /^#/.test(u)) return u;
+    return '';
+  }
+
+  function renderAnnouncement(a) {
+    if (!a || !a.text) return;
+
+    // Optional: only show on one website address (e.g. the old address after a move).
+    if (a.only_on_host) {
+      var here = window.location.hostname.toLowerCase().replace(/^www\./, '');
+      var wanted = String(a.only_on_host).toLowerCase().replace(/^www\./, '');
+      if (here !== wanted) return;
+    }
+
+    // A visitor's "close" is remembered for this version of the message only,
+    // so a newly saved message shows up for them again.
+    if (a.dismissible && storageGet('localStorage', 'announcementDismissed') === String(a.version)) return;
+
+    if (a.ends_at) {
+      var endTime = new Date(a.ends_at).getTime();
+      if (!isNaN(endTime) && endTime <= Date.now()) return;
+    }
+
+    var bar = document.createElement('div');
+    bar.id = 'siteAnnouncement';
+    bar.className = 'style-' + (['info', 'success', 'warning'].indexOf(a.style) >= 0 ? a.style : 'info');
+    bar.setAttribute('role', 'status');
+
+    var msg = document.createElement('span');
+    msg.className = 'announcement-text';
+    msg.textContent = a.text;
+    bar.appendChild(msg);
+
+    // Optional live countdown to the hide date.
+    var countdownEl = null;
+    if (a.show_countdown && a.ends_at) {
+      countdownEl = document.createElement('span');
+      countdownEl.className = 'announcement-countdown';
+      bar.appendChild(countdownEl);
+    }
+    function paintCountdown() {
+      if (countdownEl) countdownEl.textContent = formatCountdown(a.ends_at) || '';
+    }
+
+    var url = safeUrl(a.link_url);
+    if (url) {
+      var link = document.createElement('a');
+      link.className = 'announcement-link';
+      link.href = url;
+      link.textContent = a.link_text || 'Learn more';
+      if (/^https?:/i.test(url)) { link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+      bar.appendChild(link);
+    }
+
+    var expiryTimer = null;
+    function removeBar() {
+      clearInterval(expiryTimer);
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+      releaseTopBars();
+    }
+
+    if (a.dismissible) {
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'announcement-close';
+      close.setAttribute('aria-label', 'Close announcement');
+      close.innerHTML = '&times;';
+      close.addEventListener('click', function () {
+        storageSet('localStorage', 'announcementDismissed', String(a.version));
+        removeBar();
+      });
+      bar.appendChild(close);
+    }
+
+    var container = getTopBars();
+    container.insertBefore(bar, container.firstChild); // announcement sits above the sale banner
+
+    if (a.ends_at) {
+      paintCountdown();
+      // Tick every second when a countdown is showing, otherwise just check now and then.
+      expiryTimer = setInterval(function () {
+        var t = new Date(a.ends_at).getTime();
+        if (!isNaN(t) && t <= Date.now()) { removeBar(); return; }
+        paintCountdown();
+      }, countdownEl ? 1000 : 30000);
     }
   }
 
