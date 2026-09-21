@@ -100,6 +100,35 @@
   .brief-summary dt{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--silver-dim); margin-top:10px; }
   .brief-summary dd{ margin:3px 0 0; font-size:13.5px; color:var(--off-white); white-space:pre-wrap; }
 
+
+  /* ---------- Review + messages ---------- */
+  .portal-ta{
+    width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
+    padding:10px 12px; font-size:14px; font-family:inherit; border-radius:8px; resize:vertical; min-height:70px; line-height:1.5;
+  }
+  .portal-ta:focus{ outline:none; border-color:var(--accent-blue); }
+  .review-box{ border:1px solid var(--line-soft); border-radius:12px; padding:16px; margin-bottom:18px; }
+  .review-box h3{ font-family:var(--font-display); color:var(--white); font-size:16px; margin:0 0 6px; }
+  .review-note{ font-size:13.5px; color:var(--silver); line-height:1.6; margin:0 0 14px; }
+  .review-actions{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+  .review-actions .btn{ padding:12px 22px; font-size:14px; }
+  .review-actions .btn[disabled]{ opacity:.5; cursor:default; }
+  .rev-count{ font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--silver-dim); margin:6px 0 0; }
+  #changesBox{ margin-top:4px; }
+
+  .thread{ margin-top:24px; border-top:1px solid var(--line-soft); padding-top:18px; }
+  .thread h3{ font-family:var(--font-display); color:var(--white); font-size:16px; margin:0 0 12px; }
+  .msgs{ max-height:340px; overflow-y:auto; margin-bottom:12px; display:flex; flex-direction:column; gap:9px; }
+  .msg{ max-width:88%; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .msg small{ display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; opacity:.7; margin-bottom:3px; }
+  .msg.you{ align-self:flex-end; background:#1d2b53; color:#fff; }
+  .msg.team{ align-self:flex-start; background:var(--graphite-1); border:1px solid var(--line-soft); color:var(--off-white); }
+  .msg.event{ align-self:center; border:1px dashed var(--line); color:var(--silver); font-size:12.5px; text-align:center; max-width:100%; }
+  .thread-form{ display:flex; gap:8px; align-items:flex-end; }
+  .thread-form .portal-ta{ flex:1; min-height:46px; }
+  .thread-form .btn{ padding:12px 20px; font-size:14px; }
+  .thread-form .btn[disabled]{ opacity:.5; cursor:default; }
+
   @media (max-width:520px){
     .card{ padding:22px 16px; }
     .step span{ font-size:8px; }
@@ -137,7 +166,7 @@
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpweXRqaWZiaGF4bml1bGlvcHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyOTMyNjgsImV4cCI6MjEwMzg2OTI2OH0.QFGo9feUbsle_fGxNZvxMaBuRQzS55RKF2_i0oL0LYQ";
 
   var STATUS_FLOW = ["paid", "brief", "in_progress", "review", "delivered"];
-  var STATUS_LABELS = { paid: "Paid", brief: "Brief", in_progress: "In progress", review: "Review", delivered: "Delivered", refunded: "Refunded" };
+  var STATUS_LABELS = { paid: "Paid", brief: "Brief", in_progress: "In progress", review: "Review", changes_requested: "Changes requested", delivered: "Delivered", refunded: "Refunded" };
 
   // File types the server accepts (also checked there — this is just to give instant feedback).
   var ALLOWED = {
@@ -213,15 +242,16 @@
     }
 
     var btn = $('deliveryLinkBtn');
-    if ((p.status === 'delivered' || p.status === 'review') && p.deliveryLink) {
+    if ((p.status === 'delivered' || p.status === 'review' || p.status === 'changes_requested') && p.deliveryLink) {
       btn.href = p.deliveryLink;
-      btn.textContent = p.status === 'review' ? 'View your preview' : 'View your delivery';
+      btn.textContent = p.status === 'delivered' ? 'View your delivery' : 'View your preview';
       btn.style.display = 'block';
     } else {
       btn.style.display = 'none';
     }
 
-    var currentIndex = STATUS_FLOW.indexOf(p.status);
+    var stepKey = p.status === 'changes_requested' ? 'review' : p.status;
+    var currentIndex = STATUS_FLOW.indexOf(stepKey);
     $('steps').innerHTML = STATUS_FLOW.map(function (s, i) {
       var cls = i < currentIndex ? 'done' : (i === currentIndex ? 'current done' : '');
       return '<div class="step ' + cls + '"><div class="dot"></div><span>' + escapeHtml(STATUS_LABELS[s]) + '</span></div>';
@@ -277,6 +307,8 @@
       .catch(function () { showError('Could not reach the server. Please check your connection and try again.'); });
   }
 
+  var THREAD_STAGES = ['brief', 'in_progress', 'review', 'changes_requested', 'delivered'];
+
   function renderPortal() {
     var d = state.data;
     renderShell(d.project);
@@ -291,10 +323,12 @@
         (d.project.dueDate ? 'Expected delivery: <b>' + escapeHtml(formatDay(d.project.dueDate)) + '</b>. ' : '') +
         'We\'ll email you as soon as there\'s something to review.</p>' + briefSummaryHtml();
     } else if (s === 'review') {
+      renderReviewPanel();
+    } else if (s === 'changes_requested') {
       panelEl.innerHTML =
-        '<p class="panel-msg">Your project is <b>ready for your review</b>. ' +
-        (d.project.deliveryLink ? 'Use the button below to open it. ' : '') +
-        'If you\'d like any changes, just reply to our email with your feedback.</p>' + briefSummaryHtml();
+        '<div class="callout ok"><b>Changes requested</b>We\'ve received your feedback and we\'re working on it. ' +
+        'We\'ll email you as soon as the updated version is ready.</div>' +
+        '<p class="rev-count">' + revisionText() + '</p>' + briefSummaryHtml();
     } else if (s === 'delivered') {
       panelEl.innerHTML = '<p class="panel-msg">Your project is <b>delivered</b>. Thank you for working with us!</p>' + briefSummaryHtml();
     } else if (s === 'refunded') {
@@ -302,7 +336,136 @@
     } else {
       panelEl.innerHTML = '<p class="panel-msg">Payment received. A member of the SCARLS team will be in touch shortly.</p>';
     }
+
+    if (THREAD_STAGES.indexOf(s) >= 0) appendThread();
   }
+
+  function revisionText() {
+    var r = state.data.review;
+    return 'Revisions: ' + r.revisionsUsed + ' of ' + r.revisionLimit + ' used';
+  }
+
+  /* ---------- Review: approve or ask for changes ---------- */
+  function renderReviewPanel() {
+    var d = state.data, r = d.review;
+    var html = '<div class="review-box"><h3>Your project is ready for review</h3>';
+
+    if (r.approvedAt) {
+      html += '<div class="callout ok"><b>Approved</b>You approved this project on ' + escapeHtml(formatDay(r.approvedAt)) +
+        '. Thank you — we\'ll send your final delivery shortly.</div>';
+    } else {
+      html += '<p class="review-note">' + (d.project.deliveryLink ? 'Open your preview with the button below. ' : '') +
+        'Then approve it if you\'re happy, or tell us what you\'d like changed.</p>';
+      var left = r.revisionLimit - r.revisionsUsed;
+      html += '<div class="review-actions"><button type="button" class="btn btn-primary" id="approveBtn">Approve this project</button>' +
+        (left > 0 ? '<button type="button" class="btn btn-ghost" id="changesToggle">Request changes</button>' : '') + '</div>';
+      if (left > 0) {
+        html += '<div id="changesBox" style="display:none;"><textarea class="portal-ta" id="changesText" maxlength="3000" ' +
+          'placeholder="Describe what you\'d like changed…"></textarea>' +
+          '<div class="review-actions" style="margin-top:10px;"><button type="button" class="btn btn-primary" id="sendChangesBtn">Send my changes</button></div></div>';
+      } else {
+        html += '<p class="review-note">You\'ve used all ' + r.revisionLimit + ' included revision rounds. If you\'d like more changes, send us a message below and we\'ll explain the options.</p>';
+      }
+    }
+    html += '<p class="rev-count">' + revisionText() + '</p><p class="form-msg" id="reviewMsg" role="status"></p></div>' + briefSummaryHtml();
+    panelEl.innerHTML = html;
+    wireReview();
+  }
+
+  function reviewMsg(text, kind) {
+    var m = $('reviewMsg');
+    if (!m) return;
+    m.textContent = text || '';
+    m.className = 'form-msg' + (kind ? ' ' + kind : '');
+  }
+
+  function wireReview() {
+    var approve = $('approveBtn'), toggle = $('changesToggle'), send = $('sendChangesBtn');
+    if (approve) approve.addEventListener('click', function () {
+      if (!window.confirm('Approve this project? This tells us you are happy with it.')) return;
+      approve.disabled = true; reviewMsg('Saving…', '');
+      callPortal('approve')
+        .then(function (res) {
+          if (!res || !res.ok) { approve.disabled = false; reviewMsg((res && res.error) || 'Could not save. Please try again.', 'err'); return; }
+          loadPortal();
+        })
+        .catch(function () { approve.disabled = false; reviewMsg('Could not reach the server. Please try again.', 'err'); });
+    });
+    if (toggle) toggle.addEventListener('click', function () {
+      var box = $('changesBox');
+      box.style.display = box.style.display === 'none' ? '' : 'none';
+      if (box.style.display === '') $('changesText').focus();
+    });
+    if (send) send.addEventListener('click', function () {
+      var text = $('changesText').value.trim();
+      if (text.length < 5) { reviewMsg('Please describe the changes you\'d like.', 'err'); return; }
+      send.disabled = true; reviewMsg('Sending…', '');
+      callPortal('request_changes', { body: text })
+        .then(function (res) {
+          if (!res || !res.ok) { send.disabled = false; reviewMsg((res && res.error) || 'Could not send. Please try again.', 'err'); return; }
+          loadPortal();
+        })
+        .catch(function () { send.disabled = false; reviewMsg('Could not reach the server. Please try again.', 'err'); });
+    });
+  }
+
+  /* ---------- Messages ---------- */
+  function formatTime(value) {
+    var d = new Date(value);
+    return isNaN(d) ? '' : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  }
+
+  function msgHtml(m) {
+    var when = escapeHtml(formatTime(m.at));
+    if (m.kind === 'approval') return '<div class="msg event">You approved this project · ' + when + '</div>';
+    if (m.kind === 'system') return '<div class="msg event">SCARLS: ' + escapeHtml(m.text) + ' · ' + when + '</div>';
+    if (m.from === 'admin') return '<div class="msg team"><small>SCARLS · ' + when + '</small>' + escapeHtml(m.text) + '</div>';
+    var label = m.kind === 'changes_request' ? 'You asked for changes' : 'You';
+    return '<div class="msg you"><small>' + label + ' · ' + when + '</small>' + escapeHtml(m.text) + '</div>';
+  }
+
+  function renderMessages() {
+    var box = $('msgs');
+    if (!box) return;
+    var msgs = state.data.messages || [];
+    box.innerHTML = msgs.length
+      ? msgs.map(msgHtml).join('')
+      : '<p class="state-screen" style="padding:6px 0;">No messages yet. Ask us anything here.</p>';
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function appendThread() {
+    panelEl.insertAdjacentHTML('beforeend',
+      '<div class="thread"><h3>Messages</h3><div class="msgs" id="msgs"></div>' +
+      '<form class="thread-form" id="threadForm"><textarea class="portal-ta" id="msgInput" maxlength="2000" placeholder="Write a message to the SCARLS team…"></textarea>' +
+      '<button type="submit" class="btn btn-primary" id="msgSend">Send</button></form><p class="form-msg" id="threadMsg" role="status"></p></div>');
+    renderMessages();
+    $('threadForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var input = $('msgInput'), text = input.value.trim();
+      if (!text) return;
+      var btn = $('msgSend'), note = $('threadMsg');
+      btn.disabled = true; note.textContent = ''; note.className = 'form-msg';
+      callPortal('send_message', { body: text })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res || !res.ok) { note.textContent = (res && res.error) || 'Could not send.'; note.className = 'form-msg err'; return; }
+          state.data.messages = res.messages; input.value = ''; renderMessages();
+        })
+        .catch(function () { btn.disabled = false; note.textContent = 'Could not reach the server. Please try again.'; note.className = 'form-msg err'; });
+    });
+  }
+
+  // Every 30 seconds, quietly check for new messages or a stage change (only while the page is open and visible).
+  setInterval(function () {
+    if (!token || document.hidden || !state.data || !$('msgs')) return;
+    callPortal('messages').then(function (res) {
+      if (!res || !res.ok) return;
+      var typing = document.activeElement && document.activeElement.tagName === 'TEXTAREA';
+      if (res.status && res.status !== state.data.project.status && !typing) { loadPortal(); return; }
+      if (res.messages.length !== (state.data.messages || []).length) { state.data.messages = res.messages; renderMessages(); }
+    }).catch(function () { /* try again next time */ });
+  }, 30000);
 
   /* ---------- Read-only view of what the customer sent ---------- */
   function briefSummaryHtml() {

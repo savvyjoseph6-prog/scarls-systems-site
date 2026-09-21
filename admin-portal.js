@@ -2,6 +2,9 @@
  *
  * Adds to every project card:
  *   - the customer's brief status (Not started / Submitted / Approved ...)
+ *   - Review: "Customer approved", "Changes requested", revision rounds used, new messages
+ *   - "Messages": talk to the customer (they are emailed), send an updated version back
+ *     for review after they asked for changes, or give them one more revision round
  *   - "View brief": read their answers, open their files, then Approve (starts the
  *     project and emails them) or Ask for changes (emails them your note)
  *   - "Copy link" and "Resend email" for the customer's private project page
@@ -85,7 +88,13 @@
     '.pp-note{border:1px solid #3a224a;background:rgba(201,139,255,.06);color:#c98bff;border-radius:9px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;white-space:pre-wrap;}' +
     '.pp-modal textarea{width:100%;background:var(--graphite-1);border:1px solid var(--line);color:var(--white);padding:9px 11px;font-size:13.5px;font-family:inherit;border-radius:7px;min-height:70px;resize:vertical;}' +
     '.pp-modal textarea:focus{outline:none;border-color:var(--accent-blue);}' +
-    '.pp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}';
+    '.pp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}' +
+    '.pp-thread{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;margin:10px 0 12px;}' +
+    '.pp-m{max-width:88%;padding:8px 11px;border-radius:11px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}' +
+    '.pp-m small{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;opacity:.7;margin-bottom:2px;}' +
+    '.pp-m.cust{align-self:flex-start;background:var(--graphite-1);border:1px solid var(--line-soft);color:var(--off-white);}' +
+    '.pp-m.team{align-self:flex-end;background:#1d2b53;color:#fff;}' +
+    '.pp-m.event{align-self:center;border:1px dashed var(--line);color:var(--silver);font-size:12px;text-align:center;max-width:100%;}';
   document.head.appendChild(style);
 
   /* ---------- Data ---------- */
@@ -146,6 +155,15 @@
         (it.filesCount ? '<span>' + it.filesCount + ' file' + (it.filesCount === 1 ? '' : 's') + '</span>' : '') +
         '<button type="button" class="pp-btn primary" data-act="view">View brief</button></div>';
     }
+    var reviewStage = ['review', 'changes_requested', 'delivered'].indexOf(it.projectStatus) >= 0;
+    if (reviewStage || it.messagesCount > 0) {
+      html += '<div class="pp-row"><span class="pp-label">Review</span>' +
+        (it.approvedAt ? '<span class="pp-badge pp-b-approved">Customer approved</span>' : '') +
+        (it.projectStatus === 'changes_requested' ? '<span class="pp-badge pp-b-changes_requested">Changes requested</span>' : '') +
+        (reviewStage || it.revisionsUsed ? '<span>Revisions ' + it.revisionsUsed + '/' + it.revisionLimit + '</span>' : '') +
+        (it.unread ? '<span class="pp-badge pp-b-submitted">' + it.unread + ' new message' + (it.unread === 1 ? '' : 's') + '</span>' : '') +
+        '<button type="button" class="pp-btn primary" data-act="thread">Messages' + (it.messagesCount ? ' (' + it.messagesCount + ')' : '') + '</button></div>';
+    }
     html += '<div class="pp-row"><span class="pp-label">Customer page</span>' +
       (it.portalUrl
         ? '<button type="button" class="pp-btn" data-act="copy">Copy link</button><button type="button" class="pp-btn" data-act="resend">Resend email</button>'
@@ -158,6 +176,9 @@
 
     var view = block.querySelector('[data-act="view"]');
     if (view) view.addEventListener('click', function () { openBrief(id); });
+
+    var thr = block.querySelector('[data-act="thread"]');
+    if (thr) thr.addEventListener('click', function () { openThread(id); });
 
     var copy = block.querySelector('[data-act="copy"]');
     if (copy) copy.addEventListener('click', function () {
@@ -279,6 +300,108 @@
       }
       modal.querySelector('#ppApprove').addEventListener('click', function () { decide('approve'); });
       modal.querySelector('#ppChanges').addEventListener('click', function () { decide('changes'); });
+    }
+  }
+
+  /* ---------- "Messages" window ---------- */
+  function refreshCards() {
+    Array.prototype.forEach.call(document.querySelectorAll('.pp-block'), function (b) { if (b.parentNode) b.parentNode.removeChild(b); });
+    loadOverview(true).then(decorate);
+  }
+
+  function openThread(projectId) {
+    var overlay = document.createElement('div');
+    overlay.className = 'pp-overlay';
+    overlay.innerHTML = '<div class="pp-modal"><p class="pp-sub">Loading…</p></div>';
+    document.body.appendChild(overlay);
+    var modal = overlay.firstChild;
+
+    function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); document.removeEventListener('keydown', onKey); refreshCards(); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+
+    function fail(text) {
+      modal.innerHTML = '<p class="pp-sub">' + esc(text) + '</p><div class="pp-actions"><button type="button" class="pp-btn" id="ppClose">Close</button></div>';
+      modal.querySelector('#ppClose').addEventListener('click', close);
+    }
+
+    post({ action: 'thread', projectId: projectId })
+      .then(function (data) { if (!data || !data.ok) fail((data && data.error) || 'Could not load the messages.'); else render(data); })
+      .catch(function () { fail('Could not reach the server.'); });
+
+    function when(at) {
+      var d = new Date(at);
+      return isNaN(d) ? '' : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    }
+
+    function itemHtml(m) {
+      if (m.kind === 'approval') return '<div class="pp-m event">Customer approved the project · ' + esc(when(m.at)) + '</div>';
+      if (m.kind === 'system') return '<div class="pp-m event">Sent back for review: ' + esc(m.text) + ' · ' + esc(when(m.at)) + '</div>';
+      if (m.from === 'admin') return '<div class="pp-m team"><small>You · ' + esc(when(m.at)) + '</small>' + esc(m.text) + '</div>';
+      return '<div class="pp-m cust"><small>' + (m.kind === 'changes_request' ? 'Customer asked for changes' : 'Customer') + ' · ' + esc(when(m.at)) + '</small>' + esc(m.text) + '</div>';
+    }
+
+    function render(data) {
+      var p = data.project, r = data.review, waiting = p.status === 'changes_requested';
+      var html = '<h2>' + esc(p.fullName) + '</h2>' +
+        '<p class="pp-sub">' + esc(p.serviceName || '') + ' · stage: <b>' + esc(p.status) + '</b><br>' +
+        'Revisions used: <b id="ppRev">' + r.revisionsUsed + ' of ' + r.revisionLimit + '</b>' +
+        ' <button type="button" class="pp-btn" id="ppAddRev">+1 revision</button>' +
+        (r.approvedAt ? '<br>The customer approved this project.' : '') + '</p>' +
+        '<div class="pp-thread" id="ppThread"></div>' +
+        '<textarea id="ppText" placeholder="' + (waiting ? 'Optional note to send along when you send it back for review…' : 'Write a message to the customer…') + '"></textarea>' +
+        '<div class="pp-actions"><button type="button" class="pp-btn primary" id="ppReply">Send message</button>' +
+        (waiting ? '<button type="button" class="pp-btn" id="ppBack">Send back for review</button>' : '') +
+        '<button type="button" class="pp-btn" id="ppClose">Close</button></div>' +
+        '<div class="pp-msg" id="ppMsg" style="margin-top:10px;"></div>';
+      modal.innerHTML = html;
+
+      var list = modal.querySelector('#ppThread'), msg = modal.querySelector('#ppMsg');
+      function say(text, kind) { msg.textContent = text; msg.className = 'pp-msg' + (kind ? ' ' + kind : ''); }
+      function paint(messages) {
+        list.innerHTML = messages.length ? messages.map(itemHtml).join('') : '<p class="pp-sub">No messages yet.</p>';
+        list.scrollTop = list.scrollHeight;
+      }
+      paint(data.messages);
+
+      modal.querySelector('#ppClose').addEventListener('click', close);
+
+      modal.querySelector('#ppReply').addEventListener('click', function () {
+        var box = modal.querySelector('#ppText'), text = box.value.trim();
+        if (!text) { say('Type your message first.', 'err'); return; }
+        say('Sending…', '');
+        post({ action: 'reply', projectId: projectId, text: text })
+          .then(function (res) {
+            if (!res || !res.ok) { say((res && res.error) || 'Could not send.', 'err'); return; }
+            box.value = ''; paint(res.messages);
+            say(res.emailed ? 'Sent — the customer has been emailed.' : 'Saved, but the email could not be sent.', res.emailed ? 'ok' : 'err');
+          })
+          .catch(function () { say('Network error — try again.', 'err'); });
+      });
+
+      var back = modal.querySelector('#ppBack');
+      if (back) back.addEventListener('click', function () {
+        if (!window.confirm('Send this project back to the customer for review? They will be emailed.')) return;
+        back.disabled = true; say('Sending…', '');
+        post({ action: 'back_to_review', projectId: projectId, text: modal.querySelector('#ppText').value.trim() })
+          .then(function (res) {
+            if (!res || !res.ok) { back.disabled = false; say((res && res.error) || 'Could not send.', 'err'); return; }
+            say('Sent back for review. ' + (res.emailed ? 'The customer has been emailed.' : 'The email could not be sent, so let them know yourself.'), res.emailed ? 'ok' : 'err');
+            setTimeout(function () { window.location.reload(); }, 1400);
+          })
+          .catch(function () { back.disabled = false; say('Network error — try again.', 'err'); });
+      });
+
+      modal.querySelector('#ppAddRev').addEventListener('click', function () {
+        post({ action: 'add_revision', projectId: projectId })
+          .then(function (res) {
+            if (!res || !res.ok) { say((res && res.error) || 'Could not change it.', 'err'); return; }
+            modal.querySelector('#ppRev').textContent = r.revisionsUsed + ' of ' + res.revisionLimit;
+            r.revisionLimit = res.revisionLimit; say('One more revision round added.', 'ok');
+          })
+          .catch(function () { say('Network error — try again.', 'err'); });
+      });
     }
   }
 
