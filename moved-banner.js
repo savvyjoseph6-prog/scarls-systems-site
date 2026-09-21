@@ -1,13 +1,13 @@
 // moved-banner.js
 // Shows a "we've moved to scarlssystems.com" popup, but ONLY when the site
-// is being viewed on the old *.pages.dev link. On scarlssystems.com itself,
+// is being viewed on the old *.workers.dev link. On scarlssystems.com itself,
 // this script does nothing.
 //
 // Include it near the end of <body> on every page of the OLD site, e.g.:
 //   <script src="moved-banner.js"></script>
 
 (function () {
-  if (!window.location.hostname.endsWith(".pages.dev")) return;
+  if (!window.location.hostname.endsWith(".workers.dev")) return;
 
   function init() {
     var overlay = document.createElement("div");
