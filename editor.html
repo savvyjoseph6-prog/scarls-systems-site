@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit Page — SCARLS</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1115;
+    color: #e8e8ec;
+    margin: 0;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #14161c;
+    border-bottom: 1px solid #2a2e38;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header input#pageNameInput {
+    background: transparent;
+    border: none;
+    color: #e8e8ec;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 4px 0;
+    width: 260px;
+  }
+  header input#pageNameInput:focus {
+    outline: none;
+    border-bottom: 1px solid #5b8cff;
+  }
+  .meta { color: #9297a3; font-size: 12.5px; margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    background: #5b8cff;
+    color: #fff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn.secondary {
+    background: transparent;
+    border: 1px solid #2a2e38;
+    color: #b3b7c1;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 24px; }
+  #saveStatus {
+    text-align: center;
+    font-size: 13px;
+    padding: 8px;
+    display: none;
+  }
+  #saveStatus.ok { color: #6be88f; display: block; }
+  #saveStatus.err { color: #ff9a9a; display: block; }
+
+  .panel {
+    background: #171a21;
+    border: 1px solid #2a2e38;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .panel h2 {
+    font-size: 15px;
+    margin: 0 0 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    color: #9297a3;
+    margin-bottom: 5px;
+  }
+  .field input[type="text"],
+  .field input[type="url"],
+  .field textarea,
+  .field select {
+    width: 100%;
+    padding: 9px 11px;
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    color: #e8e8ec;
+    font-size: 13.5px;
+    font-family: inherit;
+  }
+  .field input[type="color"] {
+    width: 100%;
+    height: 38px;
+    padding: 2px;
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .field textarea { min-height: 64px; resize: vertical; }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    outline: none;
+    border-color: #5b8cff;
+  }
+  .hint { color: #6b7080; font-size: 11.5px; margin-top: 4px; }
+
+  .visibility-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: #b3b7c1;
+  }
+
+  .list-items { margin-bottom: 10px; }
+  .list-item {
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .remove-item-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: #ff9a9a;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .add-item-btn {
+    background: transparent;
+    border: 1px dashed #3a3e4a;
+    color: #9297a3;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .locked-notice {
+    max-width: 480px;
+    margin: 80px auto;
+    text-align: center;
+    color: #9297a3;
+    padding: 0 20px;
+  }
+  #loadingState, #errorState {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9297a3;
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingState">Loading editor...</div>
+<div id="errorState" style="display:none;"></div>
+
+<div id="editorRoot" style="display:none;">
+  <header>
+    <div>
+      <input type="text" id="pageNameInput" placeholder="Page name">
+      <div class="meta">scarlssystems.com/p/<span id="slugDisplay"></span> (slug is locked for now)</div>
+    </div>
+    <div class="header-actions">
+      <a class="btn secondary" id="previewLink" target="_blank">Preview</a>
+      <button class="btn" id="saveBtn">Save Draft</button>
+      <a class="btn secondary" id="backLink">Back</a>
+    </div>
+  </header>
+
+  <div id="saveStatus"></div>
+
+  <div class="wrap">
+    <div class="panel">
+      <h2>Theme</h2>
+      <div class="theme-grid">
+        <div class="field">
+          <label>Primary color</label>
+          <input type="color" data-theme-key="primary_color">
+        </div>
+        <div class="field">
+          <label>Background color</label>
+          <input type="color" data-theme-key="background_color">
+        </div>
+        <div class="field">
+          <label>Alt section background</label>
+          <input type="color" data-theme-key="section_bg_alt">
+        </div>
+        <div class="field">
+          <label>Text color</label>
+          <input type="color" data-theme-key="text_color">
+        </div>
+        <div class="field">
+          <label>Muted text color</label>
+          <input type="color" data-theme-key="muted_text_color">
+        </div>
+        <div class="field">
+          <label>Button text color</label>
+          <input type="color" data-theme-key="button_text_color">
+        </div>
+      </div>
+      <div class="theme-grid" style="margin-top:14px;">
+        <div class="field">
+          <label>Button shape</label>
+          <select data-theme-key="button_radius">
+            <option value="0px">Square</option>
+            <option value="6px">Slightly Rounded</option>
+            <option value="10px">Rounded</option>
+            <option value="999px">Pill</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Font</label>
+          <select data-theme-key="font">
+            <option value="Inter, -apple-system, sans-serif">Inter (Modern Sans)</option>
+            <option value="Poppins, -apple-system, sans-serif">Poppins (Friendly Sans)</option>
+            <option value="Georgia, 'Times New Roman', serif">Georgia (Classic Serif)</option>
+            <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System Default</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="sectionsContainer"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script>
+  // Same content schema renderer.html expects — this is the single
+  // source of truth for what fields each section type has.
+  const FIELD_SCHEMAS = {
+    hero: [
+      { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'subheadline', label: 'Subheadline', type: 'textarea' },
+      { key: 'image_url', label: 'Image URL', type: 'url' },
+      { key: 'cta_text', label: 'Primary button text', type: 'text' },
+      { key: 'cta_url', label: 'Primary button link', type: 'url' },
+      { key: 'secondary_cta_text', label: 'Secondary button text', type: 'text' },
+      { key: 'secondary_cta_url', label: 'Secondary button link', type: 'url' },
+    ],
+    problem: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'body', label: 'Body text', type: 'textarea' },
+    ],
+    about: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'body', label: 'Body text', type: 'textarea' },
+      { key: 'image_url', label: 'Image URL', type: 'url' },
+    ],
+    benefits: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'items', label: 'Benefits', type: 'list', itemFields: [
+        { key: 'title', label: 'Title', type: 'text' },
+        { key: 'description', label: 'Description', type: 'textarea' },
+      ]},
+    ],
+    how_it_works: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'steps', label: 'Steps', type: 'list', itemFields: [
+        { key: 'title', label: 'Title', type: 'text' },
+        { key: 'description', label: 'Description', type: 'textarea' },
+      ]},
+    ],
+    product_showcase: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'description', label: 'Description', type: 'textarea' },
+      { key: 'image_url', label: 'Image URL', type: 'url' },
+    ],
+    testimonials: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'items', label: 'Testimonials', type: 'list', itemFields: [
+        { key: 'name', label: 'Name', type: 'text' },
+        { key: 'role', label: 'Role', type: 'text' },
+        { key: 'quote', label: 'Quote', type: 'textarea' },
+      ]},
+    ],
+    bonus: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'items', label: 'Bonuses', type: 'list', itemFields: [
+        { key: 'title', label: 'Title', type: 'text' },
+        { key: 'description', label: 'Description', type: 'textarea' },
+      ]},
+    ],
+    pricing: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'price', label: 'Price', type: 'text' },
+      { key: 'original_price', label: 'Original price (optional, shown struck through)', type: 'text' },
+      { key: 'price_label', label: "Price label (e.g. 'one-time payment')", type: 'text' },
+      { key: 'features', label: 'Features (one per line)', type: 'stringlist' },
+      { key: 'cta_text', label: 'Button text', type: 'text' },
+      { key: 'cta_url', label: 'Button link', type: 'url' },
+    ],
+    countdown: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'subheadline', label: 'Subheadline', type: 'text' },
+      { key: 'end_date', label: 'End date/time', type: 'text', hint: 'Format: YYYY-MM-DDTHH:MM:SSZ (UTC), e.g. 2026-10-01T23:59:59Z' },
+    ],
+    faq: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'items', label: 'Questions', type: 'list', itemFields: [
+        { key: 'question', label: 'Question', type: 'text' },
+        { key: 'answer', label: 'Answer', type: 'textarea' },
+      ]},
+    ],
+    cta: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'body', label: 'Body text', type: 'textarea' },
+      { key: 'cta_text', label: 'Button text', type: 'text' },
+      { key: 'cta_url', label: 'Button link', type: 'url' },
+    ],
+    footer: [
+      { key: 'text', label: 'Footer text', type: 'text' },
+      { key: 'whatsapp_url', label: 'WhatsApp link', type: 'url' },
+    ],
+  };
+
+  const SECTION_LABELS = {
+    hero: 'Hero', problem: 'Problem', about: 'About', benefits: 'Benefits',
+    how_it_works: 'How It Works', product_showcase: 'Product Showcase',
+    testimonials: 'Testimonials', bonus: 'Bonus', pricing: 'Pricing',
+    countdown: 'Countdown', faq: 'FAQ', cta: 'Call To Action', footer: 'Footer',
+  };
+
+  const THEME_DEFAULTS = {
+    primary_color: '#5b8cff', background_color: '#ffffff', section_bg_alt: '#f5f6fa',
+    text_color: '#14161c', muted_text_color: '#5b6070', button_text_color: '#ffffff',
+    button_radius: '10px', font: 'Inter, -apple-system, sans-serif',
+  };
+
+  let currentPage = null;
+  let currentSections = [];
+  let isEditableForMe = false;
+
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const pageId = params.get('page');
+    if (!pageId) { showError('No page specified.'); return; }
+
+    const profile = await requireAuth();
+    if (!profile) return;
+
+    const { data: page, error: pageError } = await supabaseClient
+      .from('landing_pages').select('*').eq('id', pageId).single();
+
+    if (pageError || !page) { showError("Couldn't load this page, or you don't have access."); return; }
+
+    const { data: sections, error: sectionsError } = await supabaseClient
+      .from('page_sections').select('*').eq('page_id', pageId)
+      .order('section_order', { ascending: true });
+
+    if (sectionsError) { showError('Failed to load sections.'); return; }
+
+    currentPage = page;
+    currentSections = sections || [];
+    isEditableForMe = profile.role === 'admin' ||
+      (page.build_status === null || page.build_status === 'handed_over');
+
+    document.getElementById('backLink').href =
+      profile.role === 'admin' ? 'admin-landing-pages.html' : 'student-dashboard.html';
+    document.getElementById('previewLink').href = `renderer.html?page=${page.id}`;
+
+    if (!isEditableForMe) {
+      document.getElementById('loadingState').style.display = 'none';
+      const el = document.getElementById('errorState');
+      el.innerHTML = `<div class="locked-notice">
+        <h2 style="color:#e8e8ec; font-size:18px; margin-bottom:8px;">This page isn't editable yet</h2>
+        <p>Our team is still building it. You'll be able to edit it yourself once it's handed over.</p>
+        <a class="btn" style="margin-top:16px;" href="student-dashboard.html">Back to Dashboard</a>
+      </div>`;
+      el.style.display = 'flex';
+      return;
+    }
+
+    renderEditor();
+  })();
+
+  const DEFAULT_SECTION_ORDER = [
+    'hero', 'problem', 'about', 'benefits', 'how_it_works', 'product_showcase',
+    'testimonials', 'bonus', 'pricing', 'countdown', 'faq', 'cta', 'footer',
+  ];
+
+  async function initializeDefaultSections() {
+    const btn = document.getElementById('initSectionsBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    const rows = DEFAULT_SECTION_ORDER.map((type, i) => ({
+      page_id: currentPage.id,
+      owner_id: currentPage.owner_id,
+      section_type: type,
+      section_order: i + 1,
+      is_visible: true,
+      content: {},
+    }));
+
+    const { error } = await supabaseClient.from('page_sections').insert(rows);
+
+    if (error) {
+      alert('Failed to create default sections: ' + error.message);
+      btn.disabled = false;
+      btn.textContent = 'Create Default Sections';
+      return;
+    }
+
+    window.location.reload();
+  }
+
+  function showError(msg) {
+    document.getElementById('loadingState').style.display = 'none';
+    const el = document.getElementById('errorState');
+    el.textContent = msg;
+    el.style.display = 'flex';
+  }
+
+  function esc(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  function renderEditor() {
+    document.getElementById('pageNameInput').value = currentPage.name || '';
+    document.getElementById('slugDisplay').textContent = currentPage.slug;
+
+    const theme = Object.assign({}, THEME_DEFAULTS, (currentPage.draft_config && currentPage.draft_config.theme) || {});
+    document.querySelectorAll('[data-theme-key]').forEach(input => {
+      input.value = theme[input.dataset.themeKey];
+    });
+
+    const container = document.getElementById('sectionsContainer');
+    if (currentSections.length === 0) {
+      container.innerHTML = `<div class="panel" style="text-align:center;">
+        <p style="color:#9297a3; margin-bottom:14px;">This page doesn't have its sections set up yet.</p>
+        <button class="btn" id="initSectionsBtn" onclick="initializeDefaultSections()">Create Default Sections</button>
+      </div>`;
+    } else {
+      container.innerHTML = currentSections.map(renderSectionPanel).join('');
+    }
+
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('editorRoot').style.display = 'block';
+
+    document.getElementById('saveBtn').addEventListener('click', saveDraft);
+  }
+
+  function renderSectionPanel(section) {
+    const schema = FIELD_SCHEMAS[section.section_type];
+    if (!schema) return '';
+    const content = section.content || {};
+
+    const fieldsHtml = schema.map(field => buildFieldHTML(section.id, field, content[field.key])).join('');
+
+    return `
+      <div class="panel" data-section-id="${section.id}" data-section-type="${section.section_type}">
+        <h2>
+          ${esc(SECTION_LABELS[section.section_type] || section.section_type)}
+          <label class="visibility-toggle">
+            <input type="checkbox" data-visibility ${section.is_visible ? 'checked' : ''}>
+            Show this section
+          </label>
+        </h2>
+        ${fieldsHtml}
+      </div>
+    `;
+  }
+
+  function buildFieldHTML(sectionId, field, value) {
+    const id = `f-${sectionId}-${field.key}`;
+    const hint = field.hint ? `<div class="hint">${esc(field.hint)}</div>` : '';
+
+    if (field.type === 'textarea') {
+      return `<div class="field"><label>${esc(field.label)}</label>
+        <textarea data-key="${field.key}" id="${id}">${esc(value || '')}</textarea>${hint}</div>`;
+    }
+    if (field.type === 'url' || field.type === 'text') {
+      return `<div class="field"><label>${esc(field.label)}</label>
+        <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}">${hint}</div>`;
+    }
+    if (field.type === 'stringlist') {
+      const text = Array.isArray(value) ? value.join('\n') : '';
+      return `<div class="field"><label>${esc(field.label)}</label>
+        <textarea data-key="${field.key}" data-stringlist id="${id}">${esc(text)}</textarea>${hint}</div>`;
+    }
+    if (field.type === 'list') {
+      const items = Array.isArray(value) ? value : [];
+      const itemsHtml = items.map(item => buildListItemHTML(field.itemFields, item)).join('');
+      return `<div class="field">
+        <label>${esc(field.label)}</label>
+        <div class="list-field" data-key="${field.key}">
+          <div class="list-items">${itemsHtml}</div>
+          <button type="button" class="add-item-btn"
+            data-item-fields='${esc(JSON.stringify(field.itemFields)).replace(/'/g, '&#39;')}'
+            onclick="addListItem(this)">+ Add ${esc(field.label)}</button>
+        </div>
+      </div>`;
+    }
+    return '';
+  }
+
+  function buildListItemHTML(itemFields, itemData) {
+    itemData = itemData || {};
+    const inner = itemFields.map(f => {
+      if (f.type === 'textarea') {
+        return `<div class="field"><label>${esc(f.label)}</label>
+          <textarea data-key="${f.key}">${esc(itemData[f.key] || '')}</textarea></div>`;
+      }
+      return `<div class="field"><label>${esc(f.label)}</label>
+        <input type="text" data-key="${f.key}" value="${esc(itemData[f.key] || '')}"></div>`;
+    }).join('');
+    return `<div class="list-item">
+      <button type="button" class="remove-item-btn" onclick="this.parentElement.remove()">Remove</button>
+      ${inner}
+    </div>`;
+  }
+
+  function addListItem(btn) {
+    let itemFields;
+    try {
+      itemFields = JSON.parse(btn.dataset.itemFields.replace(/&#39;/g, "'"));
+    } catch (e) {
+      console.error('Bad itemFields JSON', e);
+      return;
+    }
+    const listItemsContainer = btn.previousElementSibling;
+    listItemsContainer.insertAdjacentHTML('beforeend', buildListItemHTML(itemFields, {}));
+  }
+
+  function collectSectionContent(panelEl) {
+    const sectionType = panelEl.dataset.sectionType;
+    const schema = FIELD_SCHEMAS[sectionType];
+    const content = {};
+
+    schema.forEach(field => {
+      if (field.type === 'list') {
+        const listField = panelEl.querySelector(`.list-field[data-key="${field.key}"]`);
+        const items = Array.from(listField.querySelectorAll('.list-item')).map(itemEl => {
+          const obj = {};
+          field.itemFields.forEach(f => {
+            const input = itemEl.querySelector(`[data-key="${f.key}"]`);
+            obj[f.key] = input ? input.value.trim() : '';
+          });
+          return obj;
+        }).filter(obj => Object.values(obj).some(v => v)); // drop fully-empty rows
+        content[field.key] = items;
+      } else if (field.type === 'stringlist') {
+        const textarea = panelEl.querySelector(`[data-key="${field.key}"]`);
+        content[field.key] = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+      } else {
+        const input = panelEl.querySelector(`[data-key="${field.key}"]`);
+        content[field.key] = input ? input.value.trim() : '';
+      }
+    });
+
+    return content;
+  }
+
+  async function saveDraft() {
+    const saveBtn = document.getElementById('saveBtn');
+    const statusEl = document.getElementById('saveStatus');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    statusEl.className = '';
+    statusEl.style.display = 'none';
+
+    try {
+      const newName = document.getElementById('pageNameInput').value.trim();
+      const theme = {};
+      document.querySelectorAll('[data-theme-key]').forEach(input => {
+        theme[input.dataset.themeKey] = input.value;
+      });
+
+      const newDraftConfig = Object.assign({}, currentPage.draft_config || {}, { theme });
+
+      const { error: pageUpdateError } = await supabaseClient
+        .from('landing_pages')
+        .update({ name: newName, draft_config: newDraftConfig })
+        .eq('id', currentPage.id);
+
+      if (pageUpdateError) throw pageUpdateError;
+
+      const panels = Array.from(document.querySelectorAll('.panel[data-section-id]'));
+      for (const panel of panels) {
+        const sectionId = panel.dataset.sectionId;
+        const isVisible = panel.querySelector('[data-visibility]').checked;
+        const content = collectSectionContent(panel);
+
+        const { error: sectionUpdateError } = await supabaseClient
+          .from('page_sections')
+          .update({ content, is_visible: isVisible })
+          .eq('id', sectionId);
+
+        if (sectionUpdateError) throw sectionUpdateError;
+      }
+
+      statusEl.textContent = 'Draft saved.';
+      statusEl.className = 'ok';
+      statusEl.style.display = 'block';
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = 'Something went wrong saving — ' + (err.message || 'please try again.');
+      statusEl.className = 'err';
+      statusEl.style.display = 'block';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Draft';
+    }
+  }
+</script>
+
+</body>
+</html>
