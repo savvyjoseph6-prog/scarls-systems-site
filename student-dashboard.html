@@ -22,7 +22,8 @@
   }
   h1 { font-size: 20px; margin: 0; }
   #whoami { color: #9297a3; font-size: 13px; margin-top: 2px; }
-  button.logout {
+  .header-actions { display: flex; gap: 8px; }
+  button.logout, button.secondary-header {
     background: transparent;
     border: 1px solid #2a2e38;
     color: #b3b7c1;
@@ -79,6 +80,51 @@
     font-size: 13px;
     margin-top: 20px;
   }
+
+  /* Change password panel */
+  .cp-panel {
+    background: #171a21;
+    border: 1px solid #2a2e38;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .cp-panel.open { display: block; }
+  .cp-panel h2 { font-size: 15px; margin: 0 0 14px; }
+  .cp-panel label { display: block; font-size: 13px; color: #b3b7c1; margin-bottom: 6px; }
+  .cp-panel input {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    color: #e8e8ec;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .cp-panel input:focus { outline: none; border-color: #5b8cff; }
+  .cp-actions { display: flex; gap: 8px; }
+  .cp-error {
+    background: #3a1d1d;
+    border: 1px solid #6b2b2b;
+    color: #ff9a9a;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .cp-success {
+    background: #1d3a24;
+    border: 1px solid #2b6b3b;
+    color: #9affab;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -88,10 +134,30 @@
     <h1>My Landing Pages</h1>
     <div id="whoami"></div>
   </div>
-  <button class="logout" onclick="logout()">Log Out</button>
+  <div class="header-actions">
+    <button class="secondary-header" onclick="toggleChangePassword()">Change Password</button>
+    <button class="logout" onclick="logout()">Log Out</button>
+  </div>
 </header>
 
 <div class="wrap">
+
+  <div class="cp-panel" id="cpPanel">
+    <h2>Change Password</h2>
+    <div class="cp-error" id="cpError"></div>
+    <div class="cp-success" id="cpSuccess"></div>
+    <form id="cpForm">
+      <label for="cpNewPassword">New password</label>
+      <input type="password" id="cpNewPassword" required minlength="8" autocomplete="new-password">
+      <label for="cpConfirmPassword">Confirm new password</label>
+      <input type="password" id="cpConfirmPassword" required minlength="8" autocomplete="new-password">
+      <div class="cp-actions">
+        <button type="submit" class="btn-primary" id="cpSubmitBtn">Update Password</button>
+        <button type="button" class="secondary-header" onclick="toggleChangePassword()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
   <div id="pagesList"></div>
 </div>
 
@@ -143,6 +209,7 @@
         : `<span class="badge draft">Draft</span>`;
       action = `<div class="actions">
         <a class="btn-primary" href="editor.html?page=${page.id}">Edit Page</a>
+        <a class="btn-primary" style="background:transparent;border:1px solid #2a2e38;color:#b3b7c1;margin-left:8px;" href="renderer.html?page=${page.id}" target="_blank">Preview</a>
       </div>`;
     }
 
@@ -161,6 +228,58 @@
     div.textContent = str || '';
     return div.innerHTML;
   }
+
+  // --- Change password (in-dashboard, already-authenticated) ---
+  function toggleChangePassword() {
+    const panel = document.getElementById('cpPanel');
+    panel.classList.toggle('open');
+    if (!panel.classList.contains('open')) {
+      document.getElementById('cpForm').reset();
+      document.getElementById('cpError').style.display = 'none';
+      document.getElementById('cpSuccess').style.display = 'none';
+    }
+  }
+
+  document.getElementById('cpForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = document.getElementById('cpError');
+    const successBox = document.getElementById('cpSuccess');
+    const submitBtn = document.getElementById('cpSubmitBtn');
+    errorBox.style.display = 'none';
+    successBox.style.display = 'none';
+
+    const newPassword = document.getElementById('cpNewPassword').value;
+    const confirmPassword = document.getElementById('cpConfirmPassword').value;
+
+    if (newPassword.length < 8) {
+      errorBox.textContent = 'Password must be at least 8 characters.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      errorBox.textContent = 'Passwords do not match.';
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Updating...';
+
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Update Password';
+
+    if (error) {
+      errorBox.textContent = error.message;
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    successBox.textContent = 'Password updated.';
+    successBox.style.display = 'block';
+    document.getElementById('cpForm').reset();
+  });
 </script>
 
 </body>

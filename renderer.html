@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page Preview — SCARLS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font, -apple-system, sans-serif);
+    color: var(--text-color, #14161c);
+    background: var(--background-color, #fff);
+    line-height: 1.55;
+  }
+  img { max-width: 100%; display: block; }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 72px 0; }
+  section.alt-bg { background: var(--section-bg-alt, #f5f6fa); }
+  h1, h2, h3 { line-height: 1.2; }
+  h2 { font-size: 30px; margin-bottom: 32px; text-align: center; }
+  p { color: var(--muted-text-color, #5b6070); }
+  .btn {
+    display: inline-block;
+    background: var(--primary-color, #5b8cff);
+    color: var(--button-text-color, #fff);
+    padding: 14px 28px;
+    border-radius: var(--button-radius, 10px);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .btn.secondary {
+    background: transparent;
+    border: 1.5px solid var(--primary-color, #5b8cff);
+    color: var(--primary-color, #5b8cff);
+  }
+
+  /* Hero */
+  .hero { text-align: center; padding-top: 96px; }
+  .hero .eyebrow {
+    display: inline-block;
+    color: var(--primary-color, #5b8cff);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .hero h1 { font-size: 42px; max-width: 720px; margin: 0 auto 18px; }
+  .hero .sub { font-size: 18px; max-width: 620px; margin: 0 auto 32px; }
+  .hero .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* Grid-based sections */
+  .grid { display: grid; gap: 24px; }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 640px) {
+    .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 30px; }
+  }
+  .card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .card h3 { font-size: 17px; margin-bottom: 8px; }
+  .card p { font-size: 14.5px; }
+
+  /* Testimonials */
+  .testimonial-card { font-style: normal; }
+  .testimonial-card .quote { font-size: 15px; margin-bottom: 14px; }
+  .testimonial-card .name { font-weight: 600; color: var(--text-color, #14161c); font-size: 14px; }
+  .testimonial-card .role { font-size: 13px; }
+
+  /* Pricing */
+  .pricing-card {
+    max-width: 420px;
+    margin: 0 auto;
+    text-align: center;
+    background: #fff;
+    border: 2px solid var(--primary-color, #5b8cff);
+    border-radius: 18px;
+    padding: 40px 32px;
+  }
+  .pricing-card .original-price {
+    text-decoration: line-through;
+    color: var(--muted-text-color, #5b6070);
+    font-size: 16px;
+    margin-right: 8px;
+  }
+  .pricing-card .price { font-size: 40px; font-weight: 700; }
+  .pricing-card .price-label { font-size: 13px; margin-bottom: 24px; }
+  .pricing-card ul { list-style: none; text-align: left; margin: 0 0 28px; }
+  .pricing-card li { padding: 8px 0; font-size: 14.5px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+
+  /* Countdown */
+  .countdown-timer {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+  .countdown-timer .unit {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 18px;
+    min-width: 72px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .countdown-timer .unit .num { font-size: 26px; font-weight: 700; display: block; }
+  .countdown-timer .unit .label { font-size: 11px; text-transform: uppercase; color: var(--muted-text-color, #5b6070); }
+
+  /* FAQ */
+  .faq-item { border-bottom: 1px solid rgba(0,0,0,0.08); padding: 18px 0; }
+  .faq-item summary { cursor: pointer; font-weight: 600; font-size: 15.5px; list-style: none; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item p { margin-top: 10px; }
+
+  /* CTA */
+  .cta-section { text-align: center; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    font-size: 13px;
+    color: var(--muted-text-color, #5b6070);
+  }
+  footer a { color: var(--primary-color, #5b8cff); text-decoration: none; }
+
+  .watermark {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted-text-color, #5b6070);
+    padding: 12px 0 28px;
+  }
+
+  #loadingState, #errorState {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #5b6070;
+    font-family: -apple-system, sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingState">Loading preview...</div>
+<div id="errorState" style="display:none;"></div>
+<div id="pageRoot" style="display:none;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script>
+  const SECTION_RENDERERS = {
+    hero: renderHero,
+    problem: renderProblem,
+    about: renderAbout,
+    benefits: renderBenefits,
+    how_it_works: renderHowItWorks,
+    product_showcase: renderProductShowcase,
+    testimonials: renderTestimonials,
+    bonus: renderBonus,
+    pricing: renderPricing,
+    countdown: renderCountdown,
+    faq: renderFaq,
+    cta: renderCta,
+    footer: renderFooter,
+  };
+
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const pageId = params.get('page');
+
+    if (!pageId) {
+      showError('No page specified. Use renderer.html?page=PAGE_ID.');
+      return;
+    }
+
+    // Must be logged in (owner or admin) — this preview tool relies on the
+    // same RLS as the dashboards. Public serving of live pages is a
+    // separate step (static generation), not this preview.
+    const profile = await getCurrentProfile();
+    if (!profile) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const { data: page, error: pageError } = await supabaseClient
+      .from('landing_pages')
+      .select('*')
+      .eq('id', pageId)
+      .single();
+
+    if (pageError || !page) {
+      showError("Couldn't load this page. It may not exist, or you may not have access to it.");
+      return;
+    }
+
+    const { data: sections, error: sectionsError } = await supabaseClient
+      .from('page_sections')
+      .select('*')
+      .eq('page_id', pageId)
+      .eq('is_visible', true)
+      .order('section_order', { ascending: true });
+
+    if (sectionsError) {
+      showError('Failed to load sections for this page.');
+      return;
+    }
+
+    renderPage(page, sections || []);
+  })();
+
+  function showError(msg) {
+    document.getElementById('loadingState').style.display = 'none';
+    const el = document.getElementById('errorState');
+    el.textContent = msg;
+    el.style.display = 'flex';
+  }
+
+  function renderPage(page, sections) {
+    applyTheme((page.draft_config && page.draft_config.theme) || {});
+
+    const html = sections.map(section => {
+      const renderer = SECTION_RENDERERS[section.section_type];
+      if (!renderer) return '';
+      try {
+        return renderer(section.content || {});
+      } catch (e) {
+        console.error(`Failed to render section ${section.section_type}:`, e);
+        return '';
+      }
+    }).join('');
+
+    const watermarkHtml = page.is_custom_domain
+      ? ''
+      : `<div class="watermark">Powered by <a href="https://scarlssystems.com" target="_blank">SCARLS</a></div>`;
+
+    document.getElementById('pageRoot').innerHTML = html + watermarkHtml;
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('pageRoot').style.display = 'block';
+
+    initCountdowns();
+  }
+
+  function applyTheme(theme) {
+    const root = document.documentElement;
+    const map = {
+      primary_color: '--primary-color',
+      secondary_color: '--secondary-color',
+      background_color: '--background-color',
+      text_color: '--text-color',
+      muted_text_color: '--muted-text-color',
+      button_text_color: '--button-text-color',
+      button_radius: '--button-radius',
+      font: '--font',
+      section_bg_alt: '--section-bg-alt',
+    };
+    Object.entries(map).forEach(([key, cssVar]) => {
+      if (theme[key]) root.style.setProperty(cssVar, theme[key]);
+    });
+  }
+
+  function esc(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  // --- Section renderers ---
+  // Each takes this section's `content` JSON and returns an HTML string.
+  // Missing fields degrade gracefully rather than throwing.
+
+  function renderHero(c) {
+    return `
+      <section class="hero container">
+        ${c.eyebrow ? `<div class="eyebrow">${esc(c.eyebrow)}</div>` : ''}
+        <h1>${esc(c.headline || '')}</h1>
+        ${c.subheadline ? `<p class="sub">${esc(c.subheadline)}</p>` : ''}
+        ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 28px;max-width:600px;">` : ''}
+        <div class="cta-row">
+          ${c.cta_text ? `<a class="btn" href="${esc(c.cta_url || '#')}">${esc(c.cta_text)}</a>` : ''}
+          ${c.secondary_cta_text ? `<a class="btn secondary" href="${esc(c.secondary_cta_url || '#')}">${esc(c.secondary_cta_text)}</a>` : ''}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderProblem(c) {
+    return `
+      <section class="container" style="max-width:680px; text-align:center;">
+        <h2>${esc(c.headline || '')}</h2>
+        <p style="font-size:16px;">${esc(c.body || '')}</p>
+      </section>
+    `;
+  }
+
+  function renderAbout(c) {
+    return `
+      <section class="alt-bg">
+        <div class="container" style="max-width:680px; text-align:center;">
+          ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 28px;max-width:400px;">` : ''}
+          <h2>${esc(c.headline || '')}</h2>
+          <p style="font-size:16px;">${esc(c.body || '')}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderBenefits(c) {
+    const items = (c.items || []).map(item => `
+      <div class="card">
+        <h3>${esc(item.title || '')}</h3>
+        <p>${esc(item.description || '')}</p>
+      </div>
+    `).join('');
+    return `
+      <section class="container">
+        <h2>${esc(c.headline || '')}</h2>
+        <div class="grid cols-2">${items}</div>
+      </section>
+    `;
+  }
+
+  function renderHowItWorks(c) {
+    const steps = (c.steps || []).map(step => `
+      <div class="card">
+        <h3>${esc(step.title || '')}</h3>
+        <p>${esc(step.description || '')}</p>
+      </div>
+    `).join('');
+    return `
+      <section class="alt-bg">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          <div class="grid cols-3">${steps}</div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderProductShowcase(c) {
+    return `
+      <section class="container" style="text-align:center; max-width:680px;">
+        <h2>${esc(c.headline || '')}</h2>
+        ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 24px;">` : ''}
+        <p style="font-size:16px;">${esc(c.description || '')}</p>
+      </section>
+    `;
+  }
+
+  function renderTestimonials(c) {
+    const items = (c.items || []).map(t => `
+      <div class="card testimonial-card">
+        <p class="quote">"${esc(t.quote || '')}"</p>
+        <div class="name">${esc(t.name || '')}</div>
+        <div class="role">${esc(t.role || '')}</div>
+      </div>
+    `).join('');
+    return `
+      <section class="alt-bg">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          <div class="grid cols-2">${items}</div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderBonus(c) {
+    const items = (c.items || []).map(item => `
+      <div class="card">
+        <h3>🎁 ${esc(item.title || '')}</h3>
+        <p>${esc(item.description || '')}</p>
+      </div>
+    `).join('');
+    return `
+      <section class="container">
+        <h2>${esc(c.headline || '')}</h2>
+        <div class="grid cols-2">${items}</div>
+      </section>
+    `;
+  }
+
+  function renderPricing(c) {
+    const features = (c.features || []).map(f => `<li>✓ ${esc(f)}</li>`).join('');
+    return `
+      <section id="pricing" class="alt-bg">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          <div class="pricing-card">
+            <div>
+              ${c.original_price ? `<span class="original-price">${esc(c.original_price)}</span>` : ''}
+              <span class="price">${esc(c.price || '')}</span>
+            </div>
+            ${c.price_label ? `<div class="price-label">${esc(c.price_label)}</div>` : ''}
+            <ul>${features}</ul>
+            ${c.cta_text ? `<a class="btn" href="${esc(c.cta_url || '#')}" style="width:100%;">${esc(c.cta_text)}</a>` : ''}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderCountdown(c) {
+    return `
+      <section class="container" style="text-align:center;">
+        <h2>${esc(c.headline || '')}</h2>
+        ${c.subheadline ? `<p>${esc(c.subheadline)}</p>` : ''}
+        <div class="countdown-timer" data-end="${esc(c.end_date || '')}">
+          <div class="unit"><span class="num" data-unit="days">--</span><span class="label">Days</span></div>
+          <div class="unit"><span class="num" data-unit="hours">--</span><span class="label">Hours</span></div>
+          <div class="unit"><span class="num" data-unit="minutes">--</span><span class="label">Mins</span></div>
+          <div class="unit"><span class="num" data-unit="seconds">--</span><span class="label">Secs</span></div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderFaq(c) {
+    const items = (c.items || []).map(item => `
+      <details class="faq-item">
+        <summary>${esc(item.question || '')}</summary>
+        <p>${esc(item.answer || '')}</p>
+      </details>
+    `).join('');
+    return `
+      <section class="container" style="max-width:680px;">
+        <h2>${esc(c.headline || '')}</h2>
+        ${items}
+      </section>
+    `;
+  }
+
+  function renderCta(c) {
+    return `
+      <section class="alt-bg cta-section">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          ${c.body ? `<p style="font-size:16px; max-width:520px; margin:0 auto 28px;">${esc(c.body)}</p>` : ''}
+          ${c.cta_text ? `<a class="btn" href="${esc(c.cta_url || '#')}">${esc(c.cta_text)}</a>` : ''}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderFooter(c) {
+    return `
+      <footer>
+        <div class="container">
+          ${esc(c.text || '')}
+          ${c.whatsapp_url ? ` · <a href="${esc(c.whatsapp_url)}" target="_blank">WhatsApp</a>` : ''}
+        </div>
+      </footer>
+    `;
+  }
+
+  // --- Countdown ticking ---
+  function initCountdowns() {
+    document.querySelectorAll('.countdown-timer[data-end]').forEach(el => {
+      const end = new Date(el.dataset.end).getTime();
+      if (isNaN(end)) return;
+
+      function tick() {
+        const diff = Math.max(0, end - Date.now());
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        el.querySelector('[data-unit="days"]').textContent = days;
+        el.querySelector('[data-unit="hours"]').textContent = hours;
+        el.querySelector('[data-unit="minutes"]').textContent = minutes;
+        el.querySelector('[data-unit="seconds"]').textContent = seconds;
+      }
+      tick();
+      setInterval(tick, 1000);
+    });
+  }
+</script>
+
+</body>
+</html>

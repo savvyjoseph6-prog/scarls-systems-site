@@ -30,21 +30,9 @@
       0 0 40px rgba(91,140,255,0.12),
       0 20px 50px rgba(0,0,0,0.45);
   }
-  h1 {
-    font-size: 20px;
-    margin: 0 0 4px;
-  }
-  p.sub {
-    color: #9297a3;
-    font-size: 14px;
-    margin: 0 0 24px;
-  }
-  label {
-    display: block;
-    font-size: 13px;
-    color: #b3b7c1;
-    margin-bottom: 6px;
-  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: #9297a3; font-size: 14px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; color: #b3b7c1; margin-bottom: 6px; }
   input {
     width: 100%;
     padding: 12px 14px;
@@ -74,40 +62,22 @@
     box-shadow: 0 4px 16px rgba(91,140,255,0.35);
     transition: box-shadow 0.15s ease, transform 0.1s ease;
   }
-  button:hover:not(:disabled) {
-    box-shadow: 0 6px 22px rgba(91,140,255,0.45);
-  }
-  button:active:not(:disabled) {
-    transform: translateY(1px);
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
+  button:hover:not(:disabled) { box-shadow: 0 6px 22px rgba(91,140,255,0.45); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
   button.secondary {
     background: transparent;
     border: 1px solid #2a2e38;
     margin-top: 8px;
     box-shadow: none;
   }
-  button.secondary:hover:not(:disabled) {
-    box-shadow: none;
-    border-color: #3a3e4a;
-  }
+  button.secondary:hover:not(:disabled) { box-shadow: none; border-color: #3a3e4a; }
   @media (max-width: 420px) {
     body { padding: 12px; }
-    .card {
-      border-radius: 18px;
-      padding: 28px 22px;
-    }
+    .card { border-radius: 18px; padding: 28px 22px; }
   }
-  .password-wrap {
-    position: relative;
-  }
-  .password-wrap input {
-    padding-right: 40px;
-  }
+  .password-wrap { position: relative; }
+  .password-wrap input { padding-right: 40px; }
   .toggle-eye {
     position: absolute;
     right: 12px;
@@ -123,13 +93,8 @@
     align-items: center;
     justify-content: center;
   }
-  .toggle-eye:hover {
-    color: #e8e8ec;
-  }
-  .toggle-eye svg {
-    width: 18px;
-    height: 18px;
-  }
+  .toggle-eye:hover { color: #e8e8ec; }
+  .toggle-eye svg { width: 18px; height: 18px; }
   .error {
     background: #3a1d1d;
     border: 1px solid #6b2b2b;
@@ -150,16 +115,8 @@
     margin-bottom: 16px;
     display: none;
   }
-  .forgot-link {
-    text-align: right;
-    margin: -8px 0 16px;
-  }
-  .forgot-link a {
-    color: #5b8cff;
-    font-size: 13px;
-    text-decoration: none;
-    cursor: pointer;
-  }
+  .forgot-link { text-align: right; margin: -8px 0 16px; }
+  .forgot-link a { color: #5b8cff; font-size: 13px; text-decoration: none; cursor: pointer; }
   #forgotView { display: none; }
 </style>
 </head>
@@ -224,7 +181,6 @@
   const errorBox = document.getElementById('errorBox');
   const submitBtn = document.getElementById('submitBtn');
 
-  // --- Show/hide password ---
   const togglePassword = document.getElementById('togglePassword');
   const passwordInput = document.getElementById('password');
   const eyeIcon = document.getElementById('eyeIcon');
@@ -238,7 +194,6 @@
     togglePassword.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
   });
 
-  // If already logged in, skip straight to the right dashboard.
   (async () => {
     const profile = await getCurrentProfile();
     if (profile) {
@@ -286,7 +241,6 @@
       : 'student-dashboard.html';
   });
 
-  // --- Forgot password flow ---
   const showForgot = document.getElementById('showForgot');
   const backToLogin = document.getElementById('backToLogin');
   const forgotForm = document.getElementById('forgotForm');
@@ -313,9 +267,6 @@
 
     const email = document.getElementById('forgotEmail').value.trim();
 
-    // NOTE: this domain must exactly match an entry in your Supabase project's
-    // Auth > URL Configuration > Redirect URLs allow-list, or the reset link
-    // will fail silently. Confirm this is your actual production domain.
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://scarlssystems.com/reset-password.html'
     });
