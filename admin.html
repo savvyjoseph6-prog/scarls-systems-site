@@ -448,7 +448,8 @@
           '<div class="field"><label>Status</label><select class="f-status">' + statusOptions + '</select></div>' +
           '<div class="field"><label>Assigned to</label><input class="f-assignedTo" type="text" value="' + escapeHtml(p.assignedTo || '') + '" placeholder="Intern / team member name"></div>' +
           '<div class="field"><label>Due date</label><input class="f-dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : '') + '"></div>' +
-          '<div class="field"><label>Delivery link</label><input class="f-deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || '') + '" placeholder="Link to the finished work"></div>' +
+          '<div class="field"><label>Preview link — shown to the customer during Review</label><input class="f-previewLink" type="text" value="' + escapeHtml(p.previewLink || '') + '" placeholder="Link the customer sees while reviewing (not the final)"></div>' +
+          '<div class="field"><label>Delivery link — shown only once status is Delivered</label><input class="f-deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || '') + '" placeholder="Link to the finished work"></div>' +
           '<div class="field"><label>Notes</label><textarea class="f-notes" placeholder="Internal notes">' + escapeHtml(p.notes || '') + '</textarea></div>' +
           '<div class="project-card-actions">' +
             '<button type="button" class="save-btn">Save</button>' +
@@ -469,6 +470,7 @@
           status: card.querySelector('.f-status').value,
           assignedTo: card.querySelector('.f-assignedTo').value.trim(),
           dueDate: card.querySelector('.f-dueDate').value,
+          previewLink: card.querySelector('.f-previewLink').value.trim(),
           deliveryLink: card.querySelector('.f-deliveryLink').value.trim(),
           notes: card.querySelector('.f-notes').value.trim()
         };
@@ -497,7 +499,8 @@
               var local = allProjects.filter(function (p) { return p.projectId === projectId; })[0];
               if (local) {
                 local.status = payload.status; local.assignedTo = payload.assignedTo;
-                local.dueDate = payload.dueDate; local.deliveryLink = payload.deliveryLink; local.notes = payload.notes;
+                local.dueDate = payload.dueDate; local.previewLink = payload.previewLink;
+                local.deliveryLink = payload.deliveryLink; local.notes = payload.notes;
               }
             } else {
               saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';

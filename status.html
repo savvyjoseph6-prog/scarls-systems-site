@@ -241,10 +241,22 @@
       $('dueDateRow').style.display = 'none';
     }
 
+    // CHANGED: the preview link (Review / Changes requested) and the final
+    // delivery link (Delivered only) are now two separate fields, so the
+    // customer is never handed the final link before the project is
+    // actually marked Delivered.
     var btn = $('deliveryLinkBtn');
-    if ((p.status === 'delivered' || p.status === 'review' || p.status === 'changes_requested') && p.deliveryLink) {
-      btn.href = p.deliveryLink;
-      btn.textContent = p.status === 'delivered' ? 'View your delivery' : 'View your preview';
+    var linkUrl = null, linkText = null;
+    if (p.status === 'delivered' && p.deliveryLink) {
+      linkUrl = p.deliveryLink;
+      linkText = 'View your delivery';
+    } else if ((p.status === 'review' || p.status === 'changes_requested') && p.previewLink) {
+      linkUrl = p.previewLink;
+      linkText = 'View your preview';
+    }
+    if (linkUrl) {
+      btn.href = linkUrl;
+      btn.textContent = linkText;
       btn.style.display = 'block';
     } else {
       btn.style.display = 'none';
@@ -354,7 +366,9 @@
       html += '<div class="callout ok"><b>Approved</b>You approved this project on ' + escapeHtml(formatDay(r.approvedAt)) +
         '. Thank you — we\'ll send your final delivery shortly.</div>';
     } else {
-      html += '<p class="review-note">' + (d.project.deliveryLink ? 'Open your preview with the button below. ' : '') +
+      // CHANGED: this now checks the preview link, not the (no longer
+      // present at this stage) delivery link.
+      html += '<p class="review-note">' + (d.project.previewLink ? 'Open your preview with the button below. ' : '') +
         'Then approve it if you\'re happy, or tell us what you\'d like changed.</p>';
       var left = r.revisionLimit - r.revisionsUsed;
       html += '<div class="review-actions"><button type="button" class="btn btn-primary" id="approveBtn">Approve this project</button>' +
