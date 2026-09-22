@@ -313,6 +313,9 @@
 
     const email = document.getElementById('forgotEmail').value.trim();
 
+    // NOTE: this domain must exactly match an entry in your Supabase project's
+    // Auth > URL Configuration > Redirect URLs allow-list, or the reset link
+    // will fail silently. Confirm this is your actual production domain.
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://scarlssystems.com/reset-password.html'
     });

@@ -73,7 +73,41 @@
     cursor: pointer;
   }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid #2a2e38;
+    color: #b3b7c1;
+  }
   .empty { color: #9297a3; padding: 20px 0; }
+  .link-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .link-row input {
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 6px;
+    color: #e8e8ec;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    width: 180px;
+  }
+  .brief-panel {
+    width: 100%;
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 10px;
+    display: none;
+    font-size: 13px;
+  }
+  .brief-panel.open { display: block; }
+  .brief-panel .brief-meta { color: #9297a3; margin-bottom: 10px; }
+  .brief-panel dt { color: #9297a3; font-size: 11px; text-transform: uppercase; margin-top: 10px; }
+  .brief-panel dd { margin: 2px 0 0; white-space: pre-wrap; }
+  .brief-panel .no-brief { color: #9297a3; }
 </style>
 </head>
 <body>
@@ -109,6 +143,8 @@
     await loadPages();
   })();
 
+  let allPagesById = {};
+
   async function loadPages() {
     const { data: pages, error } = await supabaseClient
       .from('landing_pages')
@@ -120,6 +156,8 @@
       document.getElementById('awaitingBuild').innerHTML = `<div class="empty">Failed to load pages.</div>`;
       return;
     }
+
+    allPagesById = Object.fromEntries(pages.map(p => [p.id, p]));
 
     const awaiting = pages.filter(p => p.build_status === 'awaiting_build');
     const ready = pages.filter(p => p.build_status === 'ready_for_student');
@@ -151,14 +189,119 @@
       actionBtn = `<span class="badge ready">${page.status}</span>`;
     }
 
+    // Brief linking/viewing — reuses the existing projects/project_briefs
+    // tables rather than duplicating that intake system.
+    const briefControls = page.project_id
+      ? `<button class="btn btn-secondary" onclick="toggleBrief('${page.id}')">View Brief</button>`
+      : `<div class="link-row">
+           <input type="text" id="link-input-${page.id}" placeholder="Order ref or project ID">
+           <button class="btn btn-secondary" onclick="linkProject('${page.id}')">Link</button>
+         </div>`;
+
     return `
       <div class="page-row">
         <div class="page-info">
           <h2>${escapeHtml(page.name)}</h2>
-          <div class="meta">scarlssystem.com/p/${escapeHtml(page.slug)} · Owner: ${escapeHtml(owner)}</div>
+          <div class="meta">scarlssystems.com/p/${escapeHtml(page.slug)} · Owner: ${escapeHtml(owner)}</div>
+          ${briefControls}
+          <div class="brief-panel" id="brief-panel-${page.id}"></div>
         </div>
         ${actionBtn}
       </div>
+    `;
+  }
+
+  async function linkProject(pageId) {
+    const input = document.getElementById(`link-input-${pageId}`);
+    const value = input.value.trim();
+    if (!value) return;
+
+    // Accept either a plain project UUID or an order reference.
+    let query = supabaseClient.from('projects').select('id').limit(1);
+    query = value.includes('-') && value.length === 36
+      ? query.eq('id', value)
+      : query.eq('order_reference', value);
+
+    const { data: matches, error } = await query;
+
+    if (error || !matches || matches.length === 0) {
+      alert('No matching project found for that reference/ID.');
+      return;
+    }
+
+    const { error: updateError } = await supabaseClient
+      .from('landing_pages')
+      .update({ project_id: matches[0].id })
+      .eq('id', pageId);
+
+    if (updateError) {
+      alert('Failed to link: ' + updateError.message);
+      return;
+    }
+    await loadPages();
+  }
+
+  const briefCache = {};
+
+  async function toggleBrief(pageId) {
+    const panel = document.getElementById(`brief-panel-${pageId}`);
+    const isOpen = panel.classList.contains('open');
+
+    if (isOpen) {
+      panel.classList.remove('open');
+      return;
+    }
+
+    if (!briefCache[pageId]) {
+      panel.innerHTML = 'Loading...';
+      panel.classList.add('open');
+
+      const page = allPagesById[pageId];
+      const { data: project, error: projectError } = await supabaseClient
+        .from('projects')
+        .select('*')
+        .eq('id', page.project_id)
+        .single();
+
+      if (projectError || !project) {
+        panel.innerHTML = `<div class="no-brief">Couldn't load the linked project.</div>`;
+        return;
+      }
+
+      const { data: brief } = await supabaseClient
+        .from('project_briefs')
+        .select('*')
+        .eq('project_id', page.project_id)
+        .single();
+
+      briefCache[pageId] = renderBriefPanel(project, brief);
+    }
+
+    panel.innerHTML = briefCache[pageId];
+    panel.classList.add('open');
+  }
+
+  function renderBriefPanel(project, brief) {
+    const header = `
+      <div class="brief-meta">
+        ${escapeHtml(project.full_name)} · ${escapeHtml(project.business_name || '')} ·
+        Ref: ${escapeHtml(project.order_reference || project.id)}
+      </div>
+    `;
+
+    if (!brief || !brief.answers || Object.keys(brief.answers).length === 0) {
+      return header + `<div class="no-brief">No brief submitted yet for this project. Check the existing admin panel for uploaded files and full details.</div>`;
+    }
+
+    const answerRows = Object.entries(brief.answers).map(([key, value]) => `
+      <dt>${escapeHtml(key)}</dt>
+      <dd>${escapeHtml(typeof value === 'string' ? value : JSON.stringify(value))}</dd>
+    `).join('');
+
+    return header + `
+      <div>Brief status: <strong>${escapeHtml(brief.status)}</strong></div>
+      <dl>${answerRows}</dl>
+      <div class="no-brief" style="margin-top:10px;">Uploaded files aren't shown here — view them in the existing admin panel using the reference above.</div>
     `;
   }
 
