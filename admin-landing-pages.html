@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing Pages Admin — SCARLS</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1115;
+    color: #e8e8ec;
+    margin: 0;
+    padding: 24px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 24px;
+  }
+  h1 { font-size: 20px; margin: 0; }
+  #whoami { color: #9297a3; font-size: 13px; margin-top: 2px; }
+  button.logout {
+    background: transparent;
+    border: 1px solid #2a2e38;
+    color: #b3b7c1;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .section-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9297a3;
+    margin: 28px 0 12px;
+  }
+  .page-row {
+    background: #171a21;
+    border: 1px solid #2a2e38;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .page-info h2 { font-size: 15px; margin: 0 0 4px; }
+  .page-info .meta { color: #9297a3; font-size: 12.5px; }
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .badge.building { background: #3a3320; color: #e8c85b; }
+  .badge.waiting { background: #20303a; color: #6bb8e8; }
+  .badge.ready { background: #1f3a24; color: #6be88f; }
+  .badge.none { background: #2a2e38; color: #b3b7c1; }
+  .btn {
+    background: #5b8cff;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .empty { color: #9297a3; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Landing Pages — Admin</h1>
+    <div id="whoami"></div>
+  </div>
+  <button class="logout" onclick="logout()">Log Out</button>
+</header>
+
+<div class="wrap">
+  <div class="section-title">Awaiting Build</div>
+  <div id="awaitingBuild"></div>
+
+  <div class="section-title">Ready — Awaiting Send Access</div>
+  <div id="readyForStudent"></div>
+
+  <div class="section-title">Handed Over / Self-Serve</div>
+  <div id="handedOver"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script>
+  (async () => {
+    const profile = await requireAuth('admin');
+    if (!profile) return;
+
+    document.getElementById('whoami').textContent = `${profile.full_name || profile.email} (admin)`;
+
+    await loadPages();
+  })();
+
+  async function loadPages() {
+    const { data: pages, error } = await supabaseClient
+      .from('landing_pages')
+      .select('*, profiles:owner_id(full_name, email)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      document.getElementById('awaitingBuild').innerHTML = `<div class="empty">Failed to load pages.</div>`;
+      return;
+    }
+
+    const awaiting = pages.filter(p => p.build_status === 'awaiting_build');
+    const ready = pages.filter(p => p.build_status === 'ready_for_student');
+    const handedOver = pages.filter(p => p.build_status === 'handed_over' || p.build_status === null);
+
+    render('awaitingBuild', awaiting, 'awaiting_build');
+    render('readyForStudent', ready, 'ready_for_student');
+    render('handedOver', handedOver, 'handed_over');
+  }
+
+  function render(containerId, pages, bucket) {
+    const el = document.getElementById(containerId);
+    if (pages.length === 0) {
+      el.innerHTML = `<div class="empty">Nothing here.</div>`;
+      return;
+    }
+    el.innerHTML = pages.map(p => renderRow(p, bucket)).join('');
+  }
+
+  function renderRow(page, bucket) {
+    const owner = page.profiles ? (page.profiles.full_name || page.profiles.email) : 'Unknown';
+    let actionBtn = '';
+
+    if (bucket === 'awaiting_build') {
+      actionBtn = `<button class="btn" onclick="markBuilt('${page.id}')">Mark as Built</button>`;
+    } else if (bucket === 'ready_for_student') {
+      actionBtn = `<button class="btn" onclick="sendAccess('${page.id}')">Send Access</button>`;
+    } else {
+      actionBtn = `<span class="badge ready">${page.status}</span>`;
+    }
+
+    return `
+      <div class="page-row">
+        <div class="page-info">
+          <h2>${escapeHtml(page.name)}</h2>
+          <div class="meta">scarlssystem.com/p/${escapeHtml(page.slug)} · Owner: ${escapeHtml(owner)}</div>
+        </div>
+        ${actionBtn}
+      </div>
+    `;
+  }
+
+  async function markBuilt(pageId) {
+    const { error } = await supabaseClient
+      .from('landing_pages')
+      .update({ build_status: 'ready_for_student' })
+      .eq('id', pageId);
+
+    if (error) {
+      alert('Failed to update: ' + error.message);
+      return;
+    }
+    await loadPages();
+  }
+
+  async function sendAccess(pageId) {
+    // NOTE: this only flips the status flag for now. Actually emailing the
+    // student their login link/password is a separate step (needs an edge
+    // function using GMAIL_APP_PASSWORD, same pattern as your other
+    // notification emails) — not wired up yet.
+    if (!confirm('This marks the page as handed over. Actually emailing the student their access still needs to be wired up separately — proceed anyway?')) {
+      return;
+    }
+    const { error } = await supabaseClient
+      .from('landing_pages')
+      .update({ build_status: 'handed_over' })
+      .eq('id', pageId);
+
+    if (error) {
+      alert('Failed to update: ' + error.message);
+      return;
+    }
+    await loadPages();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>
