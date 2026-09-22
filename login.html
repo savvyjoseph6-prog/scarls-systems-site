@@ -69,6 +69,39 @@
     opacity: 0.6;
     cursor: not-allowed;
   }
+  button.secondary {
+    background: transparent;
+    border: 1px solid #2a2e38;
+    margin-top: 8px;
+  }
+  .password-wrap {
+    position: relative;
+  }
+  .password-wrap input {
+    padding-right: 40px;
+  }
+  .toggle-eye {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    color: #9297a3;
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .toggle-eye:hover {
+    color: #e8e8ec;
+  }
+  .toggle-eye svg {
+    width: 18px;
+    height: 18px;
+  }
   .error {
     background: #3a1d1d;
     border: 1px solid #6b2b2b;
@@ -79,33 +112,103 @@
     margin-bottom: 16px;
     display: none;
   }
+  .success {
+    background: #1d3a24;
+    border: 1px solid #2b6b3b;
+    color: #9affab;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .forgot-link {
+    text-align: right;
+    margin: -8px 0 16px;
+  }
+  .forgot-link a {
+    color: #5b8cff;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  #forgotView { display: none; }
 </style>
 </head>
 <body>
 
 <div class="card">
-  <h1>Log in to your dashboard</h1>
-  <p class="sub">SCARLS Landing Page Platform</p>
 
-  <div class="error" id="errorBox"></div>
+  <!-- LOGIN VIEW -->
+  <div id="loginView">
+    <h1>Log in to your dashboard</h1>
+    <p class="sub">SCARLS Landing Page Platform</p>
 
-  <form id="loginForm">
-    <label for="email">Email</label>
-    <input type="email" id="email" required autocomplete="email">
+    <div class="error" id="errorBox"></div>
 
-    <label for="password">Password</label>
-    <input type="password" id="password" required autocomplete="current-password">
+    <form id="loginForm">
+      <label for="email">Email</label>
+      <input type="email" id="email" required autocomplete="email">
 
-    <button type="submit" id="submitBtn">Log In</button>
-  </form>
+      <label for="password">Password</label>
+      <div class="password-wrap">
+        <input type="password" id="password" required autocomplete="current-password">
+        <button type="button" class="toggle-eye" id="togglePassword" aria-label="Show password">
+          <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+
+      <div class="forgot-link"><a id="showForgot">Forgot password?</a></div>
+
+      <button type="submit" id="submitBtn">Log In</button>
+    </form>
+  </div>
+
+  <!-- FORGOT PASSWORD VIEW -->
+  <div id="forgotView">
+    <h1>Reset your password</h1>
+    <p class="sub">Enter your email and we'll send you a reset link.</p>
+
+    <div class="error" id="forgotError"></div>
+    <div class="success" id="forgotSuccess"></div>
+
+    <form id="forgotForm">
+      <label for="forgotEmail">Email</label>
+      <input type="email" id="forgotEmail" required autocomplete="email">
+
+      <button type="submit" id="forgotSubmitBtn">Send Reset Link</button>
+      <button type="button" class="secondary" id="backToLogin">Back to Log In</button>
+    </form>
+  </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-client.js"></script>
 <script>
+  const loginView = document.getElementById('loginView');
+  const forgotView = document.getElementById('forgotView');
+
   const form = document.getElementById('loginForm');
   const errorBox = document.getElementById('errorBox');
   const submitBtn = document.getElementById('submitBtn');
+
+  // --- Show/hide password ---
+  const togglePassword = document.getElementById('togglePassword');
+  const passwordInput = document.getElementById('password');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const eyeOpenPath = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle>';
+  const eyeClosedPath = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.62 21.62 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.61 3.87M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+
+  togglePassword.addEventListener('click', () => {
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+    eyeIcon.innerHTML = isHidden ? eyeClosedPath : eyeOpenPath;
+    togglePassword.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+  });
 
   // If already logged in, skip straight to the right dashboard.
   (async () => {
@@ -153,6 +256,52 @@
     window.location.href = profile.role === 'admin'
       ? 'admin-landing-pages.html'
       : 'student-dashboard.html';
+  });
+
+  // --- Forgot password flow ---
+  const showForgot = document.getElementById('showForgot');
+  const backToLogin = document.getElementById('backToLogin');
+  const forgotForm = document.getElementById('forgotForm');
+  const forgotError = document.getElementById('forgotError');
+  const forgotSuccess = document.getElementById('forgotSuccess');
+  const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
+
+  showForgot.addEventListener('click', () => {
+    loginView.style.display = 'none';
+    forgotView.style.display = 'block';
+  });
+
+  backToLogin.addEventListener('click', () => {
+    forgotView.style.display = 'none';
+    loginView.style.display = 'block';
+  });
+
+  forgotForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    forgotError.style.display = 'none';
+    forgotSuccess.style.display = 'none';
+    forgotSubmitBtn.disabled = true;
+    forgotSubmitBtn.textContent = 'Sending...';
+
+    const email = document.getElementById('forgotEmail').value.trim();
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://scarlssystems.com/reset-password.html'
+    });
+
+    if (error) {
+      forgotError.textContent = error.message;
+      forgotError.style.display = 'block';
+      forgotSubmitBtn.disabled = false;
+      forgotSubmitBtn.textContent = 'Send Reset Link';
+      return;
+    }
+
+    forgotSuccess.textContent = 'If an account exists for that email, a reset link is on its way.';
+    forgotSuccess.style.display = 'block';
+    forgotForm.querySelector('input').value = '';
+    forgotSubmitBtn.disabled = false;
+    forgotSubmitBtn.textContent = 'Send Reset Link';
   });
 </script>
 
