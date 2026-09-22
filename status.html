@@ -116,6 +116,18 @@
   .rev-count{ font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--silver-dim); margin:6px 0 0; }
   #changesBox{ margin-top:4px; }
 
+  /* ---------- Delivery confirmation ---------- */
+  .field-label{
+    display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--silver-dim); margin-bottom:7px; line-height:1.5;
+  }
+  .sig-input{
+    width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
+    padding:11px 13px; font-size:14px; font-family:inherit; border-radius:8px; line-height:1.5;
+  }
+  .sig-input:focus{ outline:none; border-color:var(--accent-blue); }
+  .sig-fineprint{ font-size:12px; color:var(--silver-dim); line-height:1.6; margin-top:10px; }
+
   .thread{ margin-top:24px; border-top:1px solid var(--line-soft); padding-top:18px; }
   .thread h3{ font-family:var(--font-display); color:var(--white); font-size:16px; margin:0 0 12px; }
   .msgs{ max-height:340px; overflow-y:auto; margin-bottom:12px; display:flex; flex-direction:column; gap:9px; }
@@ -342,7 +354,7 @@
         'We\'ll email you as soon as the updated version is ready.</div>' +
         '<p class="rev-count">' + revisionText() + '</p>' + briefSummaryHtml();
     } else if (s === 'delivered') {
-      panelEl.innerHTML = '<p class="panel-msg">Your project is <b>delivered</b>. Thank you for working with us!</p>' + briefSummaryHtml();
+      renderDeliveredPanel();
     } else if (s === 'refunded') {
       panelEl.innerHTML = '<p class="panel-msg">This project has been refunded.</p>';
     } else {
@@ -420,6 +432,50 @@
           loadPortal();
         })
         .catch(function () { send.disabled = false; reviewMsg('Could not reach the server. Please try again.', 'err'); });
+    });
+  }
+
+  /* ---------- Delivered: confirm receipt (proof of delivery) ---------- */
+  function renderDeliveredPanel() {
+    var d = state.data, p = d.project;
+    var html = '<p class="panel-msg">Your project is <b>delivered</b>. Thank you for working with us!</p>';
+
+    if (p.deliveryConfirmedAt) {
+      html += '<div class="callout ok"><b>Delivery confirmed</b>You confirmed receipt as <b>' +
+        escapeHtml(p.deliveryConfirmedName || '') + '</b> on ' + escapeHtml(formatDay(p.deliveryConfirmedAt)) +
+        '. A receipt was emailed to you.</div>';
+    } else {
+      html += '<div class="review-box"><h3>Confirm you\'ve received your delivery</h3>' +
+        '<p class="review-note">Type your full name below to confirm you\'ve received the finished work. ' +
+        'We\'ll email you a receipt for your records.</p>' +
+        '<label class="field-label" for="deliverySignature">Your full name</label>' +
+        '<input type="text" id="deliverySignature" class="sig-input" placeholder="Type your full name" maxlength="200">' +
+        '<div class="review-actions" style="margin-top:14px;">' +
+        '<button type="button" class="btn btn-primary" id="confirmDeliveryBtn">Confirm I\'ve received my delivery</button></div>' +
+        '<p class="sig-fineprint">This creates a permanent delivery record — the date, your name, and some basic ' +
+        'technical details (like your IP address) are saved for our files.</p>' +
+        '<p class="form-msg" id="deliveryMsg" role="status"></p></div>';
+    }
+    html += briefSummaryHtml();
+    panelEl.innerHTML = html;
+    wireDeliveryConfirm();
+  }
+
+  function wireDeliveryConfirm() {
+    var btn = $('confirmDeliveryBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var input = $('deliverySignature'), name = input.value.trim();
+      var msg = $('deliveryMsg');
+      if (name.length < 2) { msg.textContent = 'Please type your full name.'; msg.className = 'form-msg err'; return; }
+      if (!window.confirm('Confirm that you\'ve received your delivery as "' + name + '"? This creates a permanent record.')) return;
+      btn.disabled = true; msg.textContent = 'Saving…'; msg.className = 'form-msg';
+      callPortal('confirm_delivery', { signatureName: name })
+        .then(function (res) {
+          if (!res || !res.ok) { btn.disabled = false; msg.textContent = (res && res.error) || 'Could not save. Please try again.'; msg.className = 'form-msg err'; return; }
+          loadPortal();
+        })
+        .catch(function () { btn.disabled = false; msg.textContent = 'Could not reach the server. Please try again.'; msg.className = 'form-msg err'; });
     });
   }
 

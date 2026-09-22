@@ -275,6 +275,11 @@
     });
   }
 
+  function formatDay(value) {
+    var d = new Date(value);
+    return isNaN(d) ? String(value) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
   /* ============================================================
      Gate
      ============================================================ */
@@ -444,6 +449,7 @@
             '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (p.pricingModel === 'subscription' ? '/mo' : '') + '<br>' +
             escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) + '<br>' +
             'Ref: ' + escapeHtml(p.orderReference) +
+            (p.deliveryConfirmedAt ? '<br><span style="color:#7ee0a8;">Delivery confirmed on ' + escapeHtml(formatDay(p.deliveryConfirmedAt)) + '</span>' : '') +
           '</div>' +
           '<div class="field"><label>Status</label><select class="f-status">' + statusOptions + '</select></div>' +
           '<div class="field"><label>Assigned to</label><input class="f-assignedTo" type="text" value="' + escapeHtml(p.assignedTo || '') + '" placeholder="Intern / team member name"></div>' +
