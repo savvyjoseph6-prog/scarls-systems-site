@@ -77,6 +77,8 @@
   .badge.approved{ color:#7ee0a8; border-color:#22452f; }
   .badge.rejected{ color:#ff8b8b; border-color:#4a2222; }
   .badge.below_minimum{ color:#8a8f98; border-color:#33363c; }
+  .badge.sub_active{ color:#7ee0a8; border-color:#22452f; }
+  .badge.sub_cancelled{ color:#ff8b8b; border-color:#4a2222; }
 
   .project-meta{ font-size:12.5px; color:var(--silver); line-height:1.7; margin-bottom:12px; }
   .project-meta b{ color:var(--off-white); }
@@ -99,12 +101,14 @@
   }
   .field.checks input{ width:auto; }
 
-  .project-card-actions{ display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .project-card-actions{ display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
   .save-btn{
     font-family:var(--font-mono); font-size:12px; padding:9px 18px; border-radius:7px;
     background:var(--white); color:var(--black); border:none; cursor:pointer;
   }
   .save-btn:disabled{ opacity:.5; cursor:default; }
+  .save-btn.sub-cancel-btn{ background:transparent; color:#ff8b8b; border:1px solid #4a2222; }
+  .save-btn.sub-reactivate-btn{ background:transparent; color:#7ee0a8; border:1px solid #22452f; }
   .save-status{ font-size:11.5px; color:var(--silver-dim); }
   .save-status.ok{ color:#7ee0a8; }
   .save-status.err{ color:#ff8b8b; }
@@ -138,12 +142,15 @@
     border:1px solid var(--line-soft); border-radius:9px; padding:10px; margin-bottom:8px;
     display:flex; flex-direction:column; gap:6px;
   }
-  .pkg-row input, .pkg-row textarea{
+  .pkg-row input, .pkg-row textarea, .pkg-row select{
     width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
     padding:8px 10px; font-size:13px; font-family:inherit; border-radius:6px;
   }
   .pkg-row textarea{ resize:vertical; min-height:40px; }
   .pkg-row label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--silver); }
+  .pkg-row .pkg-sub-row{ display:flex; gap:8px; align-items:center; }
+  .pkg-row .pkg-sub-row select{ flex:1; }
+  .pkg-row .p-interval{ width:110px; flex:0 0 110px; }
   .pkg-remove-btn{
     align-self:flex-start; background:transparent; border:none; color:#ff8b8b; font-family:var(--font-mono);
     font-size:11px; cursor:pointer; padding:2px 0;
@@ -257,6 +264,7 @@
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpweXRqaWZiaGF4bml1bGlvcHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyOTMyNjgsImV4cCI6MjEwMzg2OTI2OH0.QFGo9feUbsle_fGxNZvxMaBuRQzS55RKF2_i0oL0LYQ";
 
   var STATUS_LABELS = { paid: "Paid", in_progress: "In progress", review: "Review", delivered: "Delivered" };
+  var SUB_STATUS_LABELS = { active: "Active", cancelled: "Cancelled" };
 
   var gate = document.getElementById('gate');
   var gatePassword = document.getElementById('gatePassword');
@@ -436,6 +444,20 @@
         return '<option value="' + s + '"' + (s === p.status ? ' selected' : '') + '>' + escapeHtml(STATUS_LABELS[s] || s) + '</option>';
       }).join('');
 
+      var isSub = p.pricingModel === 'subscription';
+      var subBadge = isSub
+        ? '<span class="badge sub_' + escapeHtml(p.subscriptionStatus || 'active') + '">' + escapeHtml(SUB_STATUS_LABELS[p.subscriptionStatus] || p.subscriptionStatus || 'active') + '</span>'
+        : '';
+      var subLine = isSub
+        ? '<br><b>Subscription:</b> ' + escapeHtml(SUB_STATUS_LABELS[p.subscriptionStatus] || p.subscriptionStatus || 'active') +
+          (p.nextRenewalAt && p.subscriptionStatus !== 'cancelled' ? ' · next charge ' + escapeHtml(formatDay(p.nextRenewalAt)) : '')
+        : '';
+      var subToggleBtn = isSub
+        ? (p.subscriptionStatus === 'cancelled'
+            ? '<button type="button" class="save-btn sub-reactivate-btn">Reactivate Subscription</button>'
+            : '<button type="button" class="save-btn sub-cancel-btn">Cancel Subscription</button>')
+        : '';
+
       return (
         '<div class="project-card" data-id="' + escapeHtml(p.projectId) + '">' +
           '<div class="project-card-top">' +
@@ -443,12 +465,16 @@
               '<h3>' + escapeHtml(p.fullName) + (p.businessName ? ' · ' + escapeHtml(p.businessName) : '') + '</h3>' +
               '<p>' + escapeHtml(p.serviceName) + (p.packageName ? ' — ' + escapeHtml(p.packageName) : '') + '</p>' +
             '</div>' +
-            '<span class="badge ' + escapeHtml(p.status) + '">' + escapeHtml(STATUS_LABELS[p.status] || p.status) + '</span>' +
+            '<div>' +
+              '<span class="badge ' + escapeHtml(p.status) + '">' + escapeHtml(STATUS_LABELS[p.status] || p.status) + '</span>' +
+              subBadge +
+            '</div>' +
           '</div>' +
           '<div class="project-meta">' +
-            '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (p.pricingModel === 'subscription' ? '/mo' : '') + '<br>' +
+            '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (isSub ? '/mo' : '') + '<br>' +
             escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) + '<br>' +
             'Ref: ' + escapeHtml(p.orderReference) +
+            subLine +
             (p.deliveryConfirmedAt ? '<br><span style="color:#7ee0a8;">Delivery confirmed on ' + escapeHtml(formatDay(p.deliveryConfirmedAt)) + '</span>' : '') +
           '</div>' +
           '<div class="field"><label>Status</label><select class="f-status">' + statusOptions + '</select></div>' +
@@ -459,6 +485,7 @@
           '<div class="field"><label>Notes</label><textarea class="f-notes" placeholder="Internal notes">' + escapeHtml(p.notes || '') + '</textarea></div>' +
           '<div class="project-card-actions">' +
             '<button type="button" class="save-btn">Save</button>' +
+            subToggleBtn +
             '<span class="save-status"></span>' +
           '</div>' +
         '</div>'
@@ -519,6 +546,47 @@
             saveStatus.className = 'save-status err';
           });
       });
+
+      // NEW: manual subscription cancel / reactivate toggle. Fires
+      // immediately (separate from the main Save button) and cascades to
+      // the underlying order server-side, so the renewal cron respects it.
+      var subBtn = card.querySelector('.sub-cancel-btn, .sub-reactivate-btn');
+      if (subBtn) {
+        subBtn.addEventListener('click', function () {
+          var projectId = card.getAttribute('data-id');
+          var local = allProjects.filter(function (p) { return p.projectId === projectId; })[0];
+          var nextStatus = (local && local.subscriptionStatus === 'cancelled') ? 'active' : 'cancelled';
+          var confirmMsg = nextStatus === 'cancelled'
+            ? 'Cancel this subscription? No further renewal charges will be attempted.'
+            : 'Reactivate this subscription? It will be charged again at its next renewal date.';
+          if (!confirm(confirmMsg)) return;
+
+          subBtn.disabled = true;
+          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-update-project', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+              'apikey': SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({ password: password, projectId: projectId, subscriptionStatus: nextStatus })
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              subBtn.disabled = false;
+              if (data && data.ok) {
+                if (local) local.subscriptionStatus = nextStatus;
+                renderList();
+              } else {
+                alert((data && data.error) || 'Could not update subscription.');
+              }
+            })
+            .catch(function () {
+              subBtn.disabled = false;
+              alert('Network error — try again.');
+            });
+        });
+      }
     });
   }
 
@@ -968,6 +1036,7 @@
       if (s.featured) flags += '<span class="badge paid">Featured</span>';
       if (s.requires_consultation) flags += '<span class="badge">Consultation Required</span>';
       if (s.requires_ai_quote) flags += '<span class="badge">AI Quote</span>';
+      if (s.pricing_model === 'subscription' || s.pricing_model === 'both') flags += '<span class="badge sub_active">Subscription</span>';
       return (
         '<div class="project-card" data-id="' + escapeHtml(s.id) + '">' +
           '<div class="project-card-top">' +
@@ -1049,6 +1118,7 @@
       '<div class="field"><label>Price label (one-time)</label><input id="f_priceLabel" type="text" value="' + escapeHtml(svc ? svc.price_label : '') + '" placeholder="e.g. ₦20,000"></div>' +
       '<div class="field"><label>Subscription price (₦/mo)</label><input id="f_subPrice" type="number" value="' + ((svc && svc.subscription_price != null) ? svc.subscription_price : '') + '"></div>' +
       '<div class="field"><label>Subscription label</label><input id="f_subLabel" type="text" value="' + escapeHtml(svc ? svc.subscription_label : '') + '" placeholder="e.g. ₦50,000/mo"></div>' +
+      '<div class="field"><label>Subscription billing interval (days)</label><input id="f_billingInterval" type="number" value="' + ((svc && svc.billing_interval_days != null) ? svc.billing_interval_days : 30) + '" placeholder="30"></div>' +
       '<div class="field"><label>Delivery time</label><input id="f_delivery" type="text" value="' + escapeHtml(svc ? svc.delivery_time : '') + '"></div>' +
       '<div class="field"><label>Order (sort position)</label><input id="f_order" type="number" value="' + ((svc && svc.order != null) ? svc.order : 99) + '"></div>' +
       '<div class="field checks">' +
@@ -1108,6 +1178,7 @@
     pkgRows = (packages || []).slice();
     var pkgListEl = document.getElementById('pkgList');
     pkgListEl.innerHTML = pkgRows.map(function (p) {
+      var isSub = p.pricing_model === 'subscription';
       return (
         '<div class="pkg-row">' +
           '<input class="p-name" type="text" placeholder="Package name" value="' + escapeHtml(p.name || '') + '">' +
@@ -1116,6 +1187,13 @@
           '<textarea class="p-desc" placeholder="Description">' + escapeHtml(p.description || '') + '</textarea>' +
           '<textarea class="p-features" placeholder="Features, one per line">' + escapeHtml((p.features || []).join('\n')) + '</textarea>' +
           '<input class="p-delivery" type="text" placeholder="Delivery time" value="' + escapeHtml(p.delivery_time || '') + '">' +
+          '<div class="pkg-sub-row">' +
+            '<select class="p-pricingModel">' +
+              '<option value="one_time"' + (!isSub ? ' selected' : '') + '>One-time payment</option>' +
+              '<option value="subscription"' + (isSub ? ' selected' : '') + '>Subscription (recurring)</option>' +
+            '</select>' +
+            '<input class="p-interval" type="number" placeholder="Days" title="Billing interval in days" value="' + (p.billing_interval_days != null ? p.billing_interval_days : 30) + '" style="' + (isSub ? '' : 'display:none;') + '">' +
+          '</div>' +
           '<label><input class="p-recommended" type="checkbox"' + (p.recommended ? ' checked' : '') + '> Recommended</label>' +
           '<button type="button" class="pkg-remove-btn">Remove</button>' +
         '</div>'
@@ -1126,11 +1204,15 @@
         pkgRows.splice(idx, 1);
         renderPkgList(pkgRows);
       });
+      // NEW: toggling a package to "Subscription" reveals its billing-interval field.
+      row.querySelector('.p-pricingModel').addEventListener('change', function (e) {
+        row.querySelector('.p-interval').style.display = e.target.value === 'subscription' ? '' : 'none';
+      });
     });
   }
 
   function addPkgRow() {
-    pkgRows.push({ name: '', price: null, price_label: '', description: '', features: [], delivery_time: '', recommended: false, active: true });
+    pkgRows.push({ name: '', price: null, price_label: '', description: '', features: [], delivery_time: '', recommended: false, active: true, pricing_model: 'one_time', billing_interval_days: 30 });
     renderPkgList(pkgRows);
   }
 
@@ -1145,7 +1227,10 @@
         features: linesToArray(row.querySelector('.p-features').value),
         delivery_time: row.querySelector('.p-delivery').value.trim(),
         recommended: row.querySelector('.p-recommended').checked,
-        active: true
+        active: true,
+        // NEW: per-package subscription toggle + billing interval.
+        pricing_model: row.querySelector('.p-pricingModel').value,
+        billing_interval_days: row.querySelector('.p-interval').value ? Number(row.querySelector('.p-interval').value) : 30
       };
     }).filter(function (p) { return p.name; });
   }
@@ -1177,6 +1262,7 @@
       price_label: document.getElementById('f_priceLabel').value.trim(),
       subscription_price: document.getElementById('f_subPrice').value ? Number(document.getElementById('f_subPrice').value) : null,
       subscription_label: document.getElementById('f_subLabel').value.trim(),
+      billing_interval_days: document.getElementById('f_billingInterval').value ? Number(document.getElementById('f_billingInterval').value) : 30,
       delivery_time: document.getElementById('f_delivery').value.trim(),
       order: document.getElementById('f_order').value ? Number(document.getElementById('f_order').value) : 99,
       active: document.getElementById('f_active').checked,
