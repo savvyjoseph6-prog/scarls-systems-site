@@ -1152,6 +1152,7 @@
         '<label style="margin-top:8px;">SCARLS fee tiers — one per line, "maxDailySpend:fee"</label>' +
         '<textarea id="f_quoteFeeTiers" placeholder="5000:2000&#10;15000:3500&#10;999999999:5000">' + escapeHtml(svc ? svc.quote_fee_tiers : '') + '</textarea>' +
         '<p style="font-size:11.5px;color:var(--silver-dim);margin-top:4px;">This fee is added to the ad spend total silently — the client only ever sees one final number.</p>' +
+        '<p style="font-size:11.5px;color:var(--silver-dim);margin-top:8px;">If <b>Pricing model</b> above is set to Subscription or Both, this AI-drafted quote becomes a recurring charge: the same total re-bills automatically every N days, where N is the number of days quoted (so a new flight starts right as the old one ends).</p>' +
       '</div>' +
       '<div class="field"><label>Packages</label><div id="pkgList"></div>' +
         '<button type="button" class="save-btn" id="addPkgBtn" style="margin-top:6px;background:transparent;color:var(--silver);border:1px dashed var(--line);">+ Add package</button></div>' +
