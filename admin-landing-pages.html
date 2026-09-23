@@ -207,6 +207,7 @@
           <div class="brief-panel" id="brief-panel-${page.id}"></div>
         </div>
         <a class="btn btn-secondary" href="renderer.html?page=${page.id}" target="_blank">Preview</a>
+        ${page.status === 'published' ? `<a class="btn btn-secondary" href="renderer.html?page=${page.id}&view=published" target="_blank">Live</a>` : ''}
         ${actionBtn}
       </div>
     `;

@@ -209,7 +209,8 @@
         : `<span class="badge draft">Draft</span>`;
       action = `<div class="actions">
         <a class="btn-primary" href="editor.html?page=${page.id}">Edit Page</a>
-        <a class="btn-primary" style="background:transparent;border:1px solid #2a2e38;color:#b3b7c1;margin-left:8px;" href="renderer.html?page=${page.id}" target="_blank">Preview</a>
+        <a class="btn-primary" style="background:transparent;border:1px solid #2a2e38;color:#b3b7c1;margin-left:8px;" href="renderer.html?page=${page.id}" target="_blank">Preview Draft</a>
+        ${page.status === 'published' ? `<a class="btn-primary" style="background:transparent;border:1px solid #2a2e38;color:#b3b7c1;margin-left:8px;" href="renderer.html?page=${page.id}&view=published" target="_blank">View Live</a>` : ''}
       </div>`;
     }
 

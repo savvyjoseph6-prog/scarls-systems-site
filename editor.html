@@ -174,6 +174,24 @@
     justify-content: center;
     color: #9297a3;
   }
+
+  .template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .template-card {
+    background: #0f1115;
+    border: 1px solid #2a2e38;
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .template-card:hover { border-color: #5b8cff; }
+  .template-card h3 { font-size: 15px; margin: 0 0 6px; }
+  .template-card p { font-size: 12.5px; color: #9297a3; margin: 0; line-height: 1.4; }
+  .template-card.blank-card { border-style: dashed; }
 </style>
 </head>
 <body>
@@ -188,8 +206,10 @@
       <div class="meta">scarlssystems.com/p/<span id="slugDisplay"></span> (slug is locked for now)</div>
     </div>
     <div class="header-actions">
-      <a class="btn secondary" id="previewLink" target="_blank">Preview</a>
-      <button class="btn" id="saveBtn">Save Draft</button>
+      <a class="btn secondary" id="previewLink" target="_blank">Preview Draft</a>
+      <a class="btn secondary" id="liveLink" target="_blank" style="display:none;">View Live</a>
+      <button class="btn secondary" id="saveBtn">Save Draft</button>
+      <button class="btn" id="publishBtn">Publish</button>
       <a class="btn secondary" id="backLink">Back</a>
     </div>
   </header>
@@ -388,6 +408,12 @@
       profile.role === 'admin' ? 'admin-landing-pages.html' : 'student-dashboard.html';
     document.getElementById('previewLink').href = `renderer.html?page=${page.id}`;
 
+    if (page.status === 'published') {
+      const liveLink = document.getElementById('liveLink');
+      liveLink.href = `renderer.html?page=${page.id}&view=published`;
+      liveLink.style.display = 'inline-block';
+    }
+
     if (!isEditableForMe) {
       document.getElementById('loadingState').style.display = 'none';
       const el = document.getElementById('errorState');
@@ -408,28 +434,93 @@
     'testimonials', 'bonus', 'pricing', 'countdown', 'faq', 'cta', 'footer',
   ];
 
-  async function initializeDefaultSections() {
-    const btn = document.getElementById('initSectionsBtn');
-    btn.disabled = true;
-    btn.textContent = 'Creating...';
+  async function renderStartingPointPicker(container) {
+    const { data: templates, error } = await supabaseClient
+      .from('templates')
+      .select('*')
+      .eq('is_active', true)
+      .order('name', { ascending: true });
 
-    const rows = DEFAULT_SECTION_ORDER.map((type, i) => ({
-      page_id: currentPage.id,
-      owner_id: currentPage.owner_id,
+    if (error) {
+      console.error(error);
+      container.innerHTML = `<div class="panel" style="text-align:center;">
+        <p style="color:#ff9a9a;">Couldn't load templates. You can still start from a blank page below.</p>
+        <button class="btn" onclick="startFromBlank()">Start From Blank</button>
+      </div>`;
+      return;
+    }
+
+    const templateCards = (templates || []).map(t => `
+      <div class="template-card" onclick="startFromTemplate('${t.id}')">
+        <h3>${esc(t.name)}</h3>
+        <p>${esc(t.description || '')}</p>
+      </div>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="panel">
+        <p style="color:#9297a3; margin-bottom:16px;">This page doesn't have its sections set up yet. Pick a starting point:</p>
+        <div class="template-grid">
+          ${templateCards}
+          <div class="template-card blank-card" onclick="startFromBlank()">
+            <h3>Start From Blank</h3>
+            <p>All 13 sections, nothing pre-filled — build it yourself from scratch.</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function startFromBlank() {
+    await createSectionsFromStructure(DEFAULT_SECTION_ORDER.map((type, i) => ({
       section_type: type,
       section_order: i + 1,
       is_visible: true,
       content: {},
-    }));
+    })), null);
+  }
 
-    const { error } = await supabaseClient.from('page_sections').insert(rows);
+  async function startFromTemplate(templateId) {
+    const { data: template, error } = await supabaseClient
+      .from('templates')
+      .select('*')
+      .eq('id', templateId)
+      .single();
 
-    if (error) {
-      alert('Failed to create default sections: ' + error.message);
-      btn.disabled = false;
-      btn.textContent = 'Create Default Sections';
+    if (error || !template) {
+      alert('Failed to load that template. Please try again.');
       return;
     }
+
+    // Deep-copy the template's structure into fresh, independently-owned
+    // rows — never a live reference back to the shared template. Editing
+    // the template later must never affect pages already created from it.
+    await createSectionsFromStructure(JSON.parse(JSON.stringify(template.structure)), template.id);
+  }
+
+  async function createSectionsFromStructure(structure, templateId) {
+    const rows = structure.map(s => ({
+      page_id: currentPage.id,
+      owner_id: currentPage.owner_id,
+      section_type: s.section_type,
+      section_order: s.section_order,
+      is_visible: s.is_visible,
+      content: s.content,
+    }));
+
+    const { error: insertError } = await supabaseClient.from('page_sections').insert(rows);
+
+    if (insertError) {
+      alert('Failed to create sections: ' + insertError.message);
+      return;
+    }
+
+    const { error: updateError } = await supabaseClient
+      .from('landing_pages')
+      .update({ template_id: templateId })
+      .eq('id', currentPage.id);
+
+    if (updateError) console.error('Failed to record template_id:', updateError);
 
     window.location.reload();
   }
@@ -447,7 +538,7 @@
     return div.innerHTML;
   }
 
-  function renderEditor() {
+  async function renderEditor() {
     document.getElementById('pageNameInput').value = currentPage.name || '';
     document.getElementById('slugDisplay').textContent = currentPage.slug;
 
@@ -458,10 +549,7 @@
 
     const container = document.getElementById('sectionsContainer');
     if (currentSections.length === 0) {
-      container.innerHTML = `<div class="panel" style="text-align:center;">
-        <p style="color:#9297a3; margin-bottom:14px;">This page doesn't have its sections set up yet.</p>
-        <button class="btn" id="initSectionsBtn" onclick="initializeDefaultSections()">Create Default Sections</button>
-      </div>`;
+      await renderStartingPointPicker(container);
     } else {
       container.innerHTML = currentSections.map(renderSectionPanel).join('');
     }
@@ -469,7 +557,132 @@
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('editorRoot').style.display = 'block';
 
-    document.getElementById('saveBtn').addEventListener('click', saveDraft);
+    document.getElementById('saveBtn').addEventListener('click', () => saveDraft(true));
+    document.getElementById('publishBtn').addEventListener('click', publishPage);
+  }
+
+  function gatherEditorState() {
+    const name = document.getElementById('pageNameInput').value.trim();
+    const theme = {};
+    document.querySelectorAll('[data-theme-key]').forEach(input => {
+      theme[input.dataset.themeKey] = input.value;
+    });
+
+    const panels = Array.from(document.querySelectorAll('.panel[data-section-id]'));
+    const sections = panels.map(panel => ({
+      id: panel.dataset.sectionId,
+      section_type: panel.dataset.sectionType,
+      is_visible: panel.querySelector('[data-visibility]').checked,
+      content: collectSectionContent(panel),
+    }));
+
+    return { name, theme, sections };
+  }
+
+  async function saveDraft(showStatus) {
+    const saveBtn = document.getElementById('saveBtn');
+    const statusEl = document.getElementById('saveStatus');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    if (showStatus) {
+      statusEl.className = '';
+      statusEl.style.display = 'none';
+    }
+
+    try {
+      const state = gatherEditorState();
+      const newDraftConfig = Object.assign({}, currentPage.draft_config || {}, { theme: state.theme });
+
+      const { error: pageUpdateError } = await supabaseClient
+        .from('landing_pages')
+        .update({ name: state.name, draft_config: newDraftConfig })
+        .eq('id', currentPage.id);
+
+      if (pageUpdateError) throw pageUpdateError;
+
+      for (const section of state.sections) {
+        const { error: sectionUpdateError } = await supabaseClient
+          .from('page_sections')
+          .update({ content: section.content, is_visible: section.is_visible })
+          .eq('id', section.id);
+
+        if (sectionUpdateError) throw sectionUpdateError;
+      }
+
+      currentPage.name = state.name;
+      currentPage.draft_config = newDraftConfig;
+
+      if (showStatus) {
+        statusEl.textContent = 'Draft saved.';
+        statusEl.className = 'ok';
+        statusEl.style.display = 'block';
+      }
+      return state;
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = 'Something went wrong saving — ' + (err.message || 'please try again.');
+      statusEl.className = 'err';
+      statusEl.style.display = 'block';
+      return null;
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Draft';
+    }
+  }
+
+  async function publishPage() {
+    const publishBtn = document.getElementById('publishBtn');
+    const statusEl = document.getElementById('saveStatus');
+
+    publishBtn.disabled = true;
+    publishBtn.textContent = 'Publishing...';
+
+    // Publish always saves the draft first, so what goes live matches
+    // exactly what's on screen — no publishing stale unsaved edits.
+    const state = await saveDraft(false);
+
+    if (!state) {
+      publishBtn.disabled = false;
+      publishBtn.textContent = 'Publish';
+      return; // saveDraft already showed the error
+    }
+
+    const publishedConfig = {
+      theme: state.theme,
+      sections: state.sections.map(s => ({
+        section_type: s.section_type,
+        is_visible: s.is_visible,
+        content: s.content,
+      })),
+    };
+
+    const { error } = await supabaseClient
+      .from('landing_pages')
+      .update({
+        published_config: publishedConfig,
+        status: 'published',
+        published_at: new Date().toISOString(),
+      })
+      .eq('id', currentPage.id);
+
+    publishBtn.disabled = false;
+    publishBtn.textContent = 'Publish';
+
+    if (error) {
+      statusEl.textContent = 'Published draft, but failed to go live — ' + error.message;
+      statusEl.className = 'err';
+      statusEl.style.display = 'block';
+      return;
+    }
+
+    currentPage.status = 'published';
+    const liveLink = document.getElementById('liveLink');
+    liveLink.href = `renderer.html?page=${currentPage.id}&view=published`;
+    liveLink.style.display = 'inline-block';
+
+    statusEl.textContent = 'Published — this is now the live version.';
+    statusEl.className = 'ok';
+    statusEl.style.display = 'block';
   }
 
   function renderSectionPanel(section) {
@@ -581,58 +794,6 @@
     });
 
     return content;
-  }
-
-  async function saveDraft() {
-    const saveBtn = document.getElementById('saveBtn');
-    const statusEl = document.getElementById('saveStatus');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
-    statusEl.className = '';
-    statusEl.style.display = 'none';
-
-    try {
-      const newName = document.getElementById('pageNameInput').value.trim();
-      const theme = {};
-      document.querySelectorAll('[data-theme-key]').forEach(input => {
-        theme[input.dataset.themeKey] = input.value;
-      });
-
-      const newDraftConfig = Object.assign({}, currentPage.draft_config || {}, { theme });
-
-      const { error: pageUpdateError } = await supabaseClient
-        .from('landing_pages')
-        .update({ name: newName, draft_config: newDraftConfig })
-        .eq('id', currentPage.id);
-
-      if (pageUpdateError) throw pageUpdateError;
-
-      const panels = Array.from(document.querySelectorAll('.panel[data-section-id]'));
-      for (const panel of panels) {
-        const sectionId = panel.dataset.sectionId;
-        const isVisible = panel.querySelector('[data-visibility]').checked;
-        const content = collectSectionContent(panel);
-
-        const { error: sectionUpdateError } = await supabaseClient
-          .from('page_sections')
-          .update({ content, is_visible: isVisible })
-          .eq('id', sectionId);
-
-        if (sectionUpdateError) throw sectionUpdateError;
-      }
-
-      statusEl.textContent = 'Draft saved.';
-      statusEl.className = 'ok';
-      statusEl.style.display = 'block';
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = 'Something went wrong saving — ' + (err.message || 'please try again.');
-      statusEl.className = 'err';
-      statusEl.style.display = 'block';
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Draft';
-    }
   }
 </script>
 

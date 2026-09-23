@@ -178,6 +178,7 @@
   (async () => {
     const params = new URLSearchParams(window.location.search);
     const pageId = params.get('page');
+    const viewMode = params.get('view') === 'published' ? 'published' : 'draft';
 
     if (!pageId) {
       showError('No page specified. Use renderer.html?page=PAGE_ID.');
@@ -204,6 +205,15 @@
       return;
     }
 
+    if (viewMode === 'published') {
+      if (!page.published_config) {
+        showError("This page hasn't been published yet — there's no live version to show.");
+        return;
+      }
+      renderPublished(page);
+      return;
+    }
+
     const { data: sections, error: sectionsError } = await supabaseClient
       .from('page_sections')
       .select('*')
@@ -218,6 +228,34 @@
 
     renderPage(page, sections || []);
   })();
+
+  function renderPublished(page) {
+    const snapshot = page.published_config;
+    applyTheme(snapshot.theme || {});
+
+    const html = (snapshot.sections || [])
+      .filter(s => s.is_visible)
+      .map(section => {
+        const renderer = SECTION_RENDERERS[section.section_type];
+        if (!renderer) return '';
+        try {
+          return renderer(section.content || {});
+        } catch (e) {
+          console.error(`Failed to render section ${section.section_type}:`, e);
+          return '';
+        }
+      }).join('');
+
+    const watermarkHtml = page.is_custom_domain
+      ? ''
+      : `<div class="watermark">Powered by <a href="https://scarlssystems.com" target="_blank">SCARLS</a></div>`;
+
+    document.getElementById('pageRoot').innerHTML = html + watermarkHtml;
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('pageRoot').style.display = 'block';
+
+    initCountdowns();
+  }
 
   function showError(msg) {
     document.getElementById('loadingState').style.display = 'none';
