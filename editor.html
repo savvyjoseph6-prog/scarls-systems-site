@@ -210,6 +210,24 @@
   .upload-status { font-size: 12px; color: #9297a3; }
   .upload-status.ok { color: #6be88f; }
   .upload-status.err { color: #ff9a9a; }
+
+  .perf-stats { display: flex; gap: 24px; margin-bottom: 16px; }
+  .perf-stat { text-align: center; }
+  .perf-num { font-size: 26px; font-weight: 700; }
+  .perf-label { font-size: 11.5px; color: #9297a3; text-transform: uppercase; }
+  .perf-sub-label { font-size: 12px; color: #9297a3; text-transform: uppercase; margin-bottom: 8px; }
+  .perf-sources { margin-top: 4px; }
+  .perf-source-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px solid #2a2e38;
+  }
+  .perf-days { display: flex; gap: 8px; align-items: flex-end; height: 70px; }
+  .perf-day-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+  .perf-day-bar { width: 100%; background: #5b8cff; border-radius: 3px 3px 0 0; min-height: 4px; }
+  .perf-day-label { font-size: 10px; color: #6b7080; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -283,6 +301,30 @@
           </select>
         </div>
       </div>
+    </div>
+
+    <div class="panel">
+      <h2>Tracking</h2>
+      <div class="field">
+        <label class="visibility-toggle" style="margin-bottom:10px;">
+          <input type="checkbox" id="enableMetaPixel">
+          Enable Meta Pixel
+        </label>
+      </div>
+      <div class="field">
+        <label>Meta Pixel ID</label>
+        <input type="text" id="metaPixelId" placeholder="e.g. 123456789012345" inputmode="numeric">
+        <div class="hint" id="metaPixelHint">Numbers only — this is validated before it's ever used.</div>
+      </div>
+      <div class="field">
+        <label>Google Analytics ID (optional)</label>
+        <input type="text" id="googleAnalyticsId" placeholder="e.g. G-XXXXXXXXXX">
+      </div>
+    </div>
+
+    <div class="panel" id="performancePanel" style="display:none;">
+      <h2>Performance</h2>
+      <div id="performanceContent" class="hint">Loading...</div>
     </div>
 
     <div id="sectionsContainer"></div>
@@ -610,6 +652,19 @@
     fileInput.value = '';
   }
 
+  function validatePixelIdField() {
+    const input = document.getElementById('metaPixelId');
+    const hint = document.getElementById('metaPixelHint');
+    const value = input.value.trim();
+    if (value === '' || /^[0-9]+$/.test(value)) {
+      hint.textContent = 'Numbers only — this is validated before it\u2019s ever used.';
+      hint.style.color = '';
+    } else {
+      hint.textContent = 'Meta Pixel ID must contain numbers only.';
+      hint.style.color = '#ff9a9a';
+    }
+  }
+
   function esc(str) {
     const div = document.createElement('div');
     div.textContent = str == null ? '' : String(str);
@@ -625,11 +680,19 @@
       input.value = theme[input.dataset.themeKey];
     });
 
+    const tracking = (currentPage.tracking_config) || {};
+    document.getElementById('enableMetaPixel').checked = !!tracking.enable_meta_pixel;
+    document.getElementById('metaPixelId').value = tracking.meta_pixel_id || '';
+    document.getElementById('googleAnalyticsId').value = tracking.google_analytics_id || '';
+    document.getElementById('metaPixelId').addEventListener('input', validatePixelIdField);
+
     const container = document.getElementById('sectionsContainer');
     if (currentSections.length === 0) {
       await renderStartingPointPicker(container);
     } else {
       container.innerHTML = currentSections.map(renderSectionPanel).join('');
+      document.getElementById('performancePanel').style.display = 'block';
+      loadAnalytics();
     }
 
     document.getElementById('loadingState').style.display = 'none';
@@ -639,12 +702,84 @@
     document.getElementById('publishBtn').addEventListener('click', publishPage);
   }
 
+  async function loadAnalytics() {
+    const el = document.getElementById('performanceContent');
+
+    const [{ data: visits, error: visitsError }, { data: conversions, error: conversionsError }] = await Promise.all([
+      supabaseClient.from('page_visits').select('session_id, source, created_at').eq('page_id', currentPage.id),
+      supabaseClient.from('conversion_events').select('id, created_at').eq('page_id', currentPage.id),
+    ]);
+
+    if (visitsError || conversionsError) {
+      el.textContent = "Couldn't load performance data.";
+      return;
+    }
+
+    const totalViews = visits.length;
+    const uniqueVisitors = new Set(visits.map(v => v.session_id).filter(Boolean)).size;
+    const totalConversions = conversions.length;
+
+    const sourceCounts = {};
+    visits.forEach(v => {
+      const key = v.source || 'Direct';
+      sourceCounts[key] = (sourceCounts[key] || 0) + 1;
+    });
+    const topSources = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    const dayCounts = Object.fromEntries(days.map(d => [d, 0]));
+    visits.forEach(v => {
+      const day = (v.created_at || '').slice(0, 10);
+      if (day in dayCounts) dayCounts[day]++;
+    });
+    const maxDayCount = Math.max(1, ...Object.values(dayCounts));
+
+    if (totalViews === 0 && totalConversions === 0) {
+      el.innerHTML = `<p style="color:#9297a3;">No traffic recorded yet. Numbers show up once the live page starts getting visits.</p>`;
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="perf-stats">
+        <div class="perf-stat"><div class="perf-num">${totalViews}</div><div class="perf-label">Views</div></div>
+        <div class="perf-stat"><div class="perf-num">${uniqueVisitors}</div><div class="perf-label">Unique Visitors</div></div>
+        <div class="perf-stat"><div class="perf-num">${totalConversions}</div><div class="perf-label">Clicks / Conversions</div></div>
+      </div>
+      ${topSources.length ? `
+        <div class="perf-sources">
+          <div class="perf-sub-label">Top Sources</div>
+          ${topSources.map(([src, count]) => `<div class="perf-source-row"><span>${esc(src)}</span><span>${count}</span></div>`).join('')}
+        </div>
+      ` : ''}
+      <div class="perf-sub-label" style="margin-top:16px;">Last 7 Days</div>
+      <div class="perf-days">
+        ${days.map(d => `
+          <div class="perf-day-bar-wrap" title="${d}: ${dayCounts[d]} views">
+            <div class="perf-day-bar" style="height:${Math.max(4, (dayCounts[d] / maxDayCount) * 48)}px;"></div>
+            <div class="perf-day-label">${d.slice(5)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
   function gatherEditorState() {
     const name = document.getElementById('pageNameInput').value.trim();
     const theme = {};
     document.querySelectorAll('[data-theme-key]').forEach(input => {
       theme[input.dataset.themeKey] = input.value;
     });
+
+    const tracking = {
+      enable_meta_pixel: document.getElementById('enableMetaPixel').checked,
+      meta_pixel_id: document.getElementById('metaPixelId').value.trim(),
+      google_analytics_id: document.getElementById('googleAnalyticsId').value.trim(),
+    };
 
     const panels = Array.from(document.querySelectorAll('.panel[data-section-id]'));
     const sections = panels.map(panel => ({
@@ -654,7 +789,7 @@
       content: collectSectionContent(panel),
     }));
 
-    return { name, theme, sections };
+    return { name, theme, tracking, sections };
   }
 
   async function saveDraft(showStatus) {
@@ -669,11 +804,16 @@
 
     try {
       const state = gatherEditorState();
+
+      if (state.tracking.meta_pixel_id && !/^[0-9]+$/.test(state.tracking.meta_pixel_id)) {
+        throw new Error('Meta Pixel ID must contain numbers only.');
+      }
+
       const newDraftConfig = Object.assign({}, currentPage.draft_config || {}, { theme: state.theme });
 
       const { error: pageUpdateError } = await supabaseClient
         .from('landing_pages')
-        .update({ name: state.name, draft_config: newDraftConfig })
+        .update({ name: state.name, draft_config: newDraftConfig, tracking_config: state.tracking })
         .eq('id', currentPage.id);
 
       if (pageUpdateError) throw pageUpdateError;
@@ -689,6 +829,7 @@
 
       currentPage.name = state.name;
       currentPage.draft_config = newDraftConfig;
+      currentPage.tracking_config = state.tracking;
 
       if (showStatus) {
         statusEl.textContent = 'Draft saved.';
@@ -727,6 +868,7 @@
 
     const publishedConfig = {
       theme: state.theme,
+      tracking: state.tracking,
       sections: state.sections.map(s => ({
         section_type: s.section_type,
         is_visible: s.is_visible,
