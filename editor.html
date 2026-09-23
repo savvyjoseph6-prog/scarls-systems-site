@@ -192,6 +192,24 @@
   .template-card h3 { font-size: 15px; margin: 0 0 6px; }
   .template-card p { font-size: 12.5px; color: #9297a3; margin: 0; line-height: 1.4; }
   .template-card.blank-card { border-style: dashed; }
+
+  .image-field { }
+  .image-preview {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    border: 1px solid #2a2e38;
+  }
+  .image-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .upload-status { font-size: 12px; color: #9297a3; }
+  .upload-status.ok { color: #6be88f; }
+  .upload-status.err { color: #ff9a9a; }
 </style>
 </head>
 <body>
@@ -281,7 +299,7 @@
       { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
       { key: 'headline', label: 'Headline', type: 'text' },
       { key: 'subheadline', label: 'Subheadline', type: 'textarea' },
-      { key: 'image_url', label: 'Image URL', type: 'url' },
+      { key: 'image_url', label: 'Image', type: 'image' },
       { key: 'cta_text', label: 'Primary button text', type: 'text' },
       { key: 'cta_url', label: 'Primary button link', type: 'url' },
       { key: 'secondary_cta_text', label: 'Secondary button text', type: 'text' },
@@ -294,7 +312,7 @@
     about: [
       { key: 'headline', label: 'Headline', type: 'text' },
       { key: 'body', label: 'Body text', type: 'textarea' },
-      { key: 'image_url', label: 'Image URL', type: 'url' },
+      { key: 'image_url', label: 'Image', type: 'image' },
     ],
     benefits: [
       { key: 'headline', label: 'Headline', type: 'text' },
@@ -313,7 +331,7 @@
     product_showcase: [
       { key: 'headline', label: 'Headline', type: 'text' },
       { key: 'description', label: 'Description', type: 'textarea' },
-      { key: 'image_url', label: 'Image URL', type: 'url' },
+      { key: 'image_url', label: 'Image', type: 'image' },
     ],
     testimonials: [
       { key: 'headline', label: 'Headline', type: 'text' },
@@ -532,7 +550,71 @@
     el.style.display = 'flex';
   }
 
+  async function handleImageUpload(fileInput, fieldId) {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById(`${fieldId}-status`);
+    const textInput = document.getElementById(fieldId);
+    const previewImg = fileInput.closest('.image-field').querySelector('.image-preview');
+
+    if (!file.type.startsWith('image/')) {
+      statusEl.textContent = 'Please choose an image file.';
+      statusEl.className = 'upload-status err';
+      return;
+    }
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      statusEl.textContent = 'Image is too large (max 5MB).';
+      statusEl.className = 'upload-status err';
+      return;
+    }
+
+    statusEl.textContent = 'Uploading...';
+    statusEl.className = 'upload-status';
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${currentPage.owner_id}/${currentPage.id}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabaseClient
+      .storage.from('landing-media')
+      .upload(path, file, { upsert: false });
+
+    if (uploadError) {
+      statusEl.textContent = 'Upload failed: ' + uploadError.message;
+      statusEl.className = 'upload-status err';
+      return;
+    }
+
+    const { data: urlData } = supabaseClient.storage.from('landing-media').getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+
+    textInput.value = publicUrl;
+    previewImg.src = publicUrl;
+    previewImg.style.display = 'block';
+    statusEl.textContent = 'Uploaded.';
+    statusEl.className = 'upload-status ok';
+
+    // Best-effort bookkeeping in the media table — doesn't block the upload
+    // itself if it fails, since the image is already usable via publicUrl.
+    const { error: mediaError } = await supabaseClient.from('media').insert({
+      owner_id: currentPage.owner_id,
+      page_id: currentPage.id,
+      file_name: file.name,
+      file_url: publicUrl,
+      file_type: file.type,
+      file_size: file.size,
+    });
+    if (mediaError) console.error('Failed to record media row:', mediaError);
+
+    fileInput.value = '';
+  }
+
   function esc(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
     const div = document.createElement('div');
     div.textContent = str == null ? '' : String(str);
     return div.innerHTML;
@@ -717,6 +799,21 @@
     if (field.type === 'url' || field.type === 'text') {
       return `<div class="field"><label>${esc(field.label)}</label>
         <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}">${hint}</div>`;
+    }
+    if (field.type === 'image') {
+      const hasImage = !!value;
+      return `<div class="field">
+        <label>${esc(field.label)}</label>
+        <div class="image-field">
+          <img class="image-preview" src="${esc(value || '')}" style="display:${hasImage ? 'block' : 'none'};">
+          <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}" placeholder="Paste an image URL, or upload below">
+          <div class="image-upload-row">
+            <input type="file" accept="image/*" class="image-upload-input" id="${id}-upload" style="display:none;" onchange="handleImageUpload(this, '${id}')">
+            <button type="button" class="btn secondary" onclick="document.getElementById('${id}-upload').click()">Upload Image</button>
+            <span class="upload-status" id="${id}-status"></span>
+          </div>
+        </div>
+      </div>`;
     }
     if (field.type === 'stringlist') {
       const text = Array.isArray(value) ? value.join('\n') : '';
