@@ -708,8 +708,7 @@
 
       checkoutPayBtn.textContent = 'Opening Paystack…';
 
-      var popup = new PaystackPop();
-      popup.newTransaction({
+      var txParams = {
         key: PAYSTACK_PUBLIC_KEY,
         email: email,
         amount: Math.round(currentCheckout.amountNaira * 100),
@@ -745,7 +744,21 @@
           checkoutPayBtn.disabled = false;
           checkoutPayBtn.textContent = 'Pay with Paystack';
         }
-      });
+      };
+
+      // NEW: a subscription's renewal cron re-charges the same
+      // authorization every cycle via Paystack's charge_authorization
+      // call — and only a CARD authorization is reusable for that.
+      // Transfer, USSD, bank and OPay authorizations come back as
+      // reusable:false, so letting someone pick those here would create
+      // a subscription that silently can never auto-renew. Restrict the
+      // popup to card only for subscription checkouts.
+      if (currentCheckout.pricingModel === 'subscription') {
+        txParams.channels = ['card'];
+      }
+
+      var popup = new PaystackPop();
+      popup.newTransaction(txParams);
     });
   });
   function verifyPaymentOnServer_(payload) {

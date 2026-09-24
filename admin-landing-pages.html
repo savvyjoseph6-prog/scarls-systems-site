@@ -185,6 +185,8 @@
       actionBtn = `<button class="btn" onclick="markBuilt('${page.id}')">Mark as Built</button>`;
     } else if (bucket === 'ready_for_student') {
       actionBtn = `<button class="btn" onclick="sendAccess('${page.id}')">Send Access</button>`;
+    } else if (page.build_status === 'handed_over') {
+      actionBtn = `<button class="btn btn-secondary" onclick="sendAccess('${page.id}')">Resend Access</button>`;
     } else {
       actionBtn = `<span class="badge ready">${page.status}</span>`;
     }
@@ -322,22 +324,19 @@
   }
 
   async function sendAccess(pageId) {
-    // NOTE: this only flips the status flag for now. Actually emailing the
-    // student their login link/password is a separate step (needs an edge
-    // function using GMAIL_APP_PASSWORD, same pattern as your other
-    // notification emails) — not wired up yet.
-    if (!confirm('This marks the page as handed over. Actually emailing the student their access still needs to be wired up separately — proceed anyway?')) {
+    if (!confirm('This will email the student their login link and mark the page as handed over. Proceed?')) {
       return;
     }
-    const { error } = await supabaseClient
-      .from('landing_pages')
-      .update({ build_status: 'handed_over' })
-      .eq('id', pageId);
 
-    if (error) {
-      alert('Failed to update: ' + error.message);
+    const { data, error } = await supabaseClient.functions.invoke('send-landing-page-access', {
+      body: { page_id: pageId },
+    });
+
+    if (error || data?.error) {
+      alert('Failed to send access: ' + (data?.error || error.message));
       return;
     }
+
     await loadPages();
   }
 
