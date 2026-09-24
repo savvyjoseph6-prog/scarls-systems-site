@@ -471,7 +471,7 @@
             '</div>' +
           '</div>' +
           '<div class="project-meta">' +
-            '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (isSub ? '/mo' : '') + '<br>' +
+            '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (p.pricingModel === 'subscription' ? '/mo' : '') + '<br>' +
             escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) + '<br>' +
             'Ref: ' + escapeHtml(p.orderReference) +
             subLine +
@@ -480,8 +480,12 @@
           '<div class="field"><label>Status</label><select class="f-status">' + statusOptions + '</select></div>' +
           '<div class="field"><label>Assigned to</label><input class="f-assignedTo" type="text" value="' + escapeHtml(p.assignedTo || '') + '" placeholder="Intern / team member name"></div>' +
           '<div class="field"><label>Due date</label><input class="f-dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : '') + '"></div>' +
-          '<div class="field"><label>Preview link — shown to the customer during Review</label><input class="f-previewLink" type="text" value="' + escapeHtml(p.previewLink || '') + '" placeholder="Link the customer sees while reviewing (not the final)"></div>' +
-          '<div class="field"><label>Delivery link — shown only once status is Delivered</label><input class="f-deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || '') + '" placeholder="Link to the finished work"></div>' +
+          '<div class="field"><label>Site link — the real, permanent address (powers the preview below, shown directly once Delivered)</label><input class="f-deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || '') + '" placeholder="Link to the finished work"></div>' +
+          '<div class="field"><label>Magic preview link — auto-generated, shown to the customer at Review</label>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<input class="f-previewLink" type="text" value="' + escapeHtml(p.previewLink || '') + '" placeholder="Fill in the Site link above first" readonly style="flex:1;">' +
+              (p.previewLink ? '<button type="button" class="save-btn copy-preview-btn" style="flex:0 0 auto;">Copy</button>' : '') +
+            '</div></div>' +
           '<div class="field"><label>Notes</label><textarea class="f-notes" placeholder="Internal notes">' + escapeHtml(p.notes || '') + '</textarea></div>' +
           '<div class="project-card-actions">' +
             '<button type="button" class="save-btn">Save</button>' +
@@ -493,8 +497,21 @@
     }).join('');
 
     Array.prototype.forEach.call(listEl.querySelectorAll('.project-card'), function (card) {
-      var saveBtn = card.querySelector('.save-btn');
+      var saveBtn = card.querySelector('.save-btn:not(.copy-preview-btn):not(.sub-cancel-btn):not(.sub-reactivate-btn)');
       var saveStatus = card.querySelector('.save-status');
+      var copyBtn = card.querySelector('.copy-preview-btn');
+      if (copyBtn) copyBtn.addEventListener('click', function () {
+        var val = card.querySelector('.f-previewLink').value;
+        if (!val) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(val).then(function () {
+            copyBtn.textContent = 'Copied';
+            setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1200);
+          }, function () { window.prompt('Copy this link:', val); });
+        } else {
+          window.prompt('Copy this link:', val);
+        }
+      });
       saveBtn.addEventListener('click', function () {
         var projectId = card.getAttribute('data-id');
         var payload = {
@@ -503,7 +520,6 @@
           status: card.querySelector('.f-status').value,
           assignedTo: card.querySelector('.f-assignedTo').value.trim(),
           dueDate: card.querySelector('.f-dueDate').value,
-          previewLink: card.querySelector('.f-previewLink').value.trim(),
           deliveryLink: card.querySelector('.f-deliveryLink').value.trim(),
           notes: card.querySelector('.f-notes').value.trim()
         };
@@ -532,8 +548,12 @@
               var local = allProjects.filter(function (p) { return p.projectId === projectId; })[0];
               if (local) {
                 local.status = payload.status; local.assignedTo = payload.assignedTo;
-                local.dueDate = payload.dueDate; local.previewLink = payload.previewLink;
-                local.deliveryLink = payload.deliveryLink; local.notes = payload.notes;
+                local.dueDate = payload.dueDate; local.deliveryLink = payload.deliveryLink; local.notes = payload.notes;
+              }
+              // The magic preview link only exists once a Site link is set —
+              // reload the list so the (now-editable) Copy button appears.
+              if (payload.deliveryLink && !card.querySelector('.copy-preview-btn')) {
+                tryLoad(password);
               }
             } else {
               saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
