@@ -81,6 +81,42 @@
     margin-top: 20px;
   }
 
+  .upgrade-banner {
+    margin-top: 16px;
+    background: linear-gradient(135deg, rgba(91,140,255,0.12), rgba(91,140,255,0.04));
+    border: 1px solid rgba(91,140,255,0.35);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .upgrade-banner-text { font-size: 13px; color: #d7defa; flex: 1; min-width: 200px; }
+  .upgrade-banner-actions { display: flex; align-items: center; gap: 10px; }
+  .upgrade-btn {
+    background: #5b8cff;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .upgrade-dismiss {
+    background: transparent;
+    border: none;
+    color: #9297a3;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .upgrade-dismiss:hover { color: #e8e8ec; }
+
   /* Change password panel */
   .cp-panel {
     background: #171a21;
@@ -214,14 +250,47 @@
       </div>`;
     }
 
+    const showUpgradeBanner = page.status === 'published' && !page.is_custom_domain && !isUpgradeBannerDismissed(page.id);
+    const upgradeBannerHtml = showUpgradeBanner ? `
+      <div class="upgrade-banner" id="upgrade-banner-${page.id}">
+        <div class="upgrade-banner-text">
+          <strong>Remove the "Powered by SCARLS" watermark</strong> — connect your own domain and make this page fully yours.
+        </div>
+        <div class="upgrade-banner-actions">
+          <a class="upgrade-btn" href="${UPGRADE_CONTACT_URL}" target="_blank">Upgrade Now</a>
+          <button class="upgrade-dismiss" onclick="dismissUpgradeBanner('${page.id}')" aria-label="Dismiss">&times;</button>
+        </div>
+      </div>
+    ` : '';
+
     return `
       <div class="page-card">
         <h2>${escapeHtml(page.name)}</h2>
         <div class="slug">scarlssystems.com/p/${escapeHtml(page.slug)}</div>
         ${statusBadge}
         ${action}
+        ${upgradeBannerHtml}
       </div>
     `;
+  }
+
+  // Upgrade nudge: shown only here and in the editor, never on the public
+  // page itself. "Periodically" = dismissible, but comes back after 7 days
+  // rather than being gone forever after one click.
+  const UPGRADE_BANNER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+  // TODO(Saviour): replace with the real SCARLS support WhatsApp number.
+  const UPGRADE_CONTACT_URL = 'https://wa.me/YOUR_WHATSAPP_NUMBER_HERE?text=I%27d%20like%20to%20upgrade%20to%20my%20own%20domain';
+
+  function isUpgradeBannerDismissed(pageId) {
+    const dismissedAt = localStorage.getItem(`upgrade_banner_dismissed_${pageId}`);
+    if (!dismissedAt) return false;
+    return (Date.now() - Number(dismissedAt)) < UPGRADE_BANNER_COOLDOWN_MS;
+  }
+
+  function dismissUpgradeBanner(pageId) {
+    localStorage.setItem(`upgrade_banner_dismissed_${pageId}`, String(Date.now()));
+    const el = document.getElementById(`upgrade-banner-${pageId}`);
+    if (el) el.remove();
   }
 
   function escapeHtml(str) {
