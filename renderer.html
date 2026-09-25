@@ -5,44 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Page Preview — SCARLS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { scroll-behavior: smooth; }
   body {
     font-family: var(--font, -apple-system, sans-serif);
-    color: var(--text-color, #14161c);
-    background: var(--background-color, #fff);
+    color: var(--text-color, #f2f0ea);
+    background: var(--background-color, #0f1115);
     line-height: 1.55;
   }
+  h1, h2, h3 { font-family: var(--font-display, var(--font, -apple-system, sans-serif)); font-weight: 700; }
   img { max-width: 100%; display: block; }
   .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
   section { padding: 72px 0; }
-  section.alt-bg { background: var(--section-bg-alt, #f5f6fa); }
+  section.alt-bg { background: var(--section-bg-alt, #171a21); }
   h1, h2, h3 { line-height: 1.2; }
   h2 { font-size: 30px; margin-bottom: 32px; text-align: center; }
-  p { color: var(--muted-text-color, #5b6070); }
+  p { color: var(--muted-text-color, #9aa0ac); }
   .btn {
     display: inline-block;
-    background: var(--primary-color, #5b8cff);
-    color: var(--button-text-color, #fff);
+    background: var(--primary-color, #c9a15a);
+    color: var(--button-text-color, #14161c);
     padding: 14px 28px;
-    border-radius: var(--button-radius, 10px);
+    border-radius: var(--button-radius, 999px);
     text-decoration: none;
     font-weight: 600;
     font-size: 15px;
   }
   .btn.secondary {
     background: transparent;
-    border: 1.5px solid var(--primary-color, #5b8cff);
-    color: var(--primary-color, #5b8cff);
+    border: 1.5px solid var(--primary-color, #c9a15a);
+    color: var(--primary-color, #c9a15a);
   }
 
   /* Hero */
   .hero { text-align: center; padding-top: 96px; }
   .hero .eyebrow {
     display: inline-block;
-    color: var(--primary-color, #5b8cff);
+    color: var(--primary-color, #c9a15a);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.03em;
@@ -62,8 +63,8 @@
     .hero h1 { font-size: 30px; }
   }
   .card {
-    background: #fff;
-    border: 1px solid rgba(0,0,0,0.06);
+    background: var(--bg-elevated, #1f2229);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 14px;
     padding: 24px;
   }
@@ -73,7 +74,7 @@
   /* Testimonials */
   .testimonial-card { font-style: normal; }
   .testimonial-card .quote { font-size: 15px; margin-bottom: 14px; }
-  .testimonial-card .name { font-weight: 600; color: var(--text-color, #14161c); font-size: 14px; }
+  .testimonial-card .name { font-weight: 600; color: var(--text-color, #f2f0ea); font-size: 14px; }
   .testimonial-card .role { font-size: 13px; }
 
   /* Pricing */
@@ -81,21 +82,21 @@
     max-width: 420px;
     margin: 0 auto;
     text-align: center;
-    background: #fff;
-    border: 2px solid var(--primary-color, #5b8cff);
+    background: var(--bg-elevated, #1f2229);
+    border: 2px solid var(--primary-color, #c9a15a);
     border-radius: 18px;
     padding: 40px 32px;
   }
   .pricing-card .original-price {
     text-decoration: line-through;
-    color: var(--muted-text-color, #5b6070);
+    color: var(--muted-text-color, #9aa0ac);
     font-size: 16px;
     margin-right: 8px;
   }
   .pricing-card .price { font-size: 40px; font-weight: 700; }
   .pricing-card .price-label { font-size: 13px; margin-bottom: 24px; }
   .pricing-card ul { list-style: none; text-align: left; margin: 0 0 28px; }
-  .pricing-card li { padding: 8px 0; font-size: 14.5px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+  .pricing-card li { padding: 8px 0; font-size: 14.5px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 
   /* Countdown */
   .countdown-timer {
@@ -105,18 +106,18 @@
     margin-top: 24px;
   }
   .countdown-timer .unit {
-    background: #fff;
+    background: var(--bg-elevated, #1f2229);
     border-radius: 12px;
     padding: 14px 18px;
     min-width: 72px;
     text-align: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   }
   .countdown-timer .unit .num { font-size: 26px; font-weight: 700; display: block; }
-  .countdown-timer .unit .label { font-size: 11px; text-transform: uppercase; color: var(--muted-text-color, #5b6070); }
+  .countdown-timer .unit .label { font-size: 11px; text-transform: uppercase; color: var(--muted-text-color, #9aa0ac); }
 
   /* FAQ */
-  .faq-item { border-bottom: 1px solid rgba(0,0,0,0.08); padding: 18px 0; }
+  .faq-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 18px 0; }
   .faq-item summary { cursor: pointer; font-weight: 600; font-size: 15.5px; list-style: none; }
   .faq-item summary::-webkit-details-marker { display: none; }
   .faq-item p { margin-top: 10px; }
@@ -129,14 +130,14 @@
     text-align: center;
     padding: 32px 0;
     font-size: 13px;
-    color: var(--muted-text-color, #5b6070);
+    color: var(--muted-text-color, #9aa0ac);
   }
-  footer a { color: var(--primary-color, #5b8cff); text-decoration: none; }
+  footer a { color: var(--primary-color, #c9a15a); text-decoration: none; }
 
   .watermark {
     text-align: center;
     font-size: 12px;
-    color: var(--muted-text-color, #5b6070);
+    color: var(--muted-text-color, #9aa0ac);
     padding: 12px 0 28px;
   }
 
@@ -145,8 +146,42 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #5b6070;
+    color: #9297a3;
+    background: #0f1115;
     font-family: -apple-system, sans-serif;
+  }
+
+  /* Scroll-reveal — on by default, disabled by the motion_enabled theme
+     token, and always disabled when the visitor's OS asks for reduced
+     motion regardless of the theme setting. */
+  [data-motion="on"] section {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity .6s ease, transform .6s ease;
+  }
+  [data-motion="on"] section.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  [data-motion="on"] .grid > * {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity .5s ease, transform .5s ease;
+  }
+  [data-motion="on"] .grid.in-view > * {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  [data-motion="on"] .grid.in-view > *:nth-child(2) { transition-delay: .08s; }
+  [data-motion="on"] .grid.in-view > *:nth-child(3) { transition-delay: .16s; }
+  [data-motion="on"] .grid.in-view > *:nth-child(4) { transition-delay: .24s; }
+  @media (prefers-reduced-motion: reduce) {
+    [data-motion="on"] section,
+    [data-motion="on"] .grid > * {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 </style>
 </head>
@@ -256,6 +291,7 @@
     document.getElementById('pageRoot').style.display = 'block';
 
     initCountdowns();
+    initScrollReveal();
     logPageVisit(page.id);
     attachClickTracking(page.id);
   }
@@ -390,6 +426,7 @@
     document.getElementById('pageRoot').style.display = 'block';
 
     initCountdowns();
+    initScrollReveal();
   }
 
   function applyTheme(theme) {
@@ -404,10 +441,16 @@
       button_radius: '--button-radius',
       font: '--font',
       section_bg_alt: '--section-bg-alt',
+      bg_elevated: '--bg-elevated',
+      font_display: '--font-display',
     };
     Object.entries(map).forEach(([key, cssVar]) => {
       if (theme[key]) root.style.setProperty(cssVar, theme[key]);
     });
+    // Motion defaults ON — a page only opts out if its theme explicitly
+    // sets motion_enabled to false. prefers-reduced-motion always wins
+    // regardless of this setting (handled purely in CSS above).
+    root.setAttribute('data-motion', theme.motion_enabled === false ? 'off' : 'on');
   }
 
   function esc(str) {
@@ -624,6 +667,32 @@
       tick();
       setInterval(tick, 1000);
     });
+  }
+
+  // --- Scroll-reveal ---
+  // Sections and card grids fade/slide in as they enter the viewport.
+  // Disabled entirely when data-motion="off" (set by applyTheme from the
+  // page's motion_enabled setting) or when the browser lacks support —
+  // in either case everything is just shown immediately, never stuck
+  // hidden.
+  function initScrollReveal() {
+    if (document.documentElement.getAttribute('data-motion') !== 'on') return;
+
+    if (!('IntersectionObserver' in window)) {
+      document.querySelectorAll('section, .grid').forEach(el => el.classList.add('in-view'));
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('section, .grid').forEach(el => observer.observe(el));
   }
 </script>
 

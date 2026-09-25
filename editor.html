@@ -293,7 +293,7 @@
       <h2>Theme</h2>
       <div class="theme-grid">
         <div class="field">
-          <label>Primary color</label>
+          <label>Primary / accent color</label>
           <input type="color" data-theme-key="primary_color">
         </div>
         <div class="field">
@@ -328,13 +328,35 @@
           </select>
         </div>
         <div class="field">
-          <label>Font</label>
+          <label>Body font</label>
           <select data-theme-key="font">
             <option value="Inter, -apple-system, sans-serif">Inter (Modern Sans)</option>
             <option value="Poppins, -apple-system, sans-serif">Poppins (Friendly Sans)</option>
             <option value="Georgia, 'Times New Roman', serif">Georgia (Classic Serif)</option>
             <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System Default</option>
           </select>
+        </div>
+      </div>
+      <div class="theme-grid" style="margin-top:14px;">
+        <div class="field">
+          <label>Card / elevated surface color</label>
+          <input type="color" data-theme-key="bg_elevated">
+        </div>
+        <div class="field">
+          <label>Display font (headlines)</label>
+          <select data-theme-key="font_display">
+            <option value="Playfair Display, Georgia, serif">Playfair Display (Elegant Serif)</option>
+            <option value="Poppins, -apple-system, sans-serif">Poppins (Friendly Sans)</option>
+            <option value="Inter, -apple-system, sans-serif">Inter (Modern Sans)</option>
+            <option value="Georgia, 'Times New Roman', serif">Georgia (Classic Serif)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="visibility:hidden;">.</label>
+          <label class="visibility-toggle" style="margin-top:4px;">
+            <input type="checkbox" data-theme-key="motion_enabled">
+            Enable scroll animations
+          </label>
         </div>
       </div>
     </div>
@@ -466,10 +488,17 @@
     countdown: 'Countdown', faq: 'FAQ', cta: 'Call To Action', footer: 'Footer',
   };
 
+  // Dark/gold is now the default look for every new and untouched page —
+  // still 100% overridable per page through the fields above. Existing
+  // pages that already saved their own theme keys keep exactly what they
+  // saved; only missing keys fall back to these.
   const THEME_DEFAULTS = {
-    primary_color: '#5b8cff', background_color: '#ffffff', section_bg_alt: '#f5f6fa',
-    text_color: '#14161c', muted_text_color: '#5b6070', button_text_color: '#ffffff',
-    button_radius: '10px', font: 'Inter, -apple-system, sans-serif',
+    primary_color: '#c9a15a', background_color: '#0f1115', section_bg_alt: '#171a21',
+    bg_elevated: '#1f2229',
+    text_color: '#f2f0ea', muted_text_color: '#9aa0ac', button_text_color: '#14161c',
+    button_radius: '999px', font: 'Poppins, -apple-system, sans-serif',
+    font_display: 'Playfair Display, Georgia, serif',
+    motion_enabled: true,
   };
 
   let currentPage = null;
@@ -715,7 +744,12 @@
 
     const theme = Object.assign({}, THEME_DEFAULTS, (currentPage.draft_config && currentPage.draft_config.theme) || {});
     document.querySelectorAll('[data-theme-key]').forEach(input => {
-      input.value = theme[input.dataset.themeKey];
+      const key = input.dataset.themeKey;
+      if (input.type === 'checkbox') {
+        input.checked = theme[key] !== false;
+      } else {
+        input.value = theme[key];
+      }
     });
 
     const tracking = (currentPage.tracking_config) || {};
@@ -853,7 +887,8 @@
     const name = document.getElementById('pageNameInput').value.trim();
     const theme = {};
     document.querySelectorAll('[data-theme-key]').forEach(input => {
-      theme[input.dataset.themeKey] = input.value;
+      const key = input.dataset.themeKey;
+      theme[key] = input.type === 'checkbox' ? input.checked : input.value;
     });
 
     const tracking = {
