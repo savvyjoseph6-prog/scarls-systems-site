@@ -3,586 +3,361 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Edit Page — SCARLS</title>
+<title>Page Preview — SCARLS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { scroll-behavior: smooth; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0f1115;
-    color: #e8e8ec;
-    margin: 0;
+    font-family: var(--font, -apple-system, sans-serif);
+    color: var(--text-color, #14161c);
+    background: var(--background-color, #fff);
+    line-height: 1.55;
   }
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: #14161c;
-    border-bottom: 1px solid #2a2e38;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  header input#pageNameInput {
-    background: transparent;
-    border: none;
-    color: #e8e8ec;
-    font-size: 17px;
-    font-weight: 600;
-    padding: 4px 0;
-    width: 260px;
-  }
-  header input#pageNameInput:focus {
-    outline: none;
-    border-bottom: 1px solid #5b8cff;
-  }
-  .meta { color: #9297a3; font-size: 12.5px; margin-top: 2px; }
-  .header-actions { display: flex; gap: 8px; align-items: center; }
+  img { max-width: 100%; display: block; }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 72px 0; }
+  section.alt-bg { background: var(--section-bg-alt, #f5f6fa); }
+  h1, h2, h3 { line-height: 1.2; }
+  h2 { font-size: 30px; margin-bottom: 32px; text-align: center; }
+  p { color: var(--muted-text-color, #5b6070); }
   .btn {
-    background: #5b8cff;
-    color: #fff;
-    border: none;
-    padding: 9px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    text-decoration: none;
     display: inline-block;
+    background: var(--primary-color, #5b8cff);
+    color: var(--button-text-color, #fff);
+    padding: 14px 28px;
+    border-radius: var(--button-radius, 10px);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
   }
   .btn.secondary {
     background: transparent;
-    border: 1px solid #2a2e38;
-    color: #b3b7c1;
+    border: 1.5px solid var(--primary-color, #5b8cff);
+    color: var(--primary-color, #5b8cff);
   }
-  .wrap { max-width: 780px; margin: 0 auto; padding: 24px; }
-  #saveStatus {
-    text-align: center;
-    font-size: 13px;
-    padding: 8px;
-    display: none;
-  }
-  #saveStatus.ok { color: #6be88f; display: block; }
-  #saveStatus.err { color: #ff9a9a; display: block; }
 
-  .panel {
-    background: #171a21;
-    border: 1px solid #2a2e38;
-    border-radius: 12px;
-    padding: 20px;
+  /* Hero */
+  .hero { text-align: center; padding-top: 96px; }
+  .hero .eyebrow {
+    display: inline-block;
+    color: var(--primary-color, #5b8cff);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
     margin-bottom: 16px;
   }
-  .panel h2 {
-    font-size: 15px;
-    margin: 0 0 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .theme-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 14px;
-  }
-  .field { margin-bottom: 14px; }
-  .field:last-child { margin-bottom: 0; }
-  .field label {
-    display: block;
-    font-size: 12.5px;
-    color: #9297a3;
-    margin-bottom: 5px;
-  }
-  .field input[type="text"],
-  .field input[type="url"],
-  .field textarea,
-  .field select {
-    width: 100%;
-    padding: 9px 11px;
-    background: #0f1115;
-    border: 1px solid #2a2e38;
-    border-radius: 8px;
-    color: #e8e8ec;
-    font-size: 13.5px;
-    font-family: inherit;
-  }
-  .field input[type="color"] {
-    width: 100%;
-    height: 38px;
-    padding: 2px;
-    background: #0f1115;
-    border: 1px solid #2a2e38;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .field textarea { min-height: 64px; resize: vertical; }
-  .field input:focus, .field textarea:focus, .field select:focus {
-    outline: none;
-    border-color: #5b8cff;
-  }
-  .hint { color: #6b7080; font-size: 11.5px; margin-top: 4px; }
+  .hero h1 { font-size: 42px; max-width: 720px; margin: 0 auto 18px; }
+  .hero .sub { font-size: 18px; max-width: 620px; margin: 0 auto 32px; }
+  .hero .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 
-  .visibility-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12.5px;
-    color: #b3b7c1;
+  /* Grid-based sections */
+  .grid { display: grid; gap: 24px; }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 640px) {
+    .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 30px; }
   }
+  .card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .card h3 { font-size: 17px; margin-bottom: 8px; }
+  .card p { font-size: 14.5px; }
 
-  .list-items { margin-bottom: 10px; }
-  .list-item {
-    background: #0f1115;
-    border: 1px solid #2a2e38;
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 10px;
-    position: relative;
-  }
-  .remove-item-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: transparent;
-    border: none;
-    color: #ff9a9a;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .add-item-btn {
-    background: transparent;
-    border: 1px dashed #3a3e4a;
-    color: #9297a3;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 12.5px;
-    cursor: pointer;
-    width: 100%;
-  }
+  /* Testimonials */
+  .testimonial-card { font-style: normal; }
+  .testimonial-card .quote { font-size: 15px; margin-bottom: 14px; }
+  .testimonial-card .name { font-weight: 600; color: var(--text-color, #14161c); font-size: 14px; }
+  .testimonial-card .role { font-size: 13px; }
 
-  .locked-notice {
-    max-width: 480px;
-    margin: 80px auto;
+  /* Pricing */
+  .pricing-card {
+    max-width: 420px;
+    margin: 0 auto;
     text-align: center;
-    color: #9297a3;
-    padding: 0 20px;
+    background: #fff;
+    border: 2px solid var(--primary-color, #5b8cff);
+    border-radius: 18px;
+    padding: 40px 32px;
   }
+  .pricing-card .original-price {
+    text-decoration: line-through;
+    color: var(--muted-text-color, #5b6070);
+    font-size: 16px;
+    margin-right: 8px;
+  }
+  .pricing-card .price { font-size: 40px; font-weight: 700; }
+  .pricing-card .price-label { font-size: 13px; margin-bottom: 24px; }
+  .pricing-card ul { list-style: none; text-align: left; margin: 0 0 28px; }
+  .pricing-card li { padding: 8px 0; font-size: 14.5px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+
+  /* Countdown */
+  .countdown-timer {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+  .countdown-timer .unit {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 18px;
+    min-width: 72px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .countdown-timer .unit .num { font-size: 26px; font-weight: 700; display: block; }
+  .countdown-timer .unit .label { font-size: 11px; text-transform: uppercase; color: var(--muted-text-color, #5b6070); }
+
+  /* FAQ */
+  .faq-item { border-bottom: 1px solid rgba(0,0,0,0.08); padding: 18px 0; }
+  .faq-item summary { cursor: pointer; font-weight: 600; font-size: 15.5px; list-style: none; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item p { margin-top: 10px; }
+
+  /* CTA */
+  .cta-section { text-align: center; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    font-size: 13px;
+    color: var(--muted-text-color, #5b6070);
+  }
+  footer a { color: var(--primary-color, #5b8cff); text-decoration: none; }
+
+  .watermark {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted-text-color, #5b6070);
+    padding: 12px 0 28px;
+  }
+
   #loadingState, #errorState {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #9297a3;
+    color: #5b6070;
+    font-family: -apple-system, sans-serif;
   }
-
-  .template-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-  }
-  .template-card {
-    background: #0f1115;
-    border: 1px solid #2a2e38;
-    border-radius: 12px;
-    padding: 18px;
-    cursor: pointer;
-    transition: border-color 0.15s ease;
-  }
-  .template-card:hover { border-color: #5b8cff; }
-  .template-card h3 { font-size: 15px; margin: 0 0 6px; }
-  .template-card p { font-size: 12.5px; color: #9297a3; margin: 0; line-height: 1.4; }
-  .template-card.blank-card { border-style: dashed; }
-
-  .image-field { }
-  .image-preview {
-    max-width: 100%;
-    max-height: 160px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    border: 1px solid #2a2e38;
-  }
-  .image-upload-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-  }
-  .upload-status { font-size: 12px; color: #9297a3; }
-  .upload-status.ok { color: #6be88f; }
-  .upload-status.err { color: #ff9a9a; }
-
-  .perf-stats { display: flex; gap: 24px; margin-bottom: 16px; }
-  .perf-stat { text-align: center; }
-  .perf-num { font-size: 26px; font-weight: 700; }
-  .perf-label { font-size: 11.5px; color: #9297a3; text-transform: uppercase; }
-  .perf-sub-label { font-size: 12px; color: #9297a3; text-transform: uppercase; margin-bottom: 8px; }
-  .perf-sources { margin-top: 4px; }
-  .perf-source-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    padding: 5px 0;
-    border-bottom: 1px solid #2a2e38;
-  }
-  .perf-days { display: flex; gap: 8px; align-items: flex-end; height: 70px; }
-  .perf-day-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
-  .perf-day-bar { width: 100%; background: #5b8cff; border-radius: 3px 3px 0 0; min-height: 4px; }
-  .perf-day-label { font-size: 10px; color: #6b7080; margin-top: 4px; }
 </style>
 </head>
 <body>
 
-<div id="loadingState">Loading editor...</div>
+<div id="loadingState">Loading preview...</div>
 <div id="errorState" style="display:none;"></div>
-
-<div id="editorRoot" style="display:none;">
-  <header>
-    <div>
-      <input type="text" id="pageNameInput" placeholder="Page name">
-      <div class="meta">scarlssystems.com/p/<span id="slugDisplay"></span> (slug is locked for now)</div>
-    </div>
-    <div class="header-actions">
-      <a class="btn secondary" id="previewLink" target="_blank">Preview Draft</a>
-      <a class="btn secondary" id="liveLink" target="_blank" style="display:none;">View Live</a>
-      <button class="btn secondary" id="saveBtn">Save Draft</button>
-      <button class="btn" id="publishBtn">Publish</button>
-      <a class="btn secondary" id="backLink">Back</a>
-    </div>
-  </header>
-
-  <div id="saveStatus"></div>
-
-  <div class="wrap">
-    <div class="panel">
-      <h2>Theme</h2>
-      <div class="theme-grid">
-        <div class="field">
-          <label>Primary color</label>
-          <input type="color" data-theme-key="primary_color">
-        </div>
-        <div class="field">
-          <label>Background color</label>
-          <input type="color" data-theme-key="background_color">
-        </div>
-        <div class="field">
-          <label>Alt section background</label>
-          <input type="color" data-theme-key="section_bg_alt">
-        </div>
-        <div class="field">
-          <label>Text color</label>
-          <input type="color" data-theme-key="text_color">
-        </div>
-        <div class="field">
-          <label>Muted text color</label>
-          <input type="color" data-theme-key="muted_text_color">
-        </div>
-        <div class="field">
-          <label>Button text color</label>
-          <input type="color" data-theme-key="button_text_color">
-        </div>
-      </div>
-      <div class="theme-grid" style="margin-top:14px;">
-        <div class="field">
-          <label>Button shape</label>
-          <select data-theme-key="button_radius">
-            <option value="0px">Square</option>
-            <option value="6px">Slightly Rounded</option>
-            <option value="10px">Rounded</option>
-            <option value="999px">Pill</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Font</label>
-          <select data-theme-key="font">
-            <option value="Inter, -apple-system, sans-serif">Inter (Modern Sans)</option>
-            <option value="Poppins, -apple-system, sans-serif">Poppins (Friendly Sans)</option>
-            <option value="Georgia, 'Times New Roman', serif">Georgia (Classic Serif)</option>
-            <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System Default</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h2>Tracking</h2>
-      <div class="field">
-        <label class="visibility-toggle" style="margin-bottom:10px;">
-          <input type="checkbox" id="enableMetaPixel">
-          Enable Meta Pixel
-        </label>
-      </div>
-      <div class="field">
-        <label>Meta Pixel ID</label>
-        <input type="text" id="metaPixelId" placeholder="e.g. 123456789012345" inputmode="numeric">
-        <div class="hint" id="metaPixelHint">Numbers only — this is validated before it's ever used.</div>
-      </div>
-      <div class="field">
-        <label>Google Analytics ID (optional)</label>
-        <input type="text" id="googleAnalyticsId" placeholder="e.g. G-XXXXXXXXXX">
-      </div>
-    </div>
-
-    <div class="panel" id="performancePanel" style="display:none;">
-      <h2>Performance</h2>
-      <div id="performanceContent" class="hint">Loading...</div>
-    </div>
-
-    <div id="sectionsContainer"></div>
-  </div>
-</div>
+<div id="pageRoot" style="display:none;"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-client.js"></script>
 <script>
-  // Same content schema renderer.html expects — this is the single
-  // source of truth for what fields each section type has.
-  const FIELD_SCHEMAS = {
-    hero: [
-      { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'subheadline', label: 'Subheadline', type: 'textarea' },
-      { key: 'image_url', label: 'Image', type: 'image' },
-      { key: 'cta_text', label: 'Primary button text', type: 'text' },
-      { key: 'cta_url', label: 'Primary button link', type: 'url' },
-      { key: 'secondary_cta_text', label: 'Secondary button text', type: 'text' },
-      { key: 'secondary_cta_url', label: 'Secondary button link', type: 'url' },
-    ],
-    problem: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'body', label: 'Body text', type: 'textarea' },
-    ],
-    about: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'body', label: 'Body text', type: 'textarea' },
-      { key: 'image_url', label: 'Image', type: 'image' },
-    ],
-    benefits: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'items', label: 'Benefits', type: 'list', itemFields: [
-        { key: 'title', label: 'Title', type: 'text' },
-        { key: 'description', label: 'Description', type: 'textarea' },
-      ]},
-    ],
-    how_it_works: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'steps', label: 'Steps', type: 'list', itemFields: [
-        { key: 'title', label: 'Title', type: 'text' },
-        { key: 'description', label: 'Description', type: 'textarea' },
-      ]},
-    ],
-    product_showcase: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'description', label: 'Description', type: 'textarea' },
-      { key: 'image_url', label: 'Image', type: 'image' },
-    ],
-    testimonials: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'items', label: 'Testimonials', type: 'list', itemFields: [
-        { key: 'name', label: 'Name', type: 'text' },
-        { key: 'role', label: 'Role', type: 'text' },
-        { key: 'quote', label: 'Quote', type: 'textarea' },
-      ]},
-    ],
-    bonus: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'items', label: 'Bonuses', type: 'list', itemFields: [
-        { key: 'title', label: 'Title', type: 'text' },
-        { key: 'description', label: 'Description', type: 'textarea' },
-      ]},
-    ],
-    pricing: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'price', label: 'Price', type: 'text' },
-      { key: 'original_price', label: 'Original price (optional, shown struck through)', type: 'text' },
-      { key: 'price_label', label: "Price label (e.g. 'one-time payment')", type: 'text' },
-      { key: 'features', label: 'Features (one per line)', type: 'stringlist' },
-      { key: 'cta_text', label: 'Button text', type: 'text' },
-      { key: 'cta_url', label: 'Button link', type: 'url' },
-    ],
-    countdown: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'subheadline', label: 'Subheadline', type: 'text' },
-      { key: 'end_date', label: 'End date/time', type: 'text', hint: 'Format: YYYY-MM-DDTHH:MM:SSZ (UTC), e.g. 2026-10-01T23:59:59Z' },
-    ],
-    faq: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'items', label: 'Questions', type: 'list', itemFields: [
-        { key: 'question', label: 'Question', type: 'text' },
-        { key: 'answer', label: 'Answer', type: 'textarea' },
-      ]},
-    ],
-    cta: [
-      { key: 'headline', label: 'Headline', type: 'text' },
-      { key: 'body', label: 'Body text', type: 'textarea' },
-      { key: 'cta_text', label: 'Button text', type: 'text' },
-      { key: 'cta_url', label: 'Button link', type: 'url' },
-    ],
-    footer: [
-      { key: 'text', label: 'Footer text', type: 'text' },
-      { key: 'whatsapp_url', label: 'WhatsApp link', type: 'url' },
-    ],
+  const SECTION_RENDERERS = {
+    hero: renderHero,
+    problem: renderProblem,
+    about: renderAbout,
+    benefits: renderBenefits,
+    how_it_works: renderHowItWorks,
+    product_showcase: renderProductShowcase,
+    testimonials: renderTestimonials,
+    bonus: renderBonus,
+    pricing: renderPricing,
+    countdown: renderCountdown,
+    faq: renderFaq,
+    cta: renderCta,
+    footer: renderFooter,
   };
-
-  const SECTION_LABELS = {
-    hero: 'Hero', problem: 'Problem', about: 'About', benefits: 'Benefits',
-    how_it_works: 'How It Works', product_showcase: 'Product Showcase',
-    testimonials: 'Testimonials', bonus: 'Bonus', pricing: 'Pricing',
-    countdown: 'Countdown', faq: 'FAQ', cta: 'Call To Action', footer: 'Footer',
-  };
-
-  const THEME_DEFAULTS = {
-    primary_color: '#5b8cff', background_color: '#ffffff', section_bg_alt: '#f5f6fa',
-    text_color: '#14161c', muted_text_color: '#5b6070', button_text_color: '#ffffff',
-    button_radius: '10px', font: 'Inter, -apple-system, sans-serif',
-  };
-
-  let currentPage = null;
-  let currentSections = [];
-  let isEditableForMe = false;
 
   (async () => {
     const params = new URLSearchParams(window.location.search);
     const pageId = params.get('page');
-    if (!pageId) { showError('No page specified.'); return; }
+    const viewMode = params.get('view') === 'published' ? 'published' : 'draft';
 
-    const profile = await requireAuth();
-    if (!profile) return;
+    if (!pageId) {
+      showError('No page specified. Use renderer.html?page=PAGE_ID.');
+      return;
+    }
+
+    // Must be logged in (owner or admin) — this preview tool relies on the
+    // same RLS as the dashboards. Public serving of live pages is a
+    // separate step (static generation), not this preview.
+    const profile = await getCurrentProfile();
+    if (!profile) {
+      window.location.href = 'login.html';
+      return;
+    }
 
     const { data: page, error: pageError } = await supabaseClient
-      .from('landing_pages').select('*').eq('id', pageId).single();
-
-    if (pageError || !page) { showError("Couldn't load this page, or you don't have access."); return; }
-
-    const { data: sections, error: sectionsError } = await supabaseClient
-      .from('page_sections').select('*').eq('page_id', pageId)
-      .order('section_order', { ascending: true });
-
-    if (sectionsError) { showError('Failed to load sections.'); return; }
-
-    currentPage = page;
-    currentSections = sections || [];
-    isEditableForMe = profile.role === 'admin' ||
-      (page.build_status === null || page.build_status === 'handed_over');
-
-    document.getElementById('backLink').href =
-      profile.role === 'admin' ? 'admin-landing-pages.html' : 'student-dashboard.html';
-    document.getElementById('previewLink').href = `renderer.html?page=${page.id}`;
-
-    if (page.status === 'published') {
-      const liveLink = document.getElementById('liveLink');
-      liveLink.href = `renderer.html?page=${page.id}&view=published`;
-      liveLink.style.display = 'inline-block';
-    }
-
-    if (!isEditableForMe) {
-      document.getElementById('loadingState').style.display = 'none';
-      const el = document.getElementById('errorState');
-      el.innerHTML = `<div class="locked-notice">
-        <h2 style="color:#e8e8ec; font-size:18px; margin-bottom:8px;">This page isn't editable yet</h2>
-        <p>Our team is still building it. You'll be able to edit it yourself once it's handed over.</p>
-        <a class="btn" style="margin-top:16px;" href="student-dashboard.html">Back to Dashboard</a>
-      </div>`;
-      el.style.display = 'flex';
-      return;
-    }
-
-    renderEditor();
-  })();
-
-  const DEFAULT_SECTION_ORDER = [
-    'hero', 'problem', 'about', 'benefits', 'how_it_works', 'product_showcase',
-    'testimonials', 'bonus', 'pricing', 'countdown', 'faq', 'cta', 'footer',
-  ];
-
-  async function renderStartingPointPicker(container) {
-    const { data: templates, error } = await supabaseClient
-      .from('templates')
+      .from('landing_pages')
       .select('*')
-      .eq('is_active', true)
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error(error);
-      container.innerHTML = `<div class="panel" style="text-align:center;">
-        <p style="color:#ff9a9a;">Couldn't load templates. You can still start from a blank page below.</p>
-        <button class="btn" onclick="startFromBlank()">Start From Blank</button>
-      </div>`;
-      return;
-    }
-
-    const templateCards = (templates || []).map(t => `
-      <div class="template-card" onclick="startFromTemplate('${t.id}')">
-        <h3>${esc(t.name)}</h3>
-        <p>${esc(t.description || '')}</p>
-      </div>
-    `).join('');
-
-    container.innerHTML = `
-      <div class="panel">
-        <p style="color:#9297a3; margin-bottom:16px;">This page doesn't have its sections set up yet. Pick a starting point:</p>
-        <div class="template-grid">
-          ${templateCards}
-          <div class="template-card blank-card" onclick="startFromBlank()">
-            <h3>Start From Blank</h3>
-            <p>All 13 sections, nothing pre-filled — build it yourself from scratch.</p>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  async function startFromBlank() {
-    await createSectionsFromStructure(DEFAULT_SECTION_ORDER.map((type, i) => ({
-      section_type: type,
-      section_order: i + 1,
-      is_visible: true,
-      content: {},
-    })), null);
-  }
-
-  async function startFromTemplate(templateId) {
-    const { data: template, error } = await supabaseClient
-      .from('templates')
-      .select('*')
-      .eq('id', templateId)
+      .eq('id', pageId)
       .single();
 
-    if (error || !template) {
-      alert('Failed to load that template. Please try again.');
+    if (pageError || !page) {
+      showError("Couldn't load this page. It may not exist, or you may not have access to it.");
       return;
     }
 
-    // Deep-copy the template's structure into fresh, independently-owned
-    // rows — never a live reference back to the shared template. Editing
-    // the template later must never affect pages already created from it.
-    await createSectionsFromStructure(JSON.parse(JSON.stringify(template.structure)), template.id);
+    if (viewMode === 'published') {
+      if (!page.published_config) {
+        showError("This page hasn't been published yet — there's no live version to show.");
+        return;
+      }
+      renderPublished(page);
+      return;
+    }
+
+    const { data: sections, error: sectionsError } = await supabaseClient
+      .from('page_sections')
+      .select('*')
+      .eq('page_id', pageId)
+      .eq('is_visible', true)
+      .order('section_order', { ascending: true });
+
+    if (sectionsError) {
+      showError('Failed to load sections for this page.');
+      return;
+    }
+
+    renderPage(page, sections || []);
+  })();
+
+  function renderPublished(page) {
+    const snapshot = page.published_config;
+    applyTheme(snapshot.theme || {});
+    injectTrackingScripts(snapshot.tracking || {});
+
+    const html = (snapshot.sections || [])
+      .filter(s => s.is_visible)
+      .map(section => {
+        const renderer = SECTION_RENDERERS[section.section_type];
+        if (!renderer) return '';
+        try {
+          return renderer(section.content || {});
+        } catch (e) {
+          console.error(`Failed to render section ${section.section_type}:`, e);
+          return '';
+        }
+      }).join('');
+
+    const watermarkHtml = page.is_custom_domain
+      ? ''
+      : `<div class="watermark">Powered by <a href="https://scarlssystems.com" target="_blank">SCARLS</a></div>`;
+
+    document.getElementById('pageRoot').innerHTML = html + watermarkHtml;
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('pageRoot').style.display = 'block';
+
+    initCountdowns();
+    logPageVisit(page.id);
+    attachClickTracking(page.id);
   }
 
-  async function createSectionsFromStructure(structure, templateId) {
-    const rows = structure.map(s => ({
-      page_id: currentPage.id,
-      owner_id: currentPage.owner_id,
-      section_type: s.section_type,
-      section_order: s.section_order,
-      is_visible: s.is_visible,
-      content: s.content,
-    }));
+  // --- Tracking: only ever runs on the published/"live" view, never on
+  // the draft preview, so previewing an unpublished page doesn't fire real
+  // pixels or pollute a client's actual ad analytics. ---
 
-    const { error: insertError } = await supabaseClient.from('page_sections').insert(rows);
+  function getSessionId() {
+    let id = sessionStorage.getItem('scarls_session_id');
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      sessionStorage.setItem('scarls_session_id', id);
+    }
+    return id;
+  }
 
-    if (insertError) {
-      alert('Failed to create sections: ' + insertError.message);
-      return;
+  function getUtmParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      source: params.get('utm_source') || null,
+      medium: params.get('utm_medium') || null,
+      campaign: params.get('utm_campaign') || null,
+      content: params.get('utm_content') || null,
+    };
+  }
+
+  async function logPageVisit(pageId) {
+    const utm = getUtmParams();
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+    try {
+      await supabaseClient.from('page_visits').insert({
+        page_id: pageId,
+        session_id: getSessionId(),
+        source: utm.source,
+        medium: utm.medium,
+        campaign: utm.campaign,
+        content: utm.content,
+        landing_url: window.location.href,
+        device_type: isMobile ? 'mobile' : 'desktop',
+      });
+    } catch (e) {
+      console.error('Failed to log page visit:', e);
+    }
+  }
+
+  function attachClickTracking(pageId) {
+    document.getElementById('pageRoot').addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn');
+      if (!btn) return;
+
+      const utm = getUtmParams();
+      // Fire-and-forget — never blocks or delays the actual navigation.
+      supabaseClient.from('conversion_events').insert({
+        page_id: pageId,
+        session_id: getSessionId(),
+        event_type: 'cta_click',
+        source: utm.source,
+        campaign: utm.campaign,
+      }).then(({ error }) => {
+        if (error) console.error('Failed to log conversion:', error);
+      });
+    });
+  }
+
+  function injectTrackingScripts(tracking) {
+    // Re-validated here even though the database enforces numeric-only
+    // Meta Pixel IDs at the constraint level — this is the actual point
+    // where a value gets interpolated into a <script> tag, so it gets
+    // its own defense-in-depth check rather than trusting the DB alone.
+    if (tracking.enable_meta_pixel && tracking.meta_pixel_id && /^[0-9]+$/.test(tracking.meta_pixel_id)) {
+      const pixelId = tracking.meta_pixel_id;
+      const script = document.createElement('script');
+      script.textContent = `
+        !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+        n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+        document,'script','https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '${pixelId}');
+        fbq('track', 'PageView');
+      `;
+      document.head.appendChild(script);
     }
 
-    const { error: updateError } = await supabaseClient
-      .from('landing_pages')
-      .update({ template_id: templateId })
-      .eq('id', currentPage.id);
+    if (tracking.google_analytics_id && /^[A-Za-z0-9-]+$/.test(tracking.google_analytics_id)) {
+      const gaId = tracking.google_analytics_id;
+      const gtagSrc = document.createElement('script');
+      gtagSrc.async = true;
+      gtagSrc.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;
+      document.head.appendChild(gtagSrc);
 
-    if (updateError) console.error('Failed to record template_id:', updateError);
-
-    window.location.reload();
+      const gtagInit = document.createElement('script');
+      gtagInit.textContent = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '${gaId}');
+      `;
+      document.head.appendChild(gtagInit);
+    }
   }
 
   function showError(msg) {
@@ -592,77 +367,47 @@
     el.style.display = 'flex';
   }
 
-  async function handleImageUpload(fileInput, fieldId) {
-    const file = fileInput.files[0];
-    if (!file) return;
+  function renderPage(page, sections) {
+    applyTheme((page.draft_config && page.draft_config.theme) || {});
 
-    const statusEl = document.getElementById(`${fieldId}-status`);
-    const textInput = document.getElementById(fieldId);
-    const previewImg = fileInput.closest('.image-field').querySelector('.image-preview');
+    const html = sections.map(section => {
+      const renderer = SECTION_RENDERERS[section.section_type];
+      if (!renderer) return '';
+      try {
+        return renderer(section.content || {});
+      } catch (e) {
+        console.error(`Failed to render section ${section.section_type}:`, e);
+        return '';
+      }
+    }).join('');
 
-    if (!file.type.startsWith('image/')) {
-      statusEl.textContent = 'Please choose an image file.';
-      statusEl.className = 'upload-status err';
-      return;
-    }
-    const MAX_BYTES = 5 * 1024 * 1024;
-    if (file.size > MAX_BYTES) {
-      statusEl.textContent = 'Image is too large (max 5MB).';
-      statusEl.className = 'upload-status err';
-      return;
-    }
+    const watermarkHtml = page.is_custom_domain
+      ? ''
+      : `<div class="watermark">Powered by <a href="https://scarlssystems.com" target="_blank">SCARLS</a></div>`;
 
-    statusEl.textContent = 'Uploading...';
-    statusEl.className = 'upload-status';
+    document.getElementById('pageRoot').innerHTML = html + watermarkHtml;
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('pageRoot').style.display = 'block';
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = `${currentPage.owner_id}/${currentPage.id}/${Date.now()}-${safeName}`;
-
-    const { error: uploadError } = await supabaseClient
-      .storage.from('landing-media')
-      .upload(path, file, { upsert: false });
-
-    if (uploadError) {
-      statusEl.textContent = 'Upload failed: ' + uploadError.message;
-      statusEl.className = 'upload-status err';
-      return;
-    }
-
-    const { data: urlData } = supabaseClient.storage.from('landing-media').getPublicUrl(path);
-    const publicUrl = urlData.publicUrl;
-
-    textInput.value = publicUrl;
-    previewImg.src = publicUrl;
-    previewImg.style.display = 'block';
-    statusEl.textContent = 'Uploaded.';
-    statusEl.className = 'upload-status ok';
-
-    // Best-effort bookkeeping in the media table — doesn't block the upload
-    // itself if it fails, since the image is already usable via publicUrl.
-    const { error: mediaError } = await supabaseClient.from('media').insert({
-      owner_id: currentPage.owner_id,
-      page_id: currentPage.id,
-      file_name: file.name,
-      file_url: publicUrl,
-      file_type: file.type,
-      file_size: file.size,
-    });
-    if (mediaError) console.error('Failed to record media row:', mediaError);
-
-    fileInput.value = '';
+    initCountdowns();
   }
 
-  function validatePixelIdField() {
-    const input = document.getElementById('metaPixelId');
-    const hint = document.getElementById('metaPixelHint');
-    const value = input.value.trim();
-    if (value === '' || /^[0-9]+$/.test(value)) {
-      hint.textContent = 'Numbers only — this is validated before it\u2019s ever used.';
-      hint.style.color = '';
-    } else {
-      hint.textContent = 'Meta Pixel ID must contain numbers only.';
-      hint.style.color = '#ff9a9a';
-    }
+  function applyTheme(theme) {
+    const root = document.documentElement;
+    const map = {
+      primary_color: '--primary-color',
+      secondary_color: '--secondary-color',
+      background_color: '--background-color',
+      text_color: '--text-color',
+      muted_text_color: '--muted-text-color',
+      button_text_color: '--button-text-color',
+      button_radius: '--button-radius',
+      font: '--font',
+      section_bg_alt: '--section-bg-alt',
+    };
+    Object.entries(map).forEach(([key, cssVar]) => {
+      if (theme[key]) root.style.setProperty(cssVar, theme[key]);
+    });
   }
 
   function esc(str) {
@@ -671,364 +416,214 @@
     return div.innerHTML;
   }
 
-  async function renderEditor() {
-    document.getElementById('pageNameInput').value = currentPage.name || '';
-    document.getElementById('slugDisplay').textContent = currentPage.slug;
+  // --- Section renderers ---
+  // Each takes this section's `content` JSON and returns an HTML string.
+  // Missing fields degrade gracefully rather than throwing.
 
-    const theme = Object.assign({}, THEME_DEFAULTS, (currentPage.draft_config && currentPage.draft_config.theme) || {});
-    document.querySelectorAll('[data-theme-key]').forEach(input => {
-      input.value = theme[input.dataset.themeKey];
-    });
-
-    const tracking = (currentPage.tracking_config) || {};
-    document.getElementById('enableMetaPixel').checked = !!tracking.enable_meta_pixel;
-    document.getElementById('metaPixelId').value = tracking.meta_pixel_id || '';
-    document.getElementById('googleAnalyticsId').value = tracking.google_analytics_id || '';
-    document.getElementById('metaPixelId').addEventListener('input', validatePixelIdField);
-
-    const container = document.getElementById('sectionsContainer');
-    if (currentSections.length === 0) {
-      await renderStartingPointPicker(container);
-    } else {
-      container.innerHTML = currentSections.map(renderSectionPanel).join('');
-      document.getElementById('performancePanel').style.display = 'block';
-      loadAnalytics();
-    }
-
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('editorRoot').style.display = 'block';
-
-    document.getElementById('saveBtn').addEventListener('click', () => saveDraft(true));
-    document.getElementById('publishBtn').addEventListener('click', publishPage);
-  }
-
-  async function loadAnalytics() {
-    const el = document.getElementById('performanceContent');
-
-    const [{ data: visits, error: visitsError }, { data: conversions, error: conversionsError }] = await Promise.all([
-      supabaseClient.from('page_visits').select('session_id, source, created_at').eq('page_id', currentPage.id),
-      supabaseClient.from('conversion_events').select('id, created_at').eq('page_id', currentPage.id),
-    ]);
-
-    if (visitsError || conversionsError) {
-      el.textContent = "Couldn't load performance data.";
-      return;
-    }
-
-    const totalViews = visits.length;
-    const uniqueVisitors = new Set(visits.map(v => v.session_id).filter(Boolean)).size;
-    const totalConversions = conversions.length;
-
-    const sourceCounts = {};
-    visits.forEach(v => {
-      const key = v.source || 'Direct';
-      sourceCounts[key] = (sourceCounts[key] || 0) + 1;
-    });
-    const topSources = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setUTCDate(d.getUTCDate() - i);
-      days.push(d.toISOString().slice(0, 10));
-    }
-    const dayCounts = Object.fromEntries(days.map(d => [d, 0]));
-    visits.forEach(v => {
-      const day = (v.created_at || '').slice(0, 10);
-      if (day in dayCounts) dayCounts[day]++;
-    });
-    const maxDayCount = Math.max(1, ...Object.values(dayCounts));
-
-    if (totalViews === 0 && totalConversions === 0) {
-      el.innerHTML = `<p style="color:#9297a3;">No traffic recorded yet. Numbers show up once the live page starts getting visits.</p>`;
-      return;
-    }
-
-    el.innerHTML = `
-      <div class="perf-stats">
-        <div class="perf-stat"><div class="perf-num">${totalViews}</div><div class="perf-label">Views</div></div>
-        <div class="perf-stat"><div class="perf-num">${uniqueVisitors}</div><div class="perf-label">Unique Visitors</div></div>
-        <div class="perf-stat"><div class="perf-num">${totalConversions}</div><div class="perf-label">Clicks / Conversions</div></div>
-      </div>
-      ${topSources.length ? `
-        <div class="perf-sources">
-          <div class="perf-sub-label">Top Sources</div>
-          ${topSources.map(([src, count]) => `<div class="perf-source-row"><span>${esc(src)}</span><span>${count}</span></div>`).join('')}
-        </div>
-      ` : ''}
-      <div class="perf-sub-label" style="margin-top:16px;">Last 7 Days</div>
-      <div class="perf-days">
-        ${days.map(d => `
-          <div class="perf-day-bar-wrap" title="${d}: ${dayCounts[d]} views">
-            <div class="perf-day-bar" style="height:${Math.max(4, (dayCounts[d] / maxDayCount) * 48)}px;"></div>
-            <div class="perf-day-label">${d.slice(5)}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  function gatherEditorState() {
-    const name = document.getElementById('pageNameInput').value.trim();
-    const theme = {};
-    document.querySelectorAll('[data-theme-key]').forEach(input => {
-      theme[input.dataset.themeKey] = input.value;
-    });
-
-    const tracking = {
-      enable_meta_pixel: document.getElementById('enableMetaPixel').checked,
-      meta_pixel_id: document.getElementById('metaPixelId').value.trim(),
-      google_analytics_id: document.getElementById('googleAnalyticsId').value.trim(),
-    };
-
-    const panels = Array.from(document.querySelectorAll('.panel[data-section-id]'));
-    const sections = panels.map(panel => ({
-      id: panel.dataset.sectionId,
-      section_type: panel.dataset.sectionType,
-      is_visible: panel.querySelector('[data-visibility]').checked,
-      content: collectSectionContent(panel),
-    }));
-
-    return { name, theme, tracking, sections };
-  }
-
-  async function saveDraft(showStatus) {
-    const saveBtn = document.getElementById('saveBtn');
-    const statusEl = document.getElementById('saveStatus');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
-    if (showStatus) {
-      statusEl.className = '';
-      statusEl.style.display = 'none';
-    }
-
-    try {
-      const state = gatherEditorState();
-
-      if (state.tracking.meta_pixel_id && !/^[0-9]+$/.test(state.tracking.meta_pixel_id)) {
-        throw new Error('Meta Pixel ID must contain numbers only.');
-      }
-
-      const newDraftConfig = Object.assign({}, currentPage.draft_config || {}, { theme: state.theme });
-
-      const { error: pageUpdateError } = await supabaseClient
-        .from('landing_pages')
-        .update({ name: state.name, draft_config: newDraftConfig, tracking_config: state.tracking })
-        .eq('id', currentPage.id);
-
-      if (pageUpdateError) throw pageUpdateError;
-
-      for (const section of state.sections) {
-        const { error: sectionUpdateError } = await supabaseClient
-          .from('page_sections')
-          .update({ content: section.content, is_visible: section.is_visible })
-          .eq('id', section.id);
-
-        if (sectionUpdateError) throw sectionUpdateError;
-      }
-
-      currentPage.name = state.name;
-      currentPage.draft_config = newDraftConfig;
-      currentPage.tracking_config = state.tracking;
-
-      if (showStatus) {
-        statusEl.textContent = 'Draft saved.';
-        statusEl.className = 'ok';
-        statusEl.style.display = 'block';
-      }
-      return state;
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = 'Something went wrong saving — ' + (err.message || 'please try again.');
-      statusEl.className = 'err';
-      statusEl.style.display = 'block';
-      return null;
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Draft';
-    }
-  }
-
-  async function publishPage() {
-    const publishBtn = document.getElementById('publishBtn');
-    const statusEl = document.getElementById('saveStatus');
-
-    publishBtn.disabled = true;
-    publishBtn.textContent = 'Publishing...';
-
-    // Publish always saves the draft first, so what goes live matches
-    // exactly what's on screen — no publishing stale unsaved edits.
-    const state = await saveDraft(false);
-
-    if (!state) {
-      publishBtn.disabled = false;
-      publishBtn.textContent = 'Publish';
-      return; // saveDraft already showed the error
-    }
-
-    const publishedConfig = {
-      theme: state.theme,
-      tracking: state.tracking,
-      sections: state.sections.map(s => ({
-        section_type: s.section_type,
-        is_visible: s.is_visible,
-        content: s.content,
-      })),
-    };
-
-    const { error } = await supabaseClient
-      .from('landing_pages')
-      .update({
-        published_config: publishedConfig,
-        status: 'published',
-        published_at: new Date().toISOString(),
-      })
-      .eq('id', currentPage.id);
-
-    publishBtn.disabled = false;
-    publishBtn.textContent = 'Publish';
-
-    if (error) {
-      statusEl.textContent = 'Published draft, but failed to go live — ' + error.message;
-      statusEl.className = 'err';
-      statusEl.style.display = 'block';
-      return;
-    }
-
-    currentPage.status = 'published';
-    const liveLink = document.getElementById('liveLink');
-    liveLink.href = `renderer.html?page=${currentPage.id}&view=published`;
-    liveLink.style.display = 'inline-block';
-
-    statusEl.textContent = 'Published — this is now the live version.';
-    statusEl.className = 'ok';
-    statusEl.style.display = 'block';
-  }
-
-  function renderSectionPanel(section) {
-    const schema = FIELD_SCHEMAS[section.section_type];
-    if (!schema) return '';
-    const content = section.content || {};
-
-    const fieldsHtml = schema.map(field => buildFieldHTML(section.id, field, content[field.key])).join('');
-
+  function renderHero(c) {
     return `
-      <div class="panel" data-section-id="${section.id}" data-section-type="${section.section_type}">
-        <h2>
-          ${esc(SECTION_LABELS[section.section_type] || section.section_type)}
-          <label class="visibility-toggle">
-            <input type="checkbox" data-visibility ${section.is_visible ? 'checked' : ''}>
-            Show this section
-          </label>
-        </h2>
-        ${fieldsHtml}
-      </div>
+      <section class="hero container">
+        ${c.eyebrow ? `<div class="eyebrow">${esc(c.eyebrow)}</div>` : ''}
+        <h1>${esc(c.headline || '')}</h1>
+        ${c.subheadline ? `<p class="sub">${esc(c.subheadline)}</p>` : ''}
+        ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 28px;max-width:600px;">` : ''}
+        <div class="cta-row">
+          ${c.cta_text ? `<a class="btn" href="${esc(c.cta_url || '#')}">${esc(c.cta_text)}</a>` : ''}
+          ${c.secondary_cta_text ? `<a class="btn secondary" href="${esc(c.secondary_cta_url || '#')}">${esc(c.secondary_cta_text)}</a>` : ''}
+        </div>
+      </section>
     `;
   }
 
-  function buildFieldHTML(sectionId, field, value) {
-    const id = `f-${sectionId}-${field.key}`;
-    const hint = field.hint ? `<div class="hint">${esc(field.hint)}</div>` : '';
+  function renderProblem(c) {
+    return `
+      <section class="container" style="max-width:680px; text-align:center;">
+        <h2>${esc(c.headline || '')}</h2>
+        <p style="font-size:16px;">${esc(c.body || '')}</p>
+      </section>
+    `;
+  }
 
-    if (field.type === 'textarea') {
-      return `<div class="field"><label>${esc(field.label)}</label>
-        <textarea data-key="${field.key}" id="${id}">${esc(value || '')}</textarea>${hint}</div>`;
-    }
-    if (field.type === 'url' || field.type === 'text') {
-      return `<div class="field"><label>${esc(field.label)}</label>
-        <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}">${hint}</div>`;
-    }
-    if (field.type === 'image') {
-      const hasImage = !!value;
-      return `<div class="field">
-        <label>${esc(field.label)}</label>
-        <div class="image-field">
-          <img class="image-preview" src="${esc(value || '')}" style="display:${hasImage ? 'block' : 'none'};">
-          <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}" placeholder="Paste an image URL, or upload below">
-          <div class="image-upload-row">
-            <input type="file" accept="image/*" class="image-upload-input" id="${id}-upload" style="display:none;" onchange="handleImageUpload(this, '${id}')">
-            <button type="button" class="btn secondary" onclick="document.getElementById('${id}-upload').click()">Upload Image</button>
-            <span class="upload-status" id="${id}-status"></span>
+  function renderAbout(c) {
+    return `
+      <section class="alt-bg">
+        <div class="container" style="max-width:680px; text-align:center;">
+          ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 28px;max-width:400px;">` : ''}
+          <h2>${esc(c.headline || '')}</h2>
+          <p style="font-size:16px;">${esc(c.body || '')}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderBenefits(c) {
+    const items = (c.items || []).map(item => `
+      <div class="card">
+        <h3>${esc(item.title || '')}</h3>
+        <p>${esc(item.description || '')}</p>
+      </div>
+    `).join('');
+    return `
+      <section class="container">
+        <h2>${esc(c.headline || '')}</h2>
+        <div class="grid cols-2">${items}</div>
+      </section>
+    `;
+  }
+
+  function renderHowItWorks(c) {
+    const steps = (c.steps || []).map(step => `
+      <div class="card">
+        <h3>${esc(step.title || '')}</h3>
+        <p>${esc(step.description || '')}</p>
+      </div>
+    `).join('');
+    return `
+      <section class="alt-bg">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          <div class="grid cols-3">${steps}</div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderProductShowcase(c) {
+    return `
+      <section class="container" style="text-align:center; max-width:680px;">
+        <h2>${esc(c.headline || '')}</h2>
+        ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 24px;">` : ''}
+        <p style="font-size:16px;">${esc(c.description || '')}</p>
+      </section>
+    `;
+  }
+
+  function renderTestimonials(c) {
+    const items = (c.items || []).map(t => `
+      <div class="card testimonial-card">
+        <p class="quote">"${esc(t.quote || '')}"</p>
+        <div class="name">${esc(t.name || '')}</div>
+        <div class="role">${esc(t.role || '')}</div>
+      </div>
+    `).join('');
+    return `
+      <section class="alt-bg">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          <div class="grid cols-2">${items}</div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderBonus(c) {
+    const items = (c.items || []).map(item => `
+      <div class="card">
+        <h3>🎁 ${esc(item.title || '')}</h3>
+        <p>${esc(item.description || '')}</p>
+      </div>
+    `).join('');
+    return `
+      <section class="container">
+        <h2>${esc(c.headline || '')}</h2>
+        <div class="grid cols-2">${items}</div>
+      </section>
+    `;
+  }
+
+  function renderPricing(c) {
+    const features = (c.features || []).map(f => `<li>✓ ${esc(f)}</li>`).join('');
+    return `
+      <section id="pricing" class="alt-bg">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          <div class="pricing-card">
+            <div>
+              ${c.original_price ? `<span class="original-price">${esc(c.original_price)}</span>` : ''}
+              <span class="price">${esc(c.price || '')}</span>
+            </div>
+            ${c.price_label ? `<div class="price-label">${esc(c.price_label)}</div>` : ''}
+            <ul>${features}</ul>
+            ${c.cta_text ? `<a class="btn" href="${esc(c.cta_url || '#')}" style="width:100%;">${esc(c.cta_text)}</a>` : ''}
           </div>
         </div>
-      </div>`;
-    }
-    if (field.type === 'stringlist') {
-      const text = Array.isArray(value) ? value.join('\n') : '';
-      return `<div class="field"><label>${esc(field.label)}</label>
-        <textarea data-key="${field.key}" data-stringlist id="${id}">${esc(text)}</textarea>${hint}</div>`;
-    }
-    if (field.type === 'list') {
-      const items = Array.isArray(value) ? value : [];
-      const itemsHtml = items.map(item => buildListItemHTML(field.itemFields, item)).join('');
-      return `<div class="field">
-        <label>${esc(field.label)}</label>
-        <div class="list-field" data-key="${field.key}">
-          <div class="list-items">${itemsHtml}</div>
-          <button type="button" class="add-item-btn"
-            data-item-fields='${esc(JSON.stringify(field.itemFields)).replace(/'/g, '&#39;')}'
-            onclick="addListItem(this)">+ Add ${esc(field.label)}</button>
+      </section>
+    `;
+  }
+
+  function renderCountdown(c) {
+    return `
+      <section class="container" style="text-align:center;">
+        <h2>${esc(c.headline || '')}</h2>
+        ${c.subheadline ? `<p>${esc(c.subheadline)}</p>` : ''}
+        <div class="countdown-timer" data-end="${esc(c.end_date || '')}">
+          <div class="unit"><span class="num" data-unit="days">--</span><span class="label">Days</span></div>
+          <div class="unit"><span class="num" data-unit="hours">--</span><span class="label">Hours</span></div>
+          <div class="unit"><span class="num" data-unit="minutes">--</span><span class="label">Mins</span></div>
+          <div class="unit"><span class="num" data-unit="seconds">--</span><span class="label">Secs</span></div>
         </div>
-      </div>`;
-    }
-    return '';
+      </section>
+    `;
   }
 
-  function buildListItemHTML(itemFields, itemData) {
-    itemData = itemData || {};
-    const inner = itemFields.map(f => {
-      if (f.type === 'textarea') {
-        return `<div class="field"><label>${esc(f.label)}</label>
-          <textarea data-key="${f.key}">${esc(itemData[f.key] || '')}</textarea></div>`;
+  function renderFaq(c) {
+    const items = (c.items || []).map(item => `
+      <details class="faq-item">
+        <summary>${esc(item.question || '')}</summary>
+        <p>${esc(item.answer || '')}</p>
+      </details>
+    `).join('');
+    return `
+      <section class="container" style="max-width:680px;">
+        <h2>${esc(c.headline || '')}</h2>
+        ${items}
+      </section>
+    `;
+  }
+
+  function renderCta(c) {
+    return `
+      <section class="alt-bg cta-section">
+        <div class="container">
+          <h2>${esc(c.headline || '')}</h2>
+          ${c.body ? `<p style="font-size:16px; max-width:520px; margin:0 auto 28px;">${esc(c.body)}</p>` : ''}
+          ${c.cta_text ? `<a class="btn" href="${esc(c.cta_url || '#')}">${esc(c.cta_text)}</a>` : ''}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderFooter(c) {
+    return `
+      <footer>
+        <div class="container">
+          ${esc(c.text || '')}
+          ${c.whatsapp_url ? ` · <a href="${esc(c.whatsapp_url)}" target="_blank">WhatsApp</a>` : ''}
+        </div>
+      </footer>
+    `;
+  }
+
+  // --- Countdown ticking ---
+  function initCountdowns() {
+    document.querySelectorAll('.countdown-timer[data-end]').forEach(el => {
+      const end = new Date(el.dataset.end).getTime();
+      if (isNaN(end)) return;
+
+      function tick() {
+        const diff = Math.max(0, end - Date.now());
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        el.querySelector('[data-unit="days"]').textContent = days;
+        el.querySelector('[data-unit="hours"]').textContent = hours;
+        el.querySelector('[data-unit="minutes"]').textContent = minutes;
+        el.querySelector('[data-unit="seconds"]').textContent = seconds;
       }
-      return `<div class="field"><label>${esc(f.label)}</label>
-        <input type="text" data-key="${f.key}" value="${esc(itemData[f.key] || '')}"></div>`;
-    }).join('');
-    return `<div class="list-item">
-      <button type="button" class="remove-item-btn" onclick="this.parentElement.remove()">Remove</button>
-      ${inner}
-    </div>`;
-  }
-
-  function addListItem(btn) {
-    let itemFields;
-    try {
-      itemFields = JSON.parse(btn.dataset.itemFields.replace(/&#39;/g, "'"));
-    } catch (e) {
-      console.error('Bad itemFields JSON', e);
-      return;
-    }
-    const listItemsContainer = btn.previousElementSibling;
-    listItemsContainer.insertAdjacentHTML('beforeend', buildListItemHTML(itemFields, {}));
-  }
-
-  function collectSectionContent(panelEl) {
-    const sectionType = panelEl.dataset.sectionType;
-    const schema = FIELD_SCHEMAS[sectionType];
-    const content = {};
-
-    schema.forEach(field => {
-      if (field.type === 'list') {
-        const listField = panelEl.querySelector(`.list-field[data-key="${field.key}"]`);
-        const items = Array.from(listField.querySelectorAll('.list-item')).map(itemEl => {
-          const obj = {};
-          field.itemFields.forEach(f => {
-            const input = itemEl.querySelector(`[data-key="${f.key}"]`);
-            obj[f.key] = input ? input.value.trim() : '';
-          });
-          return obj;
-        }).filter(obj => Object.values(obj).some(v => v)); // drop fully-empty rows
-        content[field.key] = items;
-      } else if (field.type === 'stringlist') {
-        const textarea = panelEl.querySelector(`[data-key="${field.key}"]`);
-        content[field.key] = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
-      } else {
-        const input = panelEl.querySelector(`[data-key="${field.key}"]`);
-        content[field.key] = input ? input.value.trim() : '';
-      }
+      tick();
+      setInterval(tick, 1000);
     });
-
-    return content;
   }
 </script>
 
