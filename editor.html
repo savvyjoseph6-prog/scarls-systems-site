@@ -981,6 +981,20 @@
     liveLink.href = `renderer.html?page=${currentPage.id}&view=published`;
     liveLink.style.display = 'inline-block';
 
+    // Bake the actual public static file — this is what real, anonymous
+    // visitors will load (no login, no live database read per visit).
+    const { data: bakeData, error: bakeError } = await supabaseClient.functions.invoke(
+      'bake-published-page',
+      { body: { page_id: currentPage.id } }
+    );
+
+    if (bakeError || bakeData?.error) {
+      statusEl.textContent = 'Published, but the public page failed to update — ' + (bakeData?.error || bakeError.message);
+      statusEl.className = 'err';
+      statusEl.style.display = 'block';
+      return;
+    }
+
     statusEl.textContent = 'Published — this is now the live version.';
     statusEl.className = 'ok';
     statusEl.style.display = 'block';
