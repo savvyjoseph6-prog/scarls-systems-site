@@ -263,6 +263,29 @@
     padding: 0 4px;
   }
   .upgrade-dismiss:hover { color: #e8e8ec; }
+
+  /* Per-section style overrides (Phase 2) */
+  .section-style-panel {
+    margin-top: 16px;
+    border-top: 1px solid #2a2e38;
+    padding-top: 14px;
+  }
+  .section-style-panel summary {
+    cursor: pointer;
+    font-size: 12.5px;
+    color: #9297a3;
+    font-weight: 600;
+    list-style: none;
+    margin-bottom: 12px;
+  }
+  .section-style-panel summary::-webkit-details-marker { display: none; }
+  .section-style-panel summary::before { content: '▸ '; }
+  .section-style-panel[open] summary::before { content: '▾ '; }
+  .section-style-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+  }
 </style>
 </head>
 <body>
@@ -294,27 +317,35 @@
       <div class="theme-grid">
         <div class="field">
           <label>Primary / accent color</label>
-          <input type="color" data-theme-key="primary_color">
+          <input type="color" data-theme-key="accent_primary">
         </div>
         <div class="field">
           <label>Background color</label>
-          <input type="color" data-theme-key="background_color">
+          <input type="color" data-theme-key="bg_base">
         </div>
         <div class="field">
           <label>Alt section background</label>
-          <input type="color" data-theme-key="section_bg_alt">
+          <input type="color" data-theme-key="bg_surface">
         </div>
         <div class="field">
-          <label>Text color</label>
-          <input type="color" data-theme-key="text_color">
+          <label>Card / elevated surface color</label>
+          <input type="color" data-theme-key="bg_elevated">
+        </div>
+        <div class="field">
+          <label>Heading text color</label>
+          <input type="color" data-theme-key="text_heading">
+        </div>
+        <div class="field">
+          <label>Body text color</label>
+          <input type="color" data-theme-key="text_body">
         </div>
         <div class="field">
           <label>Muted text color</label>
-          <input type="color" data-theme-key="muted_text_color">
+          <input type="color" data-theme-key="text_muted">
         </div>
         <div class="field">
           <label>Button text color</label>
-          <input type="color" data-theme-key="button_text_color">
+          <input type="color" data-theme-key="accent_on_dark">
         </div>
       </div>
       <div class="theme-grid" style="margin-top:14px;">
@@ -329,18 +360,12 @@
         </div>
         <div class="field">
           <label>Body font</label>
-          <select data-theme-key="font">
+          <select data-theme-key="font_body">
             <option value="Inter, -apple-system, sans-serif">Inter (Modern Sans)</option>
             <option value="Poppins, -apple-system, sans-serif">Poppins (Friendly Sans)</option>
             <option value="Georgia, 'Times New Roman', serif">Georgia (Classic Serif)</option>
             <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System Default</option>
           </select>
-        </div>
-      </div>
-      <div class="theme-grid" style="margin-top:14px;">
-        <div class="field">
-          <label>Card / elevated surface color</label>
-          <input type="color" data-theme-key="bg_elevated">
         </div>
         <div class="field">
           <label>Display font (headlines)</label>
@@ -351,12 +376,20 @@
             <option value="Georgia, 'Times New Roman', serif">Georgia (Classic Serif)</option>
           </select>
         </div>
+      </div>
+      <div class="theme-grid" style="margin-top:14px;">
         <div class="field">
-          <label style="visibility:hidden;">.</label>
           <label class="visibility-toggle" style="margin-top:4px;">
             <input type="checkbox" data-theme-key="motion_enabled">
             Enable scroll animations
           </label>
+        </div>
+        <div class="field">
+          <label class="visibility-toggle" style="margin-top:4px;">
+            <input type="checkbox" data-theme-key="nav_enabled">
+            Show sticky navigation bar
+          </label>
+          <div class="hint">Off by default — turn on for longer, multi-section pages.</div>
         </div>
       </div>
     </div>
@@ -436,6 +469,7 @@
     testimonials: [
       { key: 'headline', label: 'Headline', type: 'text' },
       { key: 'items', label: 'Testimonials', type: 'list', itemFields: [
+        { key: 'image_url', label: 'Photo', type: 'image' },
         { key: 'name', label: 'Name', type: 'text' },
         { key: 'role', label: 'Role', type: 'text' },
         { key: 'quote', label: 'Quote', type: 'textarea' },
@@ -488,23 +522,75 @@
     countdown: 'Countdown', faq: 'FAQ', cta: 'Call To Action', footer: 'Footer',
   };
 
+  // Section types that support the image-left / image-right layout
+  // variant in their style-override sub-panel.
+  const LAYOUT_VARIANT_TYPES = new Set(['about', 'product_showcase']);
+
   // Dark/gold is now the default look for every new and untouched page —
-  // still 100% overridable per page through the fields above. Existing
-  // pages that already saved their own theme keys keep exactly what they
-  // saved; only missing keys fall back to these.
+  // still 100% overridable per page through the fields above. This must
+  // stay in sync with renderer.html's THEME_DEFAULTS: a brand-new page
+  // has no draft_config.theme yet, so both the editor's blank-state
+  // preview and the renderer's actual rendering fall back to these same
+  // values until the student changes something.
   const THEME_DEFAULTS = {
-    primary_color: '#c9a15a', background_color: '#0f1115', section_bg_alt: '#171a21',
+    bg_base: '#0f1115',
+    bg_surface: '#171a21',
     bg_elevated: '#1f2229',
-    text_color: '#f2f0ea', muted_text_color: '#9aa0ac', button_text_color: '#14161c',
-    button_radius: '999px', font: 'Poppins, -apple-system, sans-serif',
+    text_heading: '#f2f0ea',
+    text_body: '#cdd0d8',
+    text_muted: '#9aa0ac',
+    accent_primary: '#c9a15a',
+    accent_on_dark: '#14161c',
+    accent_on_light: '#ffffff',
     font_display: 'Playfair Display, Georgia, serif',
+    font_body: 'Poppins, -apple-system, sans-serif',
+    button_radius: '999px',
     motion_enabled: true,
+    nav_enabled: false,
   };
+
+  // Maps each OLD flat-theme key (the 6-variable system, from before this
+  // token expansion) onto its nearest new token, so a page saved before
+  // today still shows its own customization correctly in this form —
+  // nothing a student already picked gets silently reset to the new
+  // defaults. New keys, once saved, replace the old ones going forward.
+  const LEGACY_KEY_MAP = {
+    primary_color: 'accent_primary',
+    background_color: 'bg_base',
+    section_bg_alt: 'bg_surface',
+    text_color: 'text_heading',
+    muted_text_color: 'text_muted',
+    button_text_color: 'accent_on_dark',
+    font: '__font_both__',
+  };
+
+  function mergeTheme(rawTheme) {
+    const theme = rawTheme || {};
+    const resolved = Object.assign({}, THEME_DEFAULTS);
+
+    Object.entries(LEGACY_KEY_MAP).forEach(([oldKey, newKey]) => {
+      if (theme[oldKey] == null) return;
+      if (newKey === '__font_both__') {
+        resolved.font_display = theme[oldKey];
+        resolved.font_body = theme[oldKey];
+      } else {
+        resolved[newKey] = theme[oldKey];
+      }
+    });
+
+    Object.keys(THEME_DEFAULTS).forEach((key) => {
+      if (theme[key] != null) resolved[key] = theme[key];
+    });
+
+    return resolved;
+  }
 
   let currentPage = null;
   let currentSections = [];
   let isEditableForMe = false;
   let currentUserRole = null;
+  let uidCounter = 0;
+  function nextUid() { return `u${Date.now()}-${uidCounter++}`; }
 
   (async () => {
     const params = new URLSearchParams(window.location.search);
@@ -742,7 +828,7 @@
     document.getElementById('pageNameInput').value = currentPage.name || '';
     document.getElementById('slugDisplay').textContent = currentPage.slug;
 
-    const theme = Object.assign({}, THEME_DEFAULTS, (currentPage.draft_config && currentPage.draft_config.theme) || {});
+    const theme = mergeTheme((currentPage.draft_config && currentPage.draft_config.theme) || {});
     document.querySelectorAll('[data-theme-key]').forEach(input => {
       const key = input.dataset.themeKey;
       if (input.type === 'checkbox') {
@@ -903,6 +989,7 @@
       section_type: panel.dataset.sectionType,
       is_visible: panel.querySelector('[data-visibility]').checked,
       content: collectSectionContent(panel),
+      styles: collectSectionStyles(panel),
     }));
 
     return { name, theme, tracking, sections };
@@ -937,7 +1024,7 @@
       for (const section of state.sections) {
         const { error: sectionUpdateError } = await supabaseClient
           .from('page_sections')
-          .update({ content: section.content, is_visible: section.is_visible })
+          .update({ content: section.content, is_visible: section.is_visible, styles: section.styles })
           .eq('id', section.id);
 
         if (sectionUpdateError) throw sectionUpdateError;
@@ -989,6 +1076,7 @@
         section_type: s.section_type,
         is_visible: s.is_visible,
         content: s.content,
+        styles: s.styles,
       })),
     };
 
@@ -1039,8 +1127,10 @@
     const schema = FIELD_SCHEMAS[section.section_type];
     if (!schema) return '';
     const content = section.content || {};
+    const styles = section.styles || {};
 
     const fieldsHtml = schema.map(field => buildFieldHTML(section.id, field, content[field.key])).join('');
+    const styleSubPanelHtml = buildSectionStylePanelHTML(section.section_type, styles);
 
     return `
       <div class="panel" data-section-id="${section.id}" data-section-type="${section.section_type}">
@@ -1052,8 +1142,68 @@
           </label>
         </h2>
         ${fieldsHtml}
+        ${styleSubPanelHtml}
       </div>
     `;
+  }
+
+  // Per-section style overrides, backed by page_sections.styles (already
+  // an unused jsonb column — no schema change). Every field here is
+  // optional: leaving it blank means "inherit the page theme", exactly
+  // matching how renderer.html reads this object.
+  function buildSectionStylePanelHTML(sectionType, styles) {
+    const layoutFieldHtml = LAYOUT_VARIANT_TYPES.has(sectionType) ? `
+      <div class="field">
+        <label>Layout</label>
+        <select data-style-key="layout">
+          <option value="" ${!styles.layout ? 'selected' : ''}>Default (centered)</option>
+          <option value="image-left" ${styles.layout === 'image-left' ? 'selected' : ''}>Image left</option>
+          <option value="image-right" ${styles.layout === 'image-right' ? 'selected' : ''}>Image right</option>
+        </select>
+      </div>
+    ` : '';
+
+    return `
+      <details class="section-style-panel">
+        <summary>Customize this section</summary>
+        <div class="section-style-grid">
+          <div class="field">
+            <label>Background override</label>
+            <input type="text" data-style-key="background" value="${esc(styles.background || '')}" placeholder="e.g. #1a1c22 — leave blank to inherit">
+          </div>
+          <div class="field">
+            <label>Text color override</label>
+            <input type="text" data-style-key="text_color" value="${esc(styles.text_color || '')}" placeholder="Leave blank to inherit">
+          </div>
+          <div class="field">
+            <label>Accent color override</label>
+            <input type="text" data-style-key="accent_color" value="${esc(styles.accent_color || '')}" placeholder="Leave blank to inherit">
+          </div>
+          ${layoutFieldHtml}
+        </div>
+        <div class="field" style="margin-top:6px;">
+          <label class="visibility-toggle">
+            <input type="checkbox" data-style-key="reveal" ${styles.reveal === false ? '' : 'checked'}>
+            Animate this section in on scroll
+          </label>
+        </div>
+      </details>
+    `;
+  }
+
+  function collectSectionStyles(panelEl) {
+    const styles = {};
+    const bg = panelEl.querySelector('[data-style-key="background"]');
+    if (bg && bg.value.trim()) styles.background = bg.value.trim();
+    const textColor = panelEl.querySelector('[data-style-key="text_color"]');
+    if (textColor && textColor.value.trim()) styles.text_color = textColor.value.trim();
+    const accentColor = panelEl.querySelector('[data-style-key="accent_color"]');
+    if (accentColor && accentColor.value.trim()) styles.accent_color = accentColor.value.trim();
+    const layout = panelEl.querySelector('[data-style-key="layout"]');
+    if (layout && layout.value) styles.layout = layout.value;
+    const reveal = panelEl.querySelector('[data-style-key="reveal"]');
+    if (reveal && !reveal.checked) styles.reveal = false;
+    return styles;
   }
 
   function buildFieldHTML(sectionId, field, value) {
@@ -1069,18 +1219,9 @@
         <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}">${hint}</div>`;
     }
     if (field.type === 'image') {
-      const hasImage = !!value;
       return `<div class="field">
         <label>${esc(field.label)}</label>
-        <div class="image-field">
-          <img class="image-preview" src="${esc(value || '')}" style="display:${hasImage ? 'block' : 'none'};">
-          <input type="text" data-key="${field.key}" id="${id}" value="${esc(value || '')}" placeholder="Paste an image URL, or upload below">
-          <div class="image-upload-row">
-            <input type="file" accept="image/*" class="image-upload-input" id="${id}-upload" style="display:none;" onchange="handleImageUpload(this, '${id}')">
-            <button type="button" class="btn secondary" onclick="document.getElementById('${id}-upload').click()">Upload Image</button>
-            <span class="upload-status" id="${id}-status"></span>
-          </div>
-        </div>
+        ${buildImageFieldInnerHTML(id, field.key, value)}
       </div>`;
     }
     if (field.type === 'stringlist') {
@@ -1104,9 +1245,30 @@
     return '';
   }
 
+  // Shared by both the top-level image field and the per-list-item image
+  // field below — same upload flow (handleImageUpload), just scoped to
+  // whatever unique id it's given.
+  function buildImageFieldInnerHTML(id, key, value) {
+    const hasImage = !!value;
+    return `<div class="image-field">
+      <img class="image-preview" src="${esc(value || '')}" style="display:${hasImage ? 'block' : 'none'};">
+      <input type="text" data-key="${key}" id="${id}" value="${esc(value || '')}" placeholder="Paste an image URL, or upload below">
+      <div class="image-upload-row">
+        <input type="file" accept="image/*" class="image-upload-input" id="${id}-upload" style="display:none;" onchange="handleImageUpload(this, '${id}')">
+        <button type="button" class="btn secondary" onclick="document.getElementById('${id}-upload').click()">Upload Image</button>
+        <span class="upload-status" id="${id}-status"></span>
+      </div>
+    </div>`;
+  }
+
   function buildListItemHTML(itemFields, itemData) {
     itemData = itemData || {};
     const inner = itemFields.map(f => {
+      if (f.type === 'image') {
+        const id = `li-${nextUid()}`;
+        return `<div class="field"><label>${esc(f.label)}</label>
+          ${buildImageFieldInnerHTML(id, f.key, itemData[f.key])}</div>`;
+      }
       if (f.type === 'textarea') {
         return `<div class="field"><label>${esc(f.label)}</label>
           <textarea data-key="${f.key}">${esc(itemData[f.key] || '')}</textarea></div>`;

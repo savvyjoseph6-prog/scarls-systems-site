@@ -5,53 +5,91 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Page Preview — SCARLS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&family=Playfair+Display:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { scroll-behavior: smooth; }
-  body {
-    font-family: var(--font, -apple-system, sans-serif);
-    color: var(--text-color, #f2f0ea);
-    background: var(--background-color, #0f1115);
-    line-height: 1.55;
+
+  :root {
+    --bg-base: #0f1115;
+    --bg-surface: #171a21;
+    --bg-elevated: #1f2229;
+
+    --text-heading: #f2f0ea;
+    --text-body: #cdd0d8;
+    --text-muted: #9aa0ac;
+
+    --accent-primary: #c9a15a;
+    --accent-on-dark: #14161c;
+    --accent-on-light: #ffffff;
+
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'Poppins', -apple-system, sans-serif;
+    --fs-h1: clamp(32px, 5vw, 48px);
+    --fs-h2: clamp(24px, 3.2vw, 32px);
+    --fs-h3: 18px;
+    --fs-body: 16px;
+    --fs-small: 14.5px;
+
+    --radius: 999px;
+    --radius-card: 16px;
+
+    --nav-height: 72px;
   }
-  h1, h2, h3 { font-family: var(--font-display, var(--font, -apple-system, sans-serif)); font-weight: 700; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text-body);
+    background: var(--bg-base);
+    line-height: 1.6;
+  }
   img { max-width: 100%; display: block; }
   .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
-  section { padding: 72px 0; }
-  section.alt-bg { background: var(--section-bg-alt, #171a21); }
-  h1, h2, h3 { line-height: 1.2; }
-  h2 { font-size: 30px; margin-bottom: 32px; text-align: center; }
-  p { color: var(--muted-text-color, #9aa0ac); }
+  section { padding: 88px 0; scroll-margin-top: calc(var(--nav-height) + 16px); }
+  section.alt-bg { background: var(--bg-surface); }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    color: var(--text-heading);
+    line-height: 1.2;
+    font-weight: 700;
+  }
+  h2 { font-size: var(--fs-h2); margin-bottom: 36px; text-align: center; }
+  h3 { font-size: var(--fs-h3); }
+  p { color: var(--text-body); }
+
   .btn {
     display: inline-block;
-    background: var(--primary-color, #c9a15a);
-    color: var(--button-text-color, #14161c);
-    padding: 14px 28px;
-    border-radius: var(--button-radius, 999px);
+    background: var(--accent-primary);
+    color: var(--accent-on-dark);
+    padding: 14px 30px;
+    border-radius: var(--radius);
     text-decoration: none;
     font-weight: 600;
     font-size: 15px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(212, 175, 55, 0.25); }
   .btn.secondary {
     background: transparent;
-    border: 1.5px solid var(--primary-color, #c9a15a);
-    color: var(--primary-color, #c9a15a);
+    border: 1.5px solid var(--accent-primary);
+    color: var(--accent-primary);
   }
 
   /* Hero */
-  .hero { text-align: center; padding-top: 96px; }
+  .hero { text-align: center; padding-top: 112px; }
   .hero .eyebrow {
     display: inline-block;
-    color: var(--primary-color, #c9a15a);
+    color: var(--accent-primary);
+    font-family: var(--font-body);
     font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
-  .hero h1 { font-size: 42px; max-width: 720px; margin: 0 auto 18px; }
-  .hero .sub { font-size: 18px; max-width: 620px; margin: 0 auto 32px; }
+  .hero h1 { font-size: var(--fs-h1); max-width: 720px; margin: 0 auto 20px; }
+  .hero .sub { font-size: 18px; max-width: 620px; margin: 0 auto 36px; }
   .hero .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 
   /* Grid-based sections */
@@ -60,65 +98,89 @@
   .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
   @media (max-width: 640px) {
     .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
-    .hero h1 { font-size: 30px; }
+    .hero { padding-top: 88px; }
   }
   .card {
-    background: var(--bg-elevated, #1f2229);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
-    padding: 24px;
+    background: var(--bg-surface);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-card);
+    padding: 26px;
   }
-  .card h3 { font-size: 17px; margin-bottom: 8px; }
-  .card p { font-size: 14.5px; }
+  section.alt-bg .card { background: var(--bg-elevated); }
+  .card h3 { margin-bottom: 8px; }
+  .card p { font-size: var(--fs-small); }
+
+  /* About / product split layout (image-left / image-right variant) */
+  .about-split {
+    display: flex;
+    align-items: center;
+    gap: 48px;
+  }
+  .about-split.reverse { flex-direction: row-reverse; }
+  .about-split-img { flex: 1 1 0; border-radius: var(--radius-card); max-width: 420px; }
+  .about-split-text { flex: 1 1 0; text-align: left; }
+  .about-split-text h2 { text-align: left; }
+  @media (max-width: 720px) {
+    .about-split, .about-split.reverse { flex-direction: column; text-align: center; }
+    .about-split-text { text-align: center; }
+    .about-split-text h2 { text-align: center; }
+    .about-split-img { max-width: 100%; }
+  }
 
   /* Testimonials */
   .testimonial-card { font-style: normal; }
-  .testimonial-card .quote { font-size: 15px; margin-bottom: 14px; }
-  .testimonial-card .name { font-weight: 600; color: var(--text-color, #f2f0ea); font-size: 14px; }
-  .testimonial-card .role { font-size: 13px; }
+  .testimonial-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 14px;
+  }
+  .testimonial-card .quote { font-size: 15px; margin-bottom: 16px; color: var(--text-body); }
+  .testimonial-card .name { font-weight: 600; color: var(--text-heading); font-size: 14px; }
+  .testimonial-card .role { font-size: 13px; color: var(--text-muted); }
 
   /* Pricing */
   .pricing-card {
     max-width: 420px;
     margin: 0 auto;
     text-align: center;
-    background: var(--bg-elevated, #1f2229);
-    border: 2px solid var(--primary-color, #c9a15a);
-    border-radius: 18px;
-    padding: 40px 32px;
+    background: var(--bg-elevated);
+    border: 2px solid var(--accent-primary);
+    border-radius: 20px;
+    padding: 44px 32px;
   }
   .pricing-card .original-price {
     text-decoration: line-through;
-    color: var(--muted-text-color, #9aa0ac);
+    color: var(--text-muted);
     font-size: 16px;
     margin-right: 8px;
   }
-  .pricing-card .price { font-size: 40px; font-weight: 700; }
-  .pricing-card .price-label { font-size: 13px; margin-bottom: 24px; }
-  .pricing-card ul { list-style: none; text-align: left; margin: 0 0 28px; }
-  .pricing-card li { padding: 8px 0; font-size: 14.5px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .pricing-card .price { font-family: var(--font-display); font-size: 42px; font-weight: 700; color: var(--text-heading); }
+  .pricing-card .price-label { font-size: 13px; margin-bottom: 26px; color: var(--text-muted); }
+  .pricing-card ul { list-style: none; text-align: left; margin: 0 0 30px; }
+  .pricing-card li { padding: 9px 0; font-size: var(--fs-small); border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-body); }
 
   /* Countdown */
   .countdown-timer {
     display: flex;
     gap: 16px;
     justify-content: center;
-    margin-top: 24px;
+    margin-top: 28px;
   }
   .countdown-timer .unit {
-    background: var(--bg-elevated, #1f2229);
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px;
-    padding: 14px 18px;
-    min-width: 72px;
+    padding: 16px 20px;
+    min-width: 76px;
     text-align: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   }
-  .countdown-timer .unit .num { font-size: 26px; font-weight: 700; display: block; }
-  .countdown-timer .unit .label { font-size: 11px; text-transform: uppercase; color: var(--muted-text-color, #9aa0ac); }
+  .countdown-timer .unit .num { font-family: var(--font-display); font-size: 28px; font-weight: 700; display: block; color: var(--text-heading); }
+  .countdown-timer .unit .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
 
   /* FAQ */
-  .faq-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 18px 0; }
-  .faq-item summary { cursor: pointer; font-weight: 600; font-size: 15.5px; list-style: none; }
+  .faq-item { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 20px 0; }
+  .faq-item summary { cursor: pointer; font-weight: 600; font-size: 15.5px; color: var(--text-heading); list-style: none; }
   .faq-item summary::-webkit-details-marker { display: none; }
   .faq-item p { margin-top: 10px; }
 
@@ -128,17 +190,17 @@
   /* Footer */
   footer {
     text-align: center;
-    padding: 32px 0;
+    padding: 36px 0;
     font-size: 13px;
-    color: var(--muted-text-color, #9aa0ac);
+    color: var(--text-muted);
   }
-  footer a { color: var(--primary-color, #c9a15a); text-decoration: none; }
+  footer a { color: var(--accent-primary); text-decoration: none; }
 
   .watermark {
     text-align: center;
     font-size: 12px;
-    color: var(--muted-text-color, #9aa0ac);
-    padding: 12px 0 28px;
+    color: var(--text-muted);
+    padding: 14px 0 32px;
   }
 
   #loadingState, #errorState {
@@ -146,41 +208,72 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #9297a3;
-    background: #0f1115;
+    color: var(--text-muted);
+    background: var(--bg-base);
     font-family: -apple-system, sans-serif;
   }
 
-  /* Scroll-reveal — on by default, disabled by the motion_enabled theme
-     token, and always disabled when the visitor's OS asks for reduced
-     motion regardless of the theme setting. */
-  [data-motion="on"] section {
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity .6s ease, transform .6s ease;
+  /* Sticky nav */
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--nav-height);
+    background: rgba(11, 12, 16, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
-  [data-motion="on"] section.in-view {
+  .site-nav-inner {
+    max-width: 1040px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 28px;
+  }
+  .site-nav-links { display: flex; align-items: center; gap: 24px; flex: 1; }
+  .nav-link {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-body);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav-link:hover { color: var(--text-heading); }
+  .nav-cta {
+    display: inline-block;
+    background: var(--accent-primary);
+    color: var(--accent-on-dark);
+    padding: 9px 20px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  @media (max-width: 720px) {
+    .site-nav-links { display: none; }
+    .site-nav-inner { justify-content: flex-end; }
+  }
+
+  /* Scroll reveal */
+  [data-motion="on"] .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  [data-motion="on"] .reveal.revealed {
     opacity: 1;
     transform: translateY(0);
   }
-  [data-motion="on"] .grid > * {
-    opacity: 0;
-    transform: translateY(16px);
-    transition: opacity .5s ease, transform .5s ease;
-  }
-  [data-motion="on"] .grid.in-view > * {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  [data-motion="on"] .grid.in-view > *:nth-child(2) { transition-delay: .08s; }
-  [data-motion="on"] .grid.in-view > *:nth-child(3) { transition-delay: .16s; }
-  [data-motion="on"] .grid.in-view > *:nth-child(4) { transition-delay: .24s; }
   @media (prefers-reduced-motion: reduce) {
-    [data-motion="on"] section,
-    [data-motion="on"] .grid > * {
-      opacity: 1;
-      transform: none;
-      transition: none;
+    [data-motion="on"] .reveal {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
     }
   }
 </style>
@@ -210,6 +303,71 @@
     footer: renderFooter,
   };
 
+  // Labels used to build the sticky nav from whichever sections a page
+  // actually has. Section types not listed here (hero, countdown, cta,
+  // footer) never get a nav item — hero is the top of the page and the
+  // others are conversion moments, not navigation destinations.
+  const NAV_LABELS = {
+    problem: 'Overview',
+    about: 'About',
+    benefits: 'Benefits',
+    how_it_works: 'How It Works',
+    product_showcase: 'Product',
+    testimonials: 'Testimonials',
+    bonus: 'Bonuses',
+    pricing: 'Pricing',
+    faq: 'FAQ',
+  };
+
+  const THEME_DEFAULTS = {
+    bg_base: '#0f1115',
+    bg_surface: '#171a21',
+    bg_elevated: '#1f2229',
+    text_heading: '#f2f0ea',
+    text_body: '#cdd0d8',
+    text_muted: '#9aa0ac',
+    accent_primary: '#c9a15a',
+    accent_on_dark: '#14161c',
+    accent_on_light: '#ffffff',
+    font_display: 'Playfair Display, Georgia, serif',
+    font_body: 'Poppins, -apple-system, sans-serif',
+    button_radius: '999px',
+    motion_enabled: true,
+    nav_enabled: false, // per-page toggle, off by default (see design plan discussion)
+  };
+
+  const LEGACY_KEY_MAP = {
+    primary_color: 'accent_primary',
+    background_color: 'bg_base',
+    section_bg_alt: 'bg_surface',
+    text_color: 'text_heading',
+    muted_text_color: 'text_muted',
+    button_text_color: 'accent_on_dark',
+    button_radius: 'button_radius',
+    font: '__font_both__',
+  };
+
+  function mergeTheme(rawTheme) {
+    const theme = rawTheme || {};
+    const resolved = Object.assign({}, THEME_DEFAULTS);
+
+    Object.entries(LEGACY_KEY_MAP).forEach(([oldKey, newKey]) => {
+      if (theme[oldKey] == null) return;
+      if (newKey === '__font_both__') {
+        resolved.font_display = theme[oldKey];
+        resolved.font_body = theme[oldKey];
+      } else {
+        resolved[newKey] = theme[oldKey];
+      }
+    });
+
+    Object.keys(THEME_DEFAULTS).forEach((key) => {
+      if (theme[key] != null) resolved[key] = theme[key];
+    });
+
+    return resolved;
+  }
+
   (async () => {
     const params = new URLSearchParams(window.location.search);
     const pageId = params.get('page');
@@ -220,9 +378,6 @@
       return;
     }
 
-    // Must be logged in (owner or admin) — this preview tool relies on the
-    // same RLS as the dashboards. Public serving of live pages is a
-    // separate step (static generation), not this preview.
     const profile = await getCurrentProfile();
     if (!profile) {
       window.location.href = 'login.html';
@@ -266,39 +421,89 @@
 
   function renderPublished(page) {
     const snapshot = page.published_config;
-    applyTheme(snapshot.theme || {});
+    const theme = applyTheme(snapshot.theme || {});
     injectTrackingScripts(snapshot.tracking || {});
 
-    const html = (snapshot.sections || [])
-      .filter(s => s.is_visible)
-      .map(section => {
-        const renderer = SECTION_RENDERERS[section.section_type];
-        if (!renderer) return '';
-        try {
-          return renderer(section.content || {});
-        } catch (e) {
-          console.error(`Failed to render section ${section.section_type}:`, e);
-          return '';
-        }
-      }).join('');
+    const visibleSections = (snapshot.sections || []).filter(s => s.is_visible);
+    renderSectionsInto(visibleSections, theme, page);
+
+    initCountdowns();
+    initScrollReveal(theme.motion_enabled);
+    logPageVisit(page.id);
+    attachClickTracking(page.id);
+  }
+
+  function renderPage(page, sections) {
+    const theme = applyTheme((page.draft_config && page.draft_config.theme) || {});
+    renderSectionsInto(sections, theme, page);
+    initCountdowns();
+    initScrollReveal(theme.motion_enabled);
+  }
+
+  // Shared by draft + published rendering: builds each section's HTML
+  // (passing its own `styles` override object and a stable id), prepends
+  // the sticky nav when the theme enables it, and injects the watermark.
+  function renderSectionsInto(sections, theme, page) {
+    const sectionsMeta = sections.map((section, idx) => ({
+      id: `sec-${idx}-${section.section_type}`,
+      type: section.section_type,
+      content: section.content || {},
+      styles: section.styles || {},
+    }));
+
+    const sectionsHtml = sectionsMeta.map(meta => {
+      const renderer = SECTION_RENDERERS[meta.type];
+      if (!renderer) return '';
+      try {
+        return renderer(meta.content, meta.styles, meta.id);
+      } catch (e) {
+        console.error(`Failed to render section ${meta.type}:`, e);
+        return '';
+      }
+    }).join('');
+
+    const navHtml = buildNav(sectionsMeta, theme);
 
     const watermarkHtml = page.is_custom_domain
       ? ''
       : `<div class="watermark">Powered by <a href="https://scarlssystems.com" target="_blank">SCARLS</a></div>`;
 
-    document.getElementById('pageRoot').innerHTML = html + watermarkHtml;
+    document.getElementById('pageRoot').innerHTML = navHtml + sectionsHtml + watermarkHtml;
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('pageRoot').style.display = 'block';
-
-    initCountdowns();
-    initScrollReveal();
-    logPageVisit(page.id);
-    attachClickTracking(page.id);
   }
 
-  // --- Tracking: only ever runs on the published/"live" view, never on
-  // the draft preview, so previewing an unpublished page doesn't fire real
-  // pixels or pollute a client's actual ad analytics. ---
+  // Builds the sticky nav from whichever sections have a NAV_LABELS entry.
+  // Off by default per-page (theme.nav_enabled must be explicitly true).
+  // The CTA pill prefers the pricing section's CTA, falling back to hero's.
+  function buildNav(sectionsMeta, theme) {
+    if (theme.nav_enabled !== true) return '';
+
+    const navItems = sectionsMeta
+      .filter(m => NAV_LABELS[m.type])
+      .map(m => `<a href="#${m.id}" class="nav-link">${esc(NAV_LABELS[m.type])}</a>`)
+      .join('');
+
+    if (!navItems) return '';
+
+    const pricing = sectionsMeta.find(m => m.type === 'pricing' && m.content.cta_text);
+    const hero = sectionsMeta.find(m => m.type === 'hero' && m.content.cta_text);
+    const ctaSource = pricing || hero;
+    const ctaHtml = ctaSource
+      ? `<a class="nav-cta" href="${esc(ctaSource.content.cta_url || '#')}">${esc(ctaSource.content.cta_text)}</a>`
+      : '';
+
+    return `
+      <nav class="site-nav">
+        <div class="site-nav-inner">
+          <div class="site-nav-links">${navItems}</div>
+          ${ctaHtml}
+        </div>
+      </nav>
+    `;
+  }
+
+  // --- Tracking ---
 
   function getSessionId() {
     let id = sessionStorage.getItem('scarls_session_id');
@@ -341,11 +546,10 @@
 
   function attachClickTracking(pageId) {
     document.getElementById('pageRoot').addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn');
+      const btn = e.target.closest('.btn, .nav-cta');
       if (!btn) return;
 
       const utm = getUtmParams();
-      // Fire-and-forget — never blocks or delays the actual navigation.
       supabaseClient.from('conversion_events').insert({
         page_id: pageId,
         session_id: getSessionId(),
@@ -359,10 +563,6 @@
   }
 
   function injectTrackingScripts(tracking) {
-    // Re-validated here even though the database enforces numeric-only
-    // Meta Pixel IDs at the constraint level — this is the actual point
-    // where a value gets interpolated into a <script> tag, so it gets
-    // its own defense-in-depth check rather than trusting the DB alone.
     if (tracking.enable_meta_pixel && tracking.meta_pixel_id && /^[0-9]+$/.test(tracking.meta_pixel_id)) {
       const pixelId = tracking.meta_pixel_id;
       const script = document.createElement('script');
@@ -403,54 +603,31 @@
     el.style.display = 'flex';
   }
 
-  function renderPage(page, sections) {
-    applyTheme((page.draft_config && page.draft_config.theme) || {});
-
-    const html = sections.map(section => {
-      const renderer = SECTION_RENDERERS[section.section_type];
-      if (!renderer) return '';
-      try {
-        return renderer(section.content || {});
-      } catch (e) {
-        console.error(`Failed to render section ${section.section_type}:`, e);
-        return '';
-      }
-    }).join('');
-
-    const watermarkHtml = page.is_custom_domain
-      ? ''
-      : `<div class="watermark">Powered by <a href="https://scarlssystems.com" target="_blank">SCARLS</a></div>`;
-
-    document.getElementById('pageRoot').innerHTML = html + watermarkHtml;
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('pageRoot').style.display = 'block';
-
-    initCountdowns();
-    initScrollReveal();
-  }
-
-  function applyTheme(theme) {
+  // Resolves the page's theme and applies every token as a CSS custom
+  // property on :root; returns the resolved theme so callers can read
+  // motion_enabled / nav_enabled without re-parsing.
+  function applyTheme(rawTheme) {
+    const theme = mergeTheme(rawTheme);
     const root = document.documentElement;
     const map = {
-      primary_color: '--primary-color',
-      secondary_color: '--secondary-color',
-      background_color: '--background-color',
-      text_color: '--text-color',
-      muted_text_color: '--muted-text-color',
-      button_text_color: '--button-text-color',
-      button_radius: '--button-radius',
-      font: '--font',
-      section_bg_alt: '--section-bg-alt',
+      bg_base: '--bg-base',
+      bg_surface: '--bg-surface',
       bg_elevated: '--bg-elevated',
+      text_heading: '--text-heading',
+      text_body: '--text-body',
+      text_muted: '--text-muted',
+      accent_primary: '--accent-primary',
+      accent_on_dark: '--accent-on-dark',
+      accent_on_light: '--accent-on-light',
       font_display: '--font-display',
+      font_body: '--font-body',
+      button_radius: '--radius',
     };
     Object.entries(map).forEach(([key, cssVar]) => {
-      if (theme[key]) root.style.setProperty(cssVar, theme[key]);
+      if (theme[key] != null) root.style.setProperty(cssVar, theme[key]);
     });
-    // Motion defaults ON — a page only opts out if its theme explicitly
-    // sets motion_enabled to false. prefers-reduced-motion always wins
-    // regardless of this setting (handled purely in CSS above).
     root.setAttribute('data-motion', theme.motion_enabled === false ? 'off' : 'on');
+    return theme;
   }
 
   function esc(str) {
@@ -459,13 +636,34 @@
     return div.innerHTML;
   }
 
-  // --- Section renderers ---
-  // Each takes this section's `content` JSON and returns an HTML string.
-  // Missing fields degrade gracefully rather than throwing.
+  // Per-section style overrides read from page_sections.styles (already
+  // an unused jsonb column — no schema change). Supported keys:
+  //   background    -> overrides this section's background directly
+  //   text_color    -> overrides --text-heading for this section's subtree
+  //   accent_color  -> overrides --accent-primary for this section's subtree
+  //   reveal        -> false disables scroll-reveal for this section only
+  //   layout        -> 'image-left' | 'image-right' (about, product_showcase only)
+  // Anything unset falls through to the page theme, then the hard default —
+  // nothing here is forced.
+  function sectionStyleAttr(styles) {
+    const vars = [];
+    if (styles.background) vars.push(`background:${styles.background}`);
+    if (styles.text_color) vars.push(`--text-heading:${styles.text_color}`);
+    if (styles.accent_color) vars.push(`--accent-primary:${styles.accent_color}`);
+    return vars.length ? ` style="${vars.join(';')}"` : '';
+  }
+  function revealClass(styles) {
+    return styles.reveal === false ? '' : ' reveal';
+  }
 
-  function renderHero(c) {
+  // --- Section renderers ---
+  // Each takes (content, styles, sectionId). Missing content fields
+  // degrade gracefully. Top-level sections and grid cards carry the
+  // `reveal` class (unless overridden off) for initScrollReveal().
+
+  function renderHero(c, s = {}, id) {
     return `
-      <section class="hero container">
+      <section id="${id}" class="hero container${revealClass(s)}"${sectionStyleAttr(s)}>
         ${c.eyebrow ? `<div class="eyebrow">${esc(c.eyebrow)}</div>` : ''}
         <h1>${esc(c.headline || '')}</h1>
         ${c.subheadline ? `<p class="sub">${esc(c.subheadline)}</p>` : ''}
@@ -478,18 +676,33 @@
     `;
   }
 
-  function renderProblem(c) {
+  function renderProblem(c, s = {}, id) {
     return `
-      <section class="container" style="max-width:680px; text-align:center;">
+      <section id="${id}" class="container${revealClass(s)}" style="max-width:680px; text-align:center;"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         <p style="font-size:16px;">${esc(c.body || '')}</p>
       </section>
     `;
   }
 
-  function renderAbout(c) {
+  function renderAbout(c, s = {}, id) {
+    const layout = s.layout;
+    if (layout === 'image-left' || layout === 'image-right') {
+      const reversed = layout === 'image-right';
+      return `
+        <section id="${id}" class="alt-bg${revealClass(s)}"${sectionStyleAttr(s)}>
+          <div class="container about-split${reversed ? ' reverse' : ''}">
+            ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" class="about-split-img">` : ''}
+            <div class="about-split-text">
+              <h2>${esc(c.headline || '')}</h2>
+              <p style="font-size:16px;">${esc(c.body || '')}</p>
+            </div>
+          </div>
+        </section>
+      `;
+    }
     return `
-      <section class="alt-bg">
+      <section id="${id}" class="alt-bg${revealClass(s)}"${sectionStyleAttr(s)}>
         <div class="container" style="max-width:680px; text-align:center;">
           ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 28px;max-width:400px;">` : ''}
           <h2>${esc(c.headline || '')}</h2>
@@ -499,41 +712,56 @@
     `;
   }
 
-  function renderBenefits(c) {
+  function renderBenefits(c, s = {}, id) {
     const items = (c.items || []).map(item => `
-      <div class="card">
+      <div class="card${revealClass(s)}">
         <h3>${esc(item.title || '')}</h3>
         <p>${esc(item.description || '')}</p>
       </div>
     `).join('');
     return `
-      <section class="container">
-        <h2>${esc(c.headline || '')}</h2>
+      <section id="${id}" class="container"${sectionStyleAttr(s)}>
+        <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
         <div class="grid cols-2">${items}</div>
       </section>
     `;
   }
 
-  function renderHowItWorks(c) {
+  function renderHowItWorks(c, s = {}, id) {
     const steps = (c.steps || []).map(step => `
-      <div class="card">
+      <div class="card${revealClass(s)}">
         <h3>${esc(step.title || '')}</h3>
         <p>${esc(step.description || '')}</p>
       </div>
     `).join('');
     return `
-      <section class="alt-bg">
+      <section id="${id}" class="alt-bg"${sectionStyleAttr(s)}>
         <div class="container">
-          <h2>${esc(c.headline || '')}</h2>
+          <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
           <div class="grid cols-3">${steps}</div>
         </div>
       </section>
     `;
   }
 
-  function renderProductShowcase(c) {
+  function renderProductShowcase(c, s = {}, id) {
+    const layout = s.layout;
+    if (layout === 'image-left' || layout === 'image-right') {
+      const reversed = layout === 'image-right';
+      return `
+        <section id="${id}" class="container${revealClass(s)}"${sectionStyleAttr(s)}>
+          <div class="about-split${reversed ? ' reverse' : ''}">
+            ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" class="about-split-img">` : ''}
+            <div class="about-split-text">
+              <h2>${esc(c.headline || '')}</h2>
+              <p style="font-size:16px;">${esc(c.description || '')}</p>
+            </div>
+          </div>
+        </section>
+      `;
+    }
     return `
-      <section class="container" style="text-align:center; max-width:680px;">
+      <section id="${id}" class="container${revealClass(s)}" style="text-align:center; max-width:680px;"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 24px;">` : ''}
         <p style="font-size:16px;">${esc(c.description || '')}</p>
@@ -541,46 +769,47 @@
     `;
   }
 
-  function renderTestimonials(c) {
+  function renderTestimonials(c, s = {}, id) {
     const items = (c.items || []).map(t => `
-      <div class="card testimonial-card">
+      <div class="card testimonial-card${revealClass(s)}">
+        ${t.image_url ? `<img src="${esc(t.image_url)}" alt="" class="testimonial-avatar">` : ''}
         <p class="quote">"${esc(t.quote || '')}"</p>
         <div class="name">${esc(t.name || '')}</div>
         <div class="role">${esc(t.role || '')}</div>
       </div>
     `).join('');
     return `
-      <section class="alt-bg">
+      <section id="${id}" class="alt-bg"${sectionStyleAttr(s)}>
         <div class="container">
-          <h2>${esc(c.headline || '')}</h2>
+          <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
           <div class="grid cols-2">${items}</div>
         </div>
       </section>
     `;
   }
 
-  function renderBonus(c) {
+  function renderBonus(c, s = {}, id) {
     const items = (c.items || []).map(item => `
-      <div class="card">
+      <div class="card${revealClass(s)}">
         <h3>🎁 ${esc(item.title || '')}</h3>
         <p>${esc(item.description || '')}</p>
       </div>
     `).join('');
     return `
-      <section class="container">
-        <h2>${esc(c.headline || '')}</h2>
+      <section id="${id}" class="container"${sectionStyleAttr(s)}>
+        <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
         <div class="grid cols-2">${items}</div>
       </section>
     `;
   }
 
-  function renderPricing(c) {
+  function renderPricing(c, s = {}, id) {
     const features = (c.features || []).map(f => `<li>✓ ${esc(f)}</li>`).join('');
     return `
-      <section id="pricing" class="alt-bg">
+      <section id="${id}" class="alt-bg"${sectionStyleAttr(s)}>
         <div class="container">
-          <h2>${esc(c.headline || '')}</h2>
-          <div class="pricing-card">
+          <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
+          <div class="pricing-card${revealClass(s)}">
             <div>
               ${c.original_price ? `<span class="original-price">${esc(c.original_price)}</span>` : ''}
               <span class="price">${esc(c.price || '')}</span>
@@ -594,9 +823,9 @@
     `;
   }
 
-  function renderCountdown(c) {
+  function renderCountdown(c, s = {}, id) {
     return `
-      <section class="container" style="text-align:center;">
+      <section id="${id}" class="container${revealClass(s)}" style="text-align:center;"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         ${c.subheadline ? `<p>${esc(c.subheadline)}</p>` : ''}
         <div class="countdown-timer" data-end="${esc(c.end_date || '')}">
@@ -609,7 +838,7 @@
     `;
   }
 
-  function renderFaq(c) {
+  function renderFaq(c, s = {}, id) {
     const items = (c.items || []).map(item => `
       <details class="faq-item">
         <summary>${esc(item.question || '')}</summary>
@@ -617,16 +846,16 @@
       </details>
     `).join('');
     return `
-      <section class="container" style="max-width:680px;">
+      <section id="${id}" class="container${revealClass(s)}" style="max-width:680px;"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         ${items}
       </section>
     `;
   }
 
-  function renderCta(c) {
+  function renderCta(c, s = {}, id) {
     return `
-      <section class="alt-bg cta-section">
+      <section id="${id}" class="alt-bg cta-section${revealClass(s)}"${sectionStyleAttr(s)}>
         <div class="container">
           <h2>${esc(c.headline || '')}</h2>
           ${c.body ? `<p style="font-size:16px; max-width:520px; margin:0 auto 28px;">${esc(c.body)}</p>` : ''}
@@ -636,9 +865,9 @@
     `;
   }
 
-  function renderFooter(c) {
+  function renderFooter(c, s = {}, id) {
     return `
-      <footer>
+      <footer id="${id}"${sectionStyleAttr(s)}>
         <div class="container">
           ${esc(c.text || '')}
           ${c.whatsapp_url ? ` · <a href="${esc(c.whatsapp_url)}" target="_blank">WhatsApp</a>` : ''}
@@ -669,30 +898,36 @@
     });
   }
 
-  // --- Scroll-reveal ---
-  // Sections and card grids fade/slide in as they enter the viewport.
-  // Disabled entirely when data-motion="off" (set by applyTheme from the
-  // page's motion_enabled setting) or when the browser lacks support —
-  // in either case everything is just shown immediately, never stuck
-  // hidden.
-  function initScrollReveal() {
-    if (document.documentElement.getAttribute('data-motion') !== 'on') return;
+  // --- Scroll reveal ---
+  function initScrollReveal(motionEnabled) {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (motionEnabled === false || prefersReduced) return;
 
-    if (!('IntersectionObserver' in window)) {
-      document.querySelectorAll('section, .grid').forEach(el => el.classList.add('in-view'));
-      return;
-    }
+    const items = Array.from(document.querySelectorAll('.reveal'));
+    if (!items.length || !('IntersectionObserver' in window)) return;
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('in-view');
-          observer.unobserve(entry.target);
-        }
+    const delays = new WeakMap();
+    let groupParent = null;
+    let indexInGroup = 0;
+    items.forEach((el) => {
+      if (el.parentElement !== groupParent) {
+        groupParent = el.parentElement;
+        indexInGroup = 0;
+      }
+      delays.set(el, Math.min(indexInGroup * 80, 320));
+      indexInGroup += 1;
+    });
+
+    const observer = new IntersectionObserver((entries, obs) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        setTimeout(() => el.classList.add('revealed'), delays.get(el) || 0);
+        obs.unobserve(el);
       });
-    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
-    document.querySelectorAll('section, .grid').forEach(el => observer.observe(el));
+    items.forEach((el) => observer.observe(el));
   }
 </script>
 
