@@ -56,7 +56,11 @@
   }
   h2 { font-size: var(--fs-h2); margin-bottom: 36px; text-align: center; }
   h3 { font-size: var(--fs-h3); }
-  p { color: var(--text-body); }
+  /* white-space: pre-line preserves line breaks typed into a textarea in
+     the editor (blank lines between paragraphs, manual line breaks) —
+     without this, HTML collapses them and a multi-paragraph body renders
+     as one dense, unbroken block of text. */
+  p { color: var(--text-body); white-space: pre-line; }
 
   .btn {
     display: inline-block;

@@ -120,6 +120,7 @@
     outline: none;
     border-color: #5b8cff;
   }
+  .field input[type="color"]:disabled { opacity: 0.4; cursor: not-allowed; }
   .hint { color: #6b7080; font-size: 11.5px; margin-top: 4px; }
 
   .visibility-toggle {
@@ -589,6 +590,7 @@
   let currentSections = [];
   let isEditableForMe = false;
   let currentUserRole = null;
+  let currentPageTheme = null; // resolved theme (post-mergeTheme), used to pick sensible starting swatches for section-level color overrides
   let uidCounter = 0;
   function nextUid() { return `u${Date.now()}-${uidCounter++}`; }
 
@@ -829,6 +831,7 @@
     document.getElementById('slugDisplay').textContent = currentPage.slug;
 
     const theme = mergeTheme((currentPage.draft_config && currentPage.draft_config.theme) || {});
+    currentPageTheme = theme;
     document.querySelectorAll('[data-theme-key]').forEach(input => {
       const key = input.dataset.themeKey;
       if (input.type === 'checkbox') {
@@ -848,7 +851,7 @@
     if (currentSections.length === 0) {
       await renderStartingPointPicker(container);
     } else {
-      container.innerHTML = currentSections.map(renderSectionPanel).join('');
+      container.innerHTML = currentSections.map(section => renderSectionPanel(section, theme)).join('');
       document.getElementById('performancePanel').style.display = 'block';
       loadAnalytics();
     }
@@ -1123,14 +1126,14 @@
     statusEl.style.display = 'block';
   }
 
-  function renderSectionPanel(section) {
+  function renderSectionPanel(section, theme) {
     const schema = FIELD_SCHEMAS[section.section_type];
     if (!schema) return '';
     const content = section.content || {};
     const styles = section.styles || {};
 
     const fieldsHtml = schema.map(field => buildFieldHTML(section.id, field, content[field.key])).join('');
-    const styleSubPanelHtml = buildSectionStylePanelHTML(section.section_type, styles);
+    const styleSubPanelHtml = buildSectionStylePanelHTML(section.section_type, styles, theme || currentPageTheme || THEME_DEFAULTS);
 
     return `
       <div class="panel" data-section-id="${section.id}" data-section-type="${section.section_type}">
@@ -1148,10 +1151,33 @@
   }
 
   // Per-section style overrides, backed by page_sections.styles (already
-  // an unused jsonb column — no schema change). Every field here is
-  // optional: leaving it blank means "inherit the page theme", exactly
-  // matching how renderer.html reads this object.
-  function buildSectionStylePanelHTML(sectionType, styles) {
+  // an unused jsonb column — no schema change). Each color override is a
+  // checkbox + a real color-picker swatch, not a hex text field: unchecked
+  // means "inherit the page theme" (exactly how renderer.html reads a
+  // missing key), and checking it reveals a swatch pre-filled with the
+  // page's own current theme color for that role — so there's always a
+  // sensible starting point to pick from rather than a blank field asking
+  // for a hex code out of nowhere.
+  function colorOverrideFieldHTML(key, label, styles, themeFallbackColor) {
+    const hasOverride = !!styles[key];
+    const swatchValue = styles[key] || themeFallbackColor;
+    return `
+      <div class="field">
+        <label class="visibility-toggle" style="margin-bottom:6px;">
+          <input type="checkbox" data-style-toggle="${key}" ${hasOverride ? 'checked' : ''} onchange="toggleStyleColorField(this)">
+          ${esc(label)}
+        </label>
+        <input type="color" data-style-key="${key}" value="${esc(swatchValue)}" ${hasOverride ? '' : 'disabled'}>
+      </div>
+    `;
+  }
+
+  function toggleStyleColorField(checkbox) {
+    const colorInput = checkbox.closest('.field').querySelector('input[type="color"]');
+    if (colorInput) colorInput.disabled = !checkbox.checked;
+  }
+
+  function buildSectionStylePanelHTML(sectionType, styles, theme) {
     const layoutFieldHtml = LAYOUT_VARIANT_TYPES.has(sectionType) ? `
       <div class="field">
         <label>Layout</label>
@@ -1167,18 +1193,9 @@
       <details class="section-style-panel">
         <summary>Customize this section</summary>
         <div class="section-style-grid">
-          <div class="field">
-            <label>Background override</label>
-            <input type="text" data-style-key="background" value="${esc(styles.background || '')}" placeholder="e.g. #1a1c22 — leave blank to inherit">
-          </div>
-          <div class="field">
-            <label>Text color override</label>
-            <input type="text" data-style-key="text_color" value="${esc(styles.text_color || '')}" placeholder="Leave blank to inherit">
-          </div>
-          <div class="field">
-            <label>Accent color override</label>
-            <input type="text" data-style-key="accent_color" value="${esc(styles.accent_color || '')}" placeholder="Leave blank to inherit">
-          </div>
+          ${colorOverrideFieldHTML('background', 'Override background', styles, theme.bg_surface)}
+          ${colorOverrideFieldHTML('text_color', 'Override text color', styles, theme.text_heading)}
+          ${colorOverrideFieldHTML('accent_color', 'Override accent color', styles, theme.accent_primary)}
           ${layoutFieldHtml}
         </div>
         <div class="field" style="margin-top:6px;">
@@ -1193,12 +1210,11 @@
 
   function collectSectionStyles(panelEl) {
     const styles = {};
-    const bg = panelEl.querySelector('[data-style-key="background"]');
-    if (bg && bg.value.trim()) styles.background = bg.value.trim();
-    const textColor = panelEl.querySelector('[data-style-key="text_color"]');
-    if (textColor && textColor.value.trim()) styles.text_color = textColor.value.trim();
-    const accentColor = panelEl.querySelector('[data-style-key="accent_color"]');
-    if (accentColor && accentColor.value.trim()) styles.accent_color = accentColor.value.trim();
+    ['background', 'text_color', 'accent_color'].forEach(key => {
+      const toggle = panelEl.querySelector(`[data-style-toggle="${key}"]`);
+      const colorInput = panelEl.querySelector(`[data-style-key="${key}"]`);
+      if (toggle && toggle.checked && colorInput) styles[key] = colorInput.value;
+    });
     const layout = panelEl.querySelector('[data-style-key="layout"]');
     if (layout && layout.value) styles.layout = layout.value;
     const reveal = panelEl.querySelector('[data-style-key="reveal"]');
