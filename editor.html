@@ -1189,6 +1189,16 @@
       </div>
     ` : '';
 
+    const alignFieldHtml = `
+      <div class="field">
+        <label>Text alignment</label>
+        <select data-style-key="align">
+          <option value="" ${!styles.align ? 'selected' : ''}>Center (default)</option>
+          <option value="left" ${styles.align === 'left' ? 'selected' : ''}>Left</option>
+        </select>
+      </div>
+    `;
+
     return `
       <details class="section-style-panel">
         <summary>Customize this section</summary>
@@ -1196,6 +1206,7 @@
           ${colorOverrideFieldHTML('background', 'Override background', styles, theme.bg_surface)}
           ${colorOverrideFieldHTML('text_color', 'Override text color', styles, theme.text_heading)}
           ${colorOverrideFieldHTML('accent_color', 'Override accent color', styles, theme.accent_primary)}
+          ${alignFieldHtml}
           ${layoutFieldHtml}
         </div>
         <div class="field" style="margin-top:6px;">
@@ -1217,6 +1228,8 @@
     });
     const layout = panelEl.querySelector('[data-style-key="layout"]');
     if (layout && layout.value) styles.layout = layout.value;
+    const align = panelEl.querySelector('[data-style-key="align"]');
+    if (align && align.value) styles.align = align.value;
     const reveal = panelEl.querySelector('[data-style-key="reveal"]');
     if (reveal && !reveal.checked) styles.reveal = false;
     return styles;

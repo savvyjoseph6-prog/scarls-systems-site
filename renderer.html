@@ -54,13 +54,22 @@
     line-height: 1.2;
     font-weight: 700;
   }
-  h2 { font-size: var(--fs-h2); margin-bottom: 36px; text-align: center; }
+  h2 { font-size: var(--fs-h2); margin-bottom: 36px; text-align: var(--align, center); }
   h3 { font-size: var(--fs-h3); }
   /* white-space: pre-line preserves line breaks typed into a textarea in
      the editor (blank lines between paragraphs, manual line breaks) —
      without this, HTML collapses them and a multi-paragraph body renders
      as one dense, unbroken block of text. */
   p { color: var(--text-body); white-space: pre-line; }
+  .copy-center { text-align: var(--align, center); }
+
+  /* A thin divider between any two consecutive sections. Even when two
+     sections share the exact same background (two plain sections in a
+     row, or two alt-bg ones in a row), this gives a visible seam so a
+     long-copy page never reads as one undifferentiated block of text. */
+  #pageRoot > section + section {
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
 
   .btn {
     display: inline-block;
@@ -81,7 +90,7 @@
   }
 
   /* Hero */
-  .hero { text-align: center; padding-top: 112px; }
+  .hero { text-align: var(--align, center); padding-top: 112px; }
   .hero .eyebrow {
     display: inline-block;
     color: var(--accent-primary);
@@ -189,7 +198,7 @@
   .faq-item p { margin-top: 10px; }
 
   /* CTA */
-  .cta-section { text-align: center; }
+  .cta-section { text-align: var(--align, center); }
 
   /* Footer */
   footer {
@@ -647,6 +656,7 @@
   //   accent_color  -> overrides --accent-primary for this section's subtree
   //   reveal        -> false disables scroll-reveal for this section only
   //   layout        -> 'image-left' | 'image-right' (about, product_showcase only)
+  //   align         -> 'left' overrides this section's centered copy (headline + body) to left-aligned
   // Anything unset falls through to the page theme, then the hard default —
   // nothing here is forced.
   function sectionStyleAttr(styles) {
@@ -654,6 +664,7 @@
     if (styles.background) vars.push(`background:${styles.background}`);
     if (styles.text_color) vars.push(`--text-heading:${styles.text_color}`);
     if (styles.accent_color) vars.push(`--accent-primary:${styles.accent_color}`);
+    if (styles.align) vars.push(`--align:${styles.align}`);
     return vars.length ? ` style="${vars.join(';')}"` : '';
   }
   function revealClass(styles) {
@@ -682,7 +693,7 @@
 
   function renderProblem(c, s = {}, id) {
     return `
-      <section id="${id}" class="container${revealClass(s)}" style="max-width:680px; text-align:center;"${sectionStyleAttr(s)}>
+      <section id="${id}" class="container copy-center${revealClass(s)}" style="max-width:680px;"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         <p style="font-size:16px;">${esc(c.body || '')}</p>
       </section>
@@ -707,7 +718,7 @@
     }
     return `
       <section id="${id}" class="alt-bg${revealClass(s)}"${sectionStyleAttr(s)}>
-        <div class="container" style="max-width:680px; text-align:center;">
+        <div class="container copy-center" style="max-width:680px;">
           ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 28px;max-width:400px;">` : ''}
           <h2>${esc(c.headline || '')}</h2>
           <p style="font-size:16px;">${esc(c.body || '')}</p>
@@ -765,7 +776,7 @@
       `;
     }
     return `
-      <section id="${id}" class="container${revealClass(s)}" style="text-align:center; max-width:680px;"${sectionStyleAttr(s)}>
+      <section id="${id}" class="container copy-center${revealClass(s)}" style="max-width:680px;"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 24px;">` : ''}
         <p style="font-size:16px;">${esc(c.description || '')}</p>
@@ -829,7 +840,7 @@
 
   function renderCountdown(c, s = {}, id) {
     return `
-      <section id="${id}" class="container${revealClass(s)}" style="text-align:center;"${sectionStyleAttr(s)}>
+      <section id="${id}" class="container copy-center${revealClass(s)}"${sectionStyleAttr(s)}>
         <h2>${esc(c.headline || '')}</h2>
         ${c.subheadline ? `<p>${esc(c.subheadline)}</p>` : ''}
         <div class="countdown-timer" data-end="${esc(c.end_date || '')}">
