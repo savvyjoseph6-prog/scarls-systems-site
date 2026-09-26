@@ -35,6 +35,15 @@
     --radius-card: 16px;
 
     --nav-height: 72px;
+
+    /* Layout/spacing tokens — configurable per page via the editor's
+       "Spacing & Layout" panel, same pattern as the color/font tokens
+       above. Nothing structural here is a fixed number anymore. */
+    --section-padding: 88px;
+    --heading-gap: 36px;
+    --card-gap: 24px;
+    --card-padding: 26px;
+    --container-max-width: 880px;
   }
 
   body {
@@ -44,8 +53,8 @@
     line-height: 1.6;
   }
   img { max-width: 100%; display: block; }
-  .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
-  section { padding: 88px 0; scroll-margin-top: calc(var(--nav-height) + 16px); }
+  .container { max-width: var(--container-max-width, 880px); margin: 0 auto; padding: 0 24px; }
+  section { padding: var(--section-padding, 88px) 0; scroll-margin-top: calc(var(--nav-height) + 16px); }
   section.alt-bg { background: var(--bg-surface); }
 
   h1, h2, h3 {
@@ -54,7 +63,7 @@
     line-height: 1.2;
     font-weight: 700;
   }
-  h2 { font-size: var(--fs-h2); margin-bottom: 36px; text-align: var(--align, center); }
+  h2 { font-size: var(--fs-h2); margin-bottom: var(--heading-gap, 36px); text-align: var(--align, center); }
   h3 { font-size: var(--fs-h3); }
   /* white-space: pre-line preserves line breaks typed into a textarea in
      the editor (blank lines between paragraphs, manual line breaks) —
@@ -106,18 +115,36 @@
   .hero .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 
   /* Grid-based sections */
-  .grid { display: grid; gap: 24px; }
+  .grid { display: grid; gap: var(--card-gap, 24px); }
   .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
   .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
   @media (max-width: 640px) {
     .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
     .hero { padding-top: 88px; }
   }
+  /* Tighter mobile pass: the desktop spacing tokens (88px section padding,
+     880px container, etc.) are tuned for laptop screens; on phones they
+     leave too much dead air and make the page feel like it was only ever
+     tested on a laptop. Scale the same tokens down rather than hardcoding
+     a parallel set of mobile-only numbers. */
+  @media (max-width: 480px) {
+    section { padding: calc(var(--section-padding, 88px) * 0.6) 0; }
+    .container { padding: 0 18px; }
+    .hero { padding-top: 64px; }
+    .hero .cta-row { flex-direction: column; align-items: stretch; }
+    .hero .cta-row .btn { text-align: center; }
+    .card { padding: calc(var(--card-padding, 26px) * 0.85); }
+    .pricing-card { padding: 32px 22px; }
+    .countdown-timer { gap: 10px; }
+    .countdown-timer .unit { min-width: 60px; padding: 12px 8px; }
+    .countdown-timer .unit .num { font-size: 22px; }
+    .site-nav-inner { padding: 0 16px; }
+  }
   .card {
     background: var(--bg-surface);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: var(--radius-card);
-    padding: 26px;
+    padding: var(--card-padding, 26px);
   }
   section.alt-bg .card { background: var(--bg-elevated); }
   .card h3 { margin-bottom: 8px; }
@@ -347,6 +374,12 @@
     button_radius: '999px',
     motion_enabled: true,
     nav_enabled: false, // per-page toggle, off by default (see design plan discussion)
+    section_padding: '88',
+    heading_gap: '36',
+    card_gap: '24',
+    card_padding: '26',
+    card_radius: '16',
+    container_width: '880',
   };
 
   const LEGACY_KEY_MAP = {
@@ -383,6 +416,17 @@
 
   (async () => {
     const params = new URLSearchParams(window.location.search);
+
+    // Live-preview mode: embedded in an iframe by editor.html's phone
+    // mockup. No Supabase fetch at all here — the editor pushes the
+    // current in-memory (possibly unsaved) form state via postMessage on
+    // every edit, so the mockup reflects what's on screen, not what's in
+    // the database. This never touches real page data or the DB.
+    if (params.get('mode') === 'live-preview') {
+      initLivePreviewMode();
+      return;
+    }
+
     const pageId = params.get('page');
     const viewMode = params.get('view') === 'published' ? 'published' : 'draft';
 
@@ -451,6 +495,32 @@
     renderSectionsInto(sections, theme, page);
     initCountdowns();
     initScrollReveal(theme.motion_enabled);
+  }
+
+  // Live-preview mode for the editor's phone mockup. No DB access at all:
+  // waits for postMessage updates from the parent editor window and
+  // re-renders on every one. Sends a 'ready' handshake first so the
+  // editor knows it's safe to start pushing state — otherwise the
+  // editor's first message could arrive before this listener exists.
+  function initLivePreviewMode() {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('pageRoot').style.display = 'block';
+
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || data.type !== 'scarls-preview-update') return;
+      const theme = applyTheme(data.theme || {});
+      // is_custom_domain: true just hides the watermark in the small
+      // mockup so it doesn't repeat itself uselessly in a 320px frame —
+      // it has no bearing on the real page's actual domain status.
+      renderSectionsInto(data.sections || [], theme, { is_custom_domain: true });
+      initCountdowns();
+      initScrollReveal(theme.motion_enabled);
+    });
+
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'scarls-preview-ready' }, '*');
+    }
   }
 
   // Shared by draft + published rendering: builds each section's HTML
@@ -639,6 +709,22 @@
     Object.entries(map).forEach(([key, cssVar]) => {
       if (theme[key] != null) root.style.setProperty(cssVar, theme[key]);
     });
+
+    // Spacing/layout tokens are stored as bare numbers (no unit) so the
+    // editor can use plain number inputs — 'px' is appended here, the one
+    // place that needs to know the unit.
+    const pxMap = {
+      section_padding: '--section-padding',
+      heading_gap: '--heading-gap',
+      card_gap: '--card-gap',
+      card_padding: '--card-padding',
+      card_radius: '--radius-card',
+      container_width: '--container-max-width',
+    };
+    Object.entries(pxMap).forEach(([key, cssVar]) => {
+      if (theme[key] != null) root.style.setProperty(cssVar, `${theme[key]}px`);
+    });
+
     root.setAttribute('data-motion', theme.motion_enabled === false ? 'off' : 'on');
     return theme;
   }
