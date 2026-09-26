@@ -150,6 +150,39 @@
   .card h3 { margin-bottom: 8px; }
   .card p { font-size: var(--fs-small); }
 
+  /* Proof carousel: horizontal, scroll-snapped, touch-friendly. Cards
+     stay within the normal content column and only start scrolling once
+     there are more of them than fit — no edge-bleed layout trickery. */
+  .carousel-track {
+    display: flex;
+    gap: var(--card-gap, 24px);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 24px 14px;
+    max-width: var(--container-max-width, 880px);
+    margin: 0 auto;
+  }
+  .carousel-track::-webkit-scrollbar { height: 7px; }
+  .carousel-track::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+  .carousel-card {
+    flex: 0 0 auto;
+    width: 240px;
+    scroll-snap-align: start;
+    background: var(--bg-surface);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  section.alt-bg .carousel-card { background: var(--bg-elevated); }
+  .carousel-card img { width: 100%; height: 170px; object-fit: cover; display: block; }
+  .carousel-card .caption { padding: 12px 14px; font-size: 13.5px; color: var(--text-body); }
+  .carousel-empty { color: var(--text-muted); font-size: var(--fs-small); text-align: center; padding: 0 24px; }
+  @media (max-width: 480px) {
+    .carousel-card { width: 200px; }
+    .carousel-card img { height: 140px; }
+  }
+
   /* About / product split layout (image-left / image-right variant) */
   .about-split {
     display: flex;
@@ -341,6 +374,7 @@
     faq: renderFaq,
     cta: renderCta,
     footer: renderFooter,
+    card_carousel: renderCardCarousel,
   };
 
   // Labels used to build the sticky nav from whichever sections a page
@@ -357,6 +391,7 @@
     bonus: 'Bonuses',
     pricing: 'Pricing',
     faq: 'FAQ',
+    card_carousel: 'Proof',
   };
 
   const THEME_DEFAULTS = {
@@ -562,16 +597,29 @@
   function buildNav(sectionsMeta, theme) {
     if (theme.nav_enabled !== true) return '';
 
+    // A section can set its own styles.nav_label to override the generic
+    // per-type label — needed once a page has more than one section of
+    // the same type (two 'how_it_works' blocks can't both just say "How
+    // It Works"). Sections that share the same *resolved* label (usually
+    // duplicates that didn't get a custom label) are deduped, keeping
+    // only the first, so the nav never repeats an identical entry.
+    const seenLabels = new Set();
     const navItems = sectionsMeta
-      .filter(m => NAV_LABELS[m.type])
-      .map(m => `<a href="#${m.id}" class="nav-link">${esc(NAV_LABELS[m.type])}</a>`)
+      .map(m => ({ id: m.id, label: (m.styles && m.styles.nav_label) || NAV_LABELS[m.type] || null }))
+      .filter(m => {
+        if (!m.label || seenLabels.has(m.label)) return false;
+        seenLabels.add(m.label);
+        return true;
+      })
+      .map(m => `<a href="#${m.id}" class="nav-link">${esc(m.label)}</a>`)
       .join('');
 
     if (!navItems) return '';
 
     const pricing = sectionsMeta.find(m => m.type === 'pricing' && m.content.cta_text);
+    const cta = sectionsMeta.find(m => m.type === 'cta' && m.content.cta_text);
     const hero = sectionsMeta.find(m => m.type === 'hero' && m.content.cta_text);
-    const ctaSource = pricing || hero;
+    const ctaSource = pricing || cta || hero;
     const ctaHtml = ctaSource
       ? `<a class="nav-cta" href="${esc(ctaSource.content.cta_url || '#')}">${esc(ctaSource.content.cta_text)}</a>`
       : '';
@@ -885,6 +933,31 @@
           <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
           <div class="grid cols-2">${items}</div>
         </div>
+      </section>
+    `;
+  }
+
+  // Horizontal, scroll-snapped proof/screenshot carousel. Each item is an
+  // image + a short caption — no name/role/quote fields, since this is
+  // for evidence (earnings screenshots, sale notifications, community
+  // shots), not people testimonials. Items missing an image are skipped
+  // entirely rather than showing an empty box.
+  function renderCardCarousel(c, s = {}, id) {
+    const items = (c.items || [])
+      .filter(item => item.image_url)
+      .map(item => `
+        <div class="carousel-card">
+          <img src="${esc(item.image_url)}" alt="">
+          ${item.caption ? `<div class="caption">${esc(item.caption)}</div>` : ''}
+        </div>
+      `).join('');
+
+    return `
+      <section id="${id}" class="${s.background ? '' : 'alt-bg'}${revealClass(s)}"${sectionStyleAttr(s)}>
+        <div class="container">
+          <h2 class="${revealClass(s).trim()}">${esc(c.headline || '')}</h2>
+        </div>
+        ${items ? `<div class="carousel-track">${items}</div>` : `<p class="carousel-empty">No proof added yet — add screenshots through the editor.</p>`}
       </section>
     `;
   }

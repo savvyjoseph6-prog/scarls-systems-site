@@ -613,6 +613,13 @@
       { key: 'text', label: 'Footer text', type: 'text' },
       { key: 'whatsapp_url', label: 'WhatsApp link', type: 'url' },
     ],
+    card_carousel: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'items', label: 'Proof items', type: 'list', itemFields: [
+        { key: 'image_url', label: 'Screenshot', type: 'image' },
+        { key: 'caption', label: 'Caption', type: 'textarea' },
+      ]},
+    ],
   };
 
   const SECTION_LABELS = {
@@ -620,6 +627,7 @@
     how_it_works: 'How It Works', product_showcase: 'Product Showcase',
     testimonials: 'Testimonials', bonus: 'Bonus', pricing: 'Pricing',
     countdown: 'Countdown', faq: 'FAQ', cta: 'Call To Action', footer: 'Footer',
+    card_carousel: 'Proof Carousel',
   };
 
   // Section types that support the image-left / image-right layout
@@ -753,6 +761,12 @@
     'hero', 'problem', 'about', 'benefits', 'how_it_works', 'product_showcase',
     'testimonials', 'bonus', 'pricing', 'countdown', 'faq', 'cta', 'footer',
   ];
+
+  // Every type a student can add one-at-a-time via "+ Add Section", once
+  // a page already exists — separate from DEFAULT_SECTION_ORDER (used only
+  // for "Start From Blank") so newer types like card_carousel don't start
+  // appearing on every freshly-blanked page by default.
+  const ADDABLE_SECTION_TYPES = [...DEFAULT_SECTION_ORDER, 'card_carousel'];
 
   async function renderStartingPointPicker(container) {
     const { data: templates, error } = await supabaseClient
@@ -957,7 +971,7 @@
     if (currentSections.length === 0) {
       await renderStartingPointPicker(container);
     } else {
-      container.innerHTML = currentSections.map(section => renderSectionPanel(section, theme)).join('');
+      container.innerHTML = currentSections.map(section => renderSectionPanel(section, theme)).join('') + buildAddSectionPanelHTML();
       document.getElementById('performancePanel').style.display = 'block';
       loadAnalytics();
     }
@@ -1290,13 +1304,76 @@
       <div class="panel" data-section-id="${section.id}" data-section-type="${section.section_type}">
         <h2>
           ${esc(SECTION_LABELS[section.section_type] || section.section_type)}
-          <label class="visibility-toggle">
-            <input type="checkbox" data-visibility ${section.is_visible ? 'checked' : ''}>
-            Show this section
-          </label>
+          <span style="display:flex; align-items:center; gap:16px;">
+            <label class="visibility-toggle">
+              <input type="checkbox" data-visibility ${section.is_visible ? 'checked' : ''}>
+              Show this section
+            </label>
+            <button type="button" class="remove-item-btn" style="position:static;" onclick="removeSection('${section.id}', this)">Remove</button>
+          </span>
         </h2>
         ${fieldsHtml}
         ${styleSubPanelHtml}
+      </div>
+    `;
+  }
+
+  // A page can now hold more than one section of the same type (e.g. two
+  // "How It Works" blocks telling different parts of a story), since the
+  // one-per-type database constraint was removed. This lets a student add
+  // another instance of any section type, and remove one they added by
+  // mistake, without needing a developer.
+  async function addSection() {
+    const select = document.getElementById('addSectionType');
+    const type = select.value;
+    if (!type) return;
+
+    const nextOrder = currentSections.length
+      ? Math.max(...currentSections.map(s => s.section_order || 0)) + 1
+      : 1;
+
+    const { error } = await supabaseClient.from('page_sections').insert({
+      page_id: currentPage.id,
+      owner_id: currentPage.owner_id,
+      section_type: type,
+      section_order: nextOrder,
+      is_visible: true,
+      content: {},
+      styles: {},
+    });
+
+    if (error) {
+      alert('Failed to add section: ' + error.message);
+      return;
+    }
+    window.location.reload();
+  }
+
+  async function removeSection(sectionId, btn) {
+    if (!confirm('Remove this section? This cannot be undone.')) return;
+    const { error } = await supabaseClient.from('page_sections').delete().eq('id', sectionId);
+    if (error) {
+      alert('Failed to remove section: ' + error.message);
+      return;
+    }
+    btn.closest('.panel').remove();
+  }
+
+  function buildAddSectionPanelHTML() {
+    const options = ADDABLE_SECTION_TYPES
+      .map(type => `<option value="${type}">${esc(SECTION_LABELS[type] || type)}</option>`)
+      .join('');
+    return `
+      <div class="panel">
+        <h2>Add A Section</h2>
+        <div class="field" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:0;">
+          <div style="flex:1;">
+            <label>Section type</label>
+            <select id="addSectionType">${options}</select>
+          </div>
+          <button type="button" class="btn" onclick="addSection()">+ Add Section</button>
+        </div>
+        <div class="hint" style="margin-top:10px;">A page can have as many sections of the same type as its story needs — give each one its own "Menu label" below if you turn the nav on.</div>
       </div>
     `;
   }
@@ -1350,6 +1427,14 @@
       </div>
     `;
 
+    const navLabelFieldHtml = `
+      <div class="field">
+        <label>Menu label (optional)</label>
+        <input type="text" data-style-key="nav_label" value="${esc(styles.nav_label || '')}" placeholder="Shown in the sticky nav — leave blank for the default">
+        <div class="hint">Matters most once a page has more than one section of this type — each can get its own menu label.</div>
+      </div>
+    `;
+
     return `
       <details class="section-style-panel">
         <summary>Customize this section</summary>
@@ -1358,6 +1443,7 @@
           ${colorOverrideFieldHTML('text_color', 'Override text color', styles, theme.text_heading)}
           ${colorOverrideFieldHTML('accent_color', 'Override accent color', styles, theme.accent_primary)}
           ${alignFieldHtml}
+          ${navLabelFieldHtml}
           ${layoutFieldHtml}
         </div>
         <div class="field" style="margin-top:6px;">
@@ -1381,6 +1467,8 @@
     if (layout && layout.value) styles.layout = layout.value;
     const align = panelEl.querySelector('[data-style-key="align"]');
     if (align && align.value) styles.align = align.value;
+    const navLabel = panelEl.querySelector('[data-style-key="nav_label"]');
+    if (navLabel && navLabel.value.trim()) styles.nav_label = navLabel.value.trim();
     const reveal = panelEl.querySelector('[data-style-key="reveal"]');
     if (reveal && !reveal.checked) styles.reveal = false;
     return styles;
