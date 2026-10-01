@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page Settings — SCARLS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0f1115; color: #cdd0d8; min-height: 100vh; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { color: #f2f0ea; font-size: 26px; margin-bottom: 6px; }
+  .sub { color: #9aa0ac; font-size: 14px; margin-bottom: 36px; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 28px; }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .list button {
+    text-align: left; background: #171a21; border: 1px solid rgba(255,255,255,.07);
+    color: #cdd0d8; padding: 12px 14px; border-radius: 10px; cursor: pointer; font-size: 14px;
+  }
+  .list button.active { border-color: #c9a15a; color: #f2f0ea; }
+  .panel { background: #171a21; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 28px; }
+  .panel h2 { color: #f2f0ea; font-size: 18px; margin-bottom: 20px; }
+  label { display: block; font-size: 13px; color: #9aa0ac; margin: 16px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  input {
+    width: 100%; background: #1f2229; border: 1px solid rgba(255,255,255,.1); color: #f2f0ea;
+    padding: 11px 13px; border-radius: 8px; font-size: 14px;
+  }
+  input:focus { outline: none; border-color: #c9a15a; }
+  .hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .save {
+    margin-top: 24px; background: #c9a15a; color: #14161c; border: none; padding: 12px 24px;
+    border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  .save:disabled { opacity: .5; cursor: default; }
+  .msg { margin-top: 14px; font-size: 13px; }
+  .msg.ok { color: #7cc48a; }
+  .msg.err { color: #e08787; }
+  .empty { color: #9aa0ac; font-size: 14px; padding: 40px 0; text-align: center; }
+  .loading { color: #9aa0ac; padding: 60px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Page Settings</h1>
+  <div class="sub" id="subline">Loading...</div>
+  <div id="content"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script>
+  let PAGES = [];
+  let SELECTED = null;
+  let IS_ADMIN = false;
+
+  (async () => {
+    const profile = await getCurrentProfile();
+    if (!profile) { window.location.href = 'login.html'; return; }
+    IS_ADMIN = profile.role === 'admin';
+
+    const query = supabaseClient.from('page_configs').select('*').order('slug');
+    const { data, error } = IS_ADMIN ? await query : await query.eq('owner_id', profile.id);
+
+    if (error) {
+      document.getElementById('content').innerHTML = `<div class="empty">Couldn't load pages: ${esc(error.message)}</div>`;
+      return;
+    }
+
+    PAGES = data || [];
+    document.getElementById('subline').textContent = IS_ADMIN
+      ? `Signed in as admin — ${PAGES.length} page${PAGES.length === 1 ? '' : 's'} total`
+      : `Your pages — ${PAGES.length} page${PAGES.length === 1 ? '' : 's'}`;
+
+    if (!PAGES.length) {
+      document.getElementById('content').innerHTML = `<div class="empty">No pages assigned to you yet.</div>`;
+      return;
+    }
+
+    renderLayout();
+    selectPage(PAGES[0].id);
+  })();
+
+  function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function renderLayout() {
+    document.getElementById('content').innerHTML = `
+      <div class="layout">
+        <div class="list" id="pageList"></div>
+        <div class="panel" id="panel"></div>
+      </div>`;
+    document.getElementById('pageList').innerHTML = PAGES.map(p =>
+      `<button data-id="${p.id}" onclick="selectPage('${p.id}')">${esc(p.slug)}</button>`
+    ).join('');
+  }
+
+  function selectPage(id) {
+    SELECTED = PAGES.find(p => p.id === id);
+    document.querySelectorAll('.list button').forEach(b =>
+      b.classList.toggle('active', b.dataset.id === id)
+    );
+    renderPanel();
+  }
+
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function renderPanel() {
+    const p = SELECTED;
+    document.getElementById('panel').innerHTML = `
+      <h2>${esc(p.slug)}.scarlssystems.com</h2>
+
+      <label>CTA button text</label>
+      <input id="f_cta_text" value="${esc(p.cta_text || '')}">
+
+      <label>CTA link (WhatsApp, etc.)</label>
+      <input id="f_cta_url" value="${esc(p.cta_url || '')}">
+
+      <label>Meta Pixel ID</label>
+      <input id="f_pixel" value="${esc(p.meta_pixel_id || '')}" placeholder="numbers only">
+      <div class="hint">Leave blank to disable tracking on this page.</div>
+
+      <label>Countdown ends</label>
+      <input id="f_countdown" type="datetime-local" value="${toLocalInput(p.countdown_end)}">
+      <div class="hint">Same deadline for every visitor to this page.</div>
+
+      ${IS_ADMIN ? `
+        <label>Owner (student) user ID</label>
+        <input id="f_owner" value="${esc(p.owner_id || '')}" placeholder="leave blank if unassigned">
+        <div class="hint">Admin only. Paste the student's user UUID to let them edit this page themselves.</div>
+      ` : ''}
+
+      <button class="save" id="saveBtn" onclick="savePage()">Save changes</button>
+      <div class="msg" id="msg"></div>
+    `;
+  }
+
+  async function savePage() {
+    const btn = document.getElementById('saveBtn');
+    const msg = document.getElementById('msg');
+    btn.disabled = true;
+    msg.textContent = '';
+    msg.className = 'msg';
+
+    const countdownVal = document.getElementById('f_countdown').value;
+    const updates = {
+      cta_text: document.getElementById('f_cta_text').value.trim(),
+      cta_url: document.getElementById('f_cta_url').value.trim(),
+      meta_pixel_id: document.getElementById('f_pixel').value.trim() || null,
+      countdown_end: countdownVal ? new Date(countdownVal).toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+    if (IS_ADMIN) {
+      const ownerVal = document.getElementById('f_owner').value.trim();
+      updates.owner_id = ownerVal || null;
+    }
+
+    const { error } = await supabaseClient.from('page_configs').update(updates).eq('id', SELECTED.id);
+    btn.disabled = false;
+
+    if (error) {
+      msg.textContent = 'Save failed: ' + error.message;
+      msg.className = 'msg err';
+      return;
+    }
+    Object.assign(SELECTED, updates);
+    msg.textContent = 'Saved.';
+    msg.className = 'msg ok';
+  }
+</script>
+
+</body>
+</html>

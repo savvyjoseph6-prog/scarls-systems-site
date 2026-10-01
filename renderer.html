@@ -75,7 +75,8 @@
   /* A thin divider between any two consecutive sections. Even when two
      sections share the exact same background (two plain sections in a
      row, or two alt-bg ones in a row), this gives a visible seam so a
-     long-copy page never reads as one undifferentiated block of text. */
+     long-copy page never reads as one undifferentiated block of text.
+     (Neutralised by the clean-build overrides at the end of this block.) */
   #pageRoot > section + section {
     border-top: 1px solid rgba(255,255,255,0.07);
   }
@@ -349,6 +350,30 @@
       transition: none !important;
     }
   }
+
+  /* --- Clean-build overrides --- */
+  body { overflow-x: hidden; }
+  #pageRoot > section + section { border-top: none; }
+
+  .card, .carousel-card, .countdown-timer .unit {
+    border: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 10px 28px rgba(0,0,0,.14);
+  }
+  .card { transition: transform .18s ease, box-shadow .18s ease; }
+  .card:hover { transform: translateY(-3px); }
+
+  /* Full-width background on sections that are also .container */
+  section.container[style*="background"] { position: relative; isolation: isolate; }
+  section.container[style*="background"]::before {
+    content: ""; position: absolute; z-index: -1; top: 0; bottom: 0;
+    left: 50%; width: 100vw; margin-left: -50vw; background: inherit;
+  }
+
+  /* Left alignment: line everything up on the same edge */
+  [style*="--align:left"] h1,
+  [style*="--align:left"] .sub,
+  [style*="--align:left"] .copy-center p { margin-left: 0; margin-right: 0; }
+  .hero[style*="--align:left"] .cta-row { justify-content: flex-start; }
 </style>
 </head>
 <body>
@@ -793,8 +818,13 @@
   //   align         -> 'left' overrides this section's centered copy (headline + body) to left-aligned
   // Anything unset falls through to the page theme, then the hard default —
   // nothing here is forced.
-  function sectionStyleAttr(styles) {
-    const vars = [];
+  //
+  // `extra` lets a renderer add its own inline rule (e.g. max-width) into
+  // the SAME style attribute. Previously renderers wrote a second
+  // style="..." next to this one, and browsers ignore duplicate
+  // attributes — silently dropping the align/background overrides.
+  function sectionStyleAttr(styles, extra) {
+    const vars = extra ? [extra] : [];
     if (styles.background) vars.push(`background:${styles.background}`);
     if (styles.text_color) vars.push(`--text-heading:${styles.text_color}`);
     if (styles.accent_color) vars.push(`--accent-primary:${styles.accent_color}`);
@@ -827,7 +857,7 @@
 
   function renderProblem(c, s = {}, id) {
     return `
-      <section id="${id}" class="container copy-center${revealClass(s)}" style="max-width:680px;"${sectionStyleAttr(s)}>
+      <section id="${id}" class="container copy-center${revealClass(s)}"${sectionStyleAttr(s, 'max-width:680px')}>
         <h2>${esc(c.headline || '')}</h2>
         <p style="font-size:16px;">${esc(c.body || '')}</p>
       </section>
@@ -910,7 +940,7 @@
       `;
     }
     return `
-      <section id="${id}" class="container copy-center${revealClass(s)}" style="max-width:680px;"${sectionStyleAttr(s)}>
+      <section id="${id}" class="container copy-center${revealClass(s)}"${sectionStyleAttr(s, 'max-width:680px')}>
         <h2>${esc(c.headline || '')}</h2>
         ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" style="border-radius:16px;margin:0 auto 24px;">` : ''}
         <p style="font-size:16px;">${esc(c.description || '')}</p>
@@ -1020,7 +1050,7 @@
       </details>
     `).join('');
     return `
-      <section id="${id}" class="container${revealClass(s)}" style="max-width:680px;"${sectionStyleAttr(s)}>
+      <section id="${id}" class="container${revealClass(s)}"${sectionStyleAttr(s, 'max-width:680px')}>
         <h2>${esc(c.headline || '')}</h2>
         ${items}
       </section>
