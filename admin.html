@@ -9,1671 +9,1126 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js"></script>
 <style>
-  html,body{ background:var(--black); }
-  .admin-wrap{ max-width:640px; margin:0 auto; padding:20px 16px calc(40px + env(safe-area-inset-bottom)); }
+  :root{
+    --bg:#0a0a0c; --panel:#121216; --panel-2:#17171c; --line:#22222a; --line-soft:#1b1b21;
+    --white:#f2f2f0; --dim:#9a9aa4; --dimmer:#65656f;
+    --accent:#4d7cff; --accent-dim:#2a3a66;
+    --gold:#ffd479; --blue:#7fb2ff; --purple:#c98bff; --green:#7ee0a8; --red:#ff8b8b;
+    --font-display:'Space Grotesk',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--bg); color:var(--white); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  button,input,select,textarea{ font-family:inherit; }
+  a{ color:var(--accent); }
 
-  /* ---------- Password gate ---------- */
-  .gate{
-    min-height:100svh; min-height:100dvh; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; padding:32px 20px; text-align:center; gap:14px;
+  /* ---------- Login screen ---------- */
+  #login{
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; padding:24px; text-align:center;
   }
-  .gate h1{ font-family:var(--font-display); color:var(--white); font-size:22px; }
-  .gate input{
-    width:100%; max-width:280px; background:var(--graphite-1); border:1px solid var(--line);
-    color:var(--white); padding:12px 14px; font-size:14px; font-family:inherit; border-radius:8px;
+  #login .mark{ font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:.02em; color:var(--white); }
+  #login .mark span{ color:var(--accent); }
+  #login h1{ font-family:var(--font-display); font-size:26px; font-weight:600; margin:0; }
+  #login p{ color:var(--dim); font-size:14px; max-width:320px; margin:0; line-height:1.5; }
+  #login button{
+    margin-top:8px; background:var(--accent); color:#fff; border:none; border-radius:9px;
+    padding:13px 28px; font-size:14px; font-weight:600; cursor:pointer;
   }
-  .gate input:focus{ outline:none; border-color:var(--accent-blue); }
-  .gate button{
-    font-family:var(--font-mono); font-size:12.5px; padding:11px 24px; border-radius:8px;
-    background:var(--white); color:var(--black); border:none; cursor:pointer;
-  }
-  .gate .err{ color:#ff8b8b; font-size:12.5px; min-height:16px; }
+  #login button:hover{ background:#3f6ae0; }
+  #login .err{ color:var(--red); font-size:13px; min-height:16px; }
 
-  /* ---------- Header ---------- */
-  .admin-header{ display:flex; align-items:center; justify-content:space-between; padding:6px 2px 20px; }
-  .admin-header h1{ font-family:var(--font-display); color:var(--white); font-size:19px; }
-  .admin-header span{ font-family:var(--font-mono); font-size:11px; color:var(--silver-dim); }
+  /* ---------- Shell ---------- */
+  #shell{ display:none; min-height:100vh; }
+  .sidebar{
+    width:232px; flex:0 0 232px; background:var(--panel); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; overflow-y:auto;
+  }
+  .sidebar .brand{ padding:22px 20px 18px; font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:.01em; border-bottom:1px solid var(--line); }
+  .sidebar .brand span{ color:var(--accent); }
+  .nav-group{ padding:16px 10px 4px; }
+  .nav-group .nav-label{ font-size:11px; color:var(--dimmer); padding:0 10px 8px; }
+  .nav-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; text-align:left;
+    background:none; border:none; color:var(--dim); font-size:13.5px; padding:9px 10px; border-radius:7px;
+    cursor:pointer; margin-bottom:1px;
+  }
+  .nav-item:hover{ background:var(--panel-2); color:var(--white); }
+  .nav-item.active{ background:var(--accent-dim); color:var(--white); }
+  .nav-item .count{ font-family:var(--font-mono); font-size:11px; color:var(--dimmer); }
+  .nav-item.active .count{ color:var(--accent); }
+  .sidebar .who{ margin-top:auto; padding:16px 20px; border-top:1px solid var(--line); }
+  .sidebar .who .email{ font-size:12.5px; color:var(--dim); word-break:break-all; margin-bottom:8px; }
+  .sidebar .who button{
+    font-size:12px; color:var(--dimmer); background:none; border:1px solid var(--line); border-radius:6px;
+    padding:6px 10px; cursor:pointer;
+  }
+  .sidebar .who button:hover{ color:var(--white); border-color:var(--dim); }
 
-  /* ---------- Section switch (Projects / Catalog) ---------- */
-  .section-switch{ display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
-  .section-switch button{
-    flex:1; font-family:var(--font-mono); font-size:12px; letter-spacing:.03em; text-transform:uppercase;
-    padding:10px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--silver);
-    cursor:pointer;
-  }
-  .section-switch button.active{ background:var(--white); color:var(--black); border-color:var(--white); }
+  main{ margin-left:232px; padding:28px 36px calc(60px + env(safe-area-inset-bottom)); max-width:1180px; }
+  .page-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+  .page-head h1{ font-family:var(--font-display); font-size:23px; font-weight:600; margin:0; }
+  .page-head .sub{ color:var(--dim); font-size:13px; margin-top:4px; }
+  .page-actions{ display:flex; gap:8px; }
 
-  /* ---------- Status / category tabs ---------- */
-  .tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
-  .tabs button{
-    flex:0 0 auto; font-family:var(--font-mono); font-size:11px; letter-spacing:.03em; text-transform:uppercase;
-    padding:7px 13px; border-radius:100px; border:1px solid var(--line); background:transparent; color:var(--silver);
-    cursor:pointer; white-space:nowrap;
+  .btn{
+    font-size:13px; font-weight:500; padding:9px 16px; border-radius:7px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--white); cursor:pointer;
   }
-  .tabs button.active{ background:var(--white); color:var(--black); border-color:var(--white); }
+  .btn:hover{ border-color:var(--dim); }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover{ background:#3f6ae0; }
+  .btn.danger{ background:none; border-color:#4a2222; color:var(--red); }
+  .btn:disabled{ opacity:.5; cursor:default; }
 
-  /* ---------- Cards (projects + services share this look) ---------- */
-  .project-card{
-    border:1px solid var(--line-soft); background:var(--graphite-0); border-radius:12px;
-    padding:16px; margin-bottom:14px;
-  }
-  .project-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
-  .project-card-top h3{ font-family:var(--font-display); color:var(--white); font-size:15.5px; line-height:1.3; }
-  .project-card-top p{ color:var(--silver-dim); font-size:12px; margin-top:2px; }
-  .badge{
-    flex:0 0 auto; font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase;
-    padding:4px 9px; border-radius:100px; border:1px solid var(--line); color:var(--silver); margin-left:6px;
-  }
-  .badge.paid{ color:#ffd479; border-color:#4a3f22; }
-  .badge.in_progress{ color:#7fb2ff; border-color:#22344a; }
-  .badge.review{ color:#c98bff; border-color:#3a224a; }
-  .badge.delivered{ color:#7ee0a8; border-color:#22452f; }
-  .badge.qualified{ color:#7ee0a8; border-color:#22452f; }
-  .badge.needs_more_information{ color:#ffd479; border-color:#4a3f22; }
-  .badge.human_review_required{ color:#ff8b8b; border-color:#4a2222; }
-  .badge.awaiting_admin{ color:#ffd479; border-color:#4a3f22; }
-  .badge.approved{ color:#7ee0a8; border-color:#22452f; }
-  .badge.rejected{ color:#ff8b8b; border-color:#4a2222; }
-  .badge.below_minimum{ color:#8a8f98; border-color:#33363c; }
-  .badge.sub_active{ color:#7ee0a8; border-color:#22452f; }
-  .badge.sub_cancelled{ color:#ff8b8b; border-color:#4a2222; }
+  /* ---------- Stat cards (dashboard only) ---------- */
+  .stats-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:28px; }
+  .stat{ background:var(--panel); padding:18px 18px 16px; }
+  .stat .n{ font-family:var(--font-mono); font-size:26px; font-weight:500; }
+  .stat .l{ font-size:12.5px; color:var(--dim); margin-top:4px; }
 
-  .project-meta{ font-size:12.5px; color:var(--silver); line-height:1.7; margin-bottom:12px; }
-  .project-meta b{ color:var(--off-white); }
+  /* ---------- Table ---------- */
+  .table-wrap{ border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  thead th{
+    text-align:left; font-size:11.5px; color:var(--dimmer); font-weight:500; padding:11px 14px;
+    border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  tbody td{ padding:13px 14px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--panel-2); }
+  td.name{ font-weight:500; }
+  td.name .sub{ color:var(--dim); font-size:12px; margin-top:2px; }
+  td.amount{ font-family:var(--font-mono); font-size:13px; }
 
-  .field{ margin-bottom:10px; }
-  .field label{
-    display:block; font-family:var(--font-mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase;
-    color:var(--silver-dim); margin-bottom:5px;
-  }
-  .field select, .field input, .field textarea{
-    width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
-    padding:9px 11px; font-size:13.5px; font-family:inherit; border-radius:7px;
-  }
-  .field select:focus, .field input:focus, .field textarea:focus{ outline:none; border-color:var(--accent-blue); }
-  .field textarea{ resize:vertical; min-height:52px; }
-  .field.checks{ display:flex; flex-wrap:wrap; gap:14px; }
-  .field.checks label{
-    display:flex; align-items:center; gap:6px; font-family:inherit; text-transform:none;
-    letter-spacing:0; font-size:13px; color:var(--silver); margin-bottom:0;
-  }
-  .field.checks input{ width:auto; }
+  .pill{ display:inline-block; font-size:11.5px; padding:3px 9px; border-radius:100px; border:1px solid var(--line); color:var(--dim); }
+  .pill.paid{ color:var(--gold); border-color:#4a3f22; }
+  .pill.in_progress{ color:var(--blue); border-color:#22344a; }
+  .pill.review, .pill.changes_requested{ color:var(--purple); border-color:#3a224a; }
+  .pill.delivered{ color:var(--green); border-color:#22452f; }
 
-  .project-card-actions{ display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
-  .save-btn{
-    font-family:var(--font-mono); font-size:12px; padding:9px 18px; border-radius:7px;
-    background:var(--white); color:var(--black); border:none; cursor:pointer;
+  .filter-row{ display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .filter-row button{
+    font-family:var(--font-mono); font-size:11.5px; padding:6px 12px; border-radius:100px;
+    border:1px solid var(--line); background:none; color:var(--dim); cursor:pointer;
   }
-  .save-btn:disabled{ opacity:.5; cursor:default; }
-  .save-btn.sub-cancel-btn{ background:transparent; color:#ff8b8b; border:1px solid #4a2222; }
-  .save-btn.sub-reactivate-btn{ background:transparent; color:#7ee0a8; border:1px solid #22452f; }
-  .save-status{ font-size:11.5px; color:var(--silver-dim); }
-  .save-status.ok{ color:#7ee0a8; }
-  .save-status.err{ color:#ff8b8b; }
+  .filter-row button.active{ background:var(--white); color:var(--bg); border-color:var(--white); }
 
-  .empty-state{ text-align:center; color:var(--silver-dim); font-size:13px; padding:40px 20px; }
+  .empty{ padding:50px 20px; text-align:center; color:var(--dim); font-size:13.5px; }
+  .placeholder{ padding:60px 20px; text-align:center; color:var(--dim); font-size:13.5px; border:1px dashed var(--line); border-radius:10px; }
+  .placeholder b{ color:var(--white); display:block; font-size:15px; margin-bottom:6px; font-family:var(--font-display); font-weight:600; }
 
-  .add-btn{
-    display:block; width:100%; font-family:var(--font-mono); font-size:12.5px; padding:12px;
-    border-radius:8px; border:1px dashed var(--line); background:transparent; color:var(--silver);
-    cursor:pointer; margin-bottom:14px;
+  /* ---------- Drawer ---------- */
+  .scrim{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:100; }
+  .scrim.open{ display:block; }
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0; width:420px; max-width:92vw; background:var(--panel);
+    border-left:1px solid var(--line); z-index:101; transform:translateX(100%); transition:transform .22s ease;
+    display:flex; flex-direction:column;
   }
+  .drawer.open{ transform:translateX(0); }
+  .drawer-head{ padding:20px 20px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .drawer-head h2{ font-family:var(--font-display); font-size:16.5px; margin:0; }
+  .drawer-head .sub{ color:var(--dim); font-size:12.5px; margin-top:4px; }
+  .drawer-head button{ background:none; border:none; color:var(--dim); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; }
+  .drawer-body{ flex:1; overflow-y:auto; padding:18px 20px; }
+  .drawer-foot{ padding:16px 20px; border-top:1px solid var(--line); display:flex; align-items:center; gap:10px; }
 
-  /* ---------- Service form sheet ---------- */
-  .scarls-overlay{
-    position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end;
-    justify-content:center; z-index:200;
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; color:var(--dim); margin-bottom:6px; }
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--white);
+    padding:9px 11px; font-size:13.5px; border-radius:7px;
   }
-  .scarls-overlay.is-open{ display:flex; }
-  .scarls-sheet{
-    width:100%; max-width:640px; max-height:92vh; overflow-y:auto; background:var(--graphite-0);
-    border:1px solid var(--line-soft); border-radius:16px 16px 0 0; padding:18px 16px calc(24px + env(safe-area-inset-bottom));
-  }
-  .sheet-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-  .sheet-header h2{ font-family:var(--font-display); color:var(--white); font-size:17px; }
-  .sheet-header button{
-    background:transparent; border:none; color:var(--silver); font-size:22px; line-height:1; cursor:pointer;
-    padding:4px 8px;
-  }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--accent); }
+  .field textarea{ resize:vertical; min-height:60px; }
+  .save-status{ font-size:12px; color:var(--dim); }
+  .save-status.ok{ color:var(--green); }
+  .save-status.err{ color:var(--red); }
 
-  .pkg-row{
-    border:1px solid var(--line-soft); border-radius:9px; padding:10px; margin-bottom:8px;
-    display:flex; flex-direction:column; gap:6px;
-  }
-  .pkg-row input, .pkg-row textarea, .pkg-row select{
-    width:100%; background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
-    padding:8px 10px; font-size:13px; font-family:inherit; border-radius:6px;
-  }
-  .pkg-row textarea{ resize:vertical; min-height:40px; }
-  .pkg-row label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--silver); }
-  .pkg-row .pkg-sub-row{ display:flex; gap:8px; align-items:center; }
-  .pkg-row .pkg-sub-row select{ flex:1; }
-  .pkg-row .p-interval{ width:110px; flex:0 0 110px; }
-  .pkg-remove-btn{
-    align-self:flex-start; background:transparent; border:none; color:#ff8b8b; font-family:var(--font-mono);
-    font-size:11px; cursor:pointer; padding:2px 0;
-  }
+  .drawer.wide{ width:560px; }
+  .drawer-body img.shot{ max-width:100%; border-radius:8px; border:1px solid var(--line); margin-bottom:14px; display:block; }
+  .inline-actions{ display:flex; gap:10px; margin-top:4px; }
+  .pkg-item{ border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
+  .pkg-item .remove{ font-size:11.5px; color:var(--red); background:none; border:none; cursor:pointer; padding:0; margin-top:6px; }
+  .check-row{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--dim); margin-bottom:10px; }
+  .check-row input{ width:auto; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 </style>
 </head>
 <body>
 
-<div id="gate" class="gate">
-  <h1>SCARLS Admin</h1>
-  <input type="password" id="gatePassword" placeholder="Admin password" autocomplete="current-password">
-  <button type="button" id="gateBtn">Enter</button>
-  <p class="err" id="gateErr"></p>
+<div id="login">
+  <div class="mark">SCARLS<span>•</span>SYSTEMS</div>
+  <h1>Admin</h1>
+  <p>Sign in with your SCARLS admin account to manage projects, the catalog, and everything else.</p>
+  <button type="button" id="loginBtn">Log In</button>
+  <p class="err" id="loginErr"></p>
 </div>
 
-<div id="adminWrap" class="admin-wrap" style="display:none;">
-  <div class="admin-header">
-    <h1 id="sectionTitle">Projects</h1>
-    <span id="projectCount">—</span>
-  </div>
-
-  <div class="section-switch" id="sectionSwitch">
-    <button type="button" data-section="projects" class="active">Projects</button>
-    <button type="button" data-section="assessments">Assessments</button>
-    <button type="button" data-section="budget">Budget Requests</button>
-    <button type="button" data-section="aiquotes">AI Quotes</button>
-    <button type="button" data-section="catalog">Catalog</button>
-    <button type="button" data-section="discounts">Discounts</button>
-    <button type="button" data-section="sales">Sales</button>
-    <button type="button" data-section="tickets">Tickets</button>
-    <button type="button" data-section="manualpay">Manual Payments</button>
-  </div>
-
-  <div id="projectsSection">
-    <div class="tabs" id="tabs"></div>
-    <div id="projectList"></div>
-  </div>
-
-  <div id="assessmentsSection" style="display:none;">
-    <div id="assessmentList"></div>
-  </div>
-
-  <div id="budgetSection" style="display:none;">
-    <div id="budgetList"></div>
-  </div>
-
-  <div id="aiquotesSection" style="display:none;">
-    <div id="aiQuoteList"></div>
-  </div>
-
-  <div id="catalogSection" style="display:none;">
-    <button type="button" class="add-btn" id="addServiceBtn">+ Add Service</button>
-    <div class="tabs" id="catTabs"></div>
-    <div id="serviceList"></div>
-  </div>
-
-  <div id="discountsSection" style="display:none;">
-    <button type="button" class="add-btn" id="addDiscountBtn">+ Add Discount Code</button>
-    <div id="discountList"></div>
-  </div>
-
- <div id="salesSection" style="display:none;">
-    <div class="field" style="margin-bottom:16px;">
-      <label>Popup frequency (how often the sale popup shows to visitors)</label>
-      <select id="popupFrequencySelect">
-        <option value="always">Every page load / refresh</option>
-        <option value="once_per_session">Once per visit (until they close the tab)</option>
-        <option value="hours:1">Once every 1 hour</option>
-        <option value="hours:3">Once every 3 hours</option>
-        <option value="hours:12">Once every 12 hours</option>
-        <option value="hours:24">Once every 24 hours</option>
-      </select>
+<div id="shell">
+  <div class="sidebar">
+    <div class="brand">SCARLS<span>•</span>SYSTEMS</div>
+    <div class="nav-group">
+      <nav id="navList"></nav>
     </div>
-    <button type="button" class="add-btn" id="addSaleBtn">+ Add Sale Period</button>
-    <div id="saleList"></div>
+    <div class="who">
+      <div class="email" id="whoEmail"></div>
+      <button type="button" id="logoutBtn">Log out</button>
+    </div>
   </div>
 
-  <div id="ticketsSection" style="display:none;">
-    <div class="tabs" id="ticketTabs"></div>
-    <div id="ticketList"></div>
-  </div>
-
-  <div id="manualpaySection" style="display:none;">
-    <div class="tabs" id="manualpayTabs"></div>
-    <div id="manualpayList"></div>
-  </div>
+  <main>
+    <div class="page-head">
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <div class="sub" id="pageSub"></div>
+      </div>
+      <div class="page-actions" id="pageActions"></div>
+    </div>
+    <div id="pageBody"></div>
+  </main>
 </div>
 
-<div class="scarls-overlay" id="serviceFormOverlay">
-  <div class="scarls-sheet" id="serviceFormSheet">
-    <div class="sheet-header">
-      <h2 id="serviceFormTitle">Add Service</h2>
-      <button type="button" id="serviceFormClose" aria-label="Close">&times;</button>
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <h2 id="drawerTitle">—</h2>
+      <div class="sub" id="drawerSub"></div>
     </div>
-    <div id="serviceFormBody"></div>
+    <button type="button" id="drawerClose">&times;</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-foot">
+    <button type="button" class="btn primary" id="drawerSave">Save</button>
+    <span class="save-status" id="drawerStatus"></span>
   </div>
 </div>
 
 <script>
 (function () {
-  var SCARLS_FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxho_eYGdD2g3OXzc2IzCEh2hqsDeH2Zonoi9RenZanSoz0uqo7uxcqP8rDK0lnC_f/exec";
-
-  // NOTE (migration): Projects now reads/writes through Supabase Edge
-  // Functions (admin-list-projects / admin-update-project) instead of
-  // the old Apps Script endpoint above — that endpoint no longer has
-  // any visibility into orders created since checkout moved to
-  // Supabase. Assessments / Budget Requests / AI Quotes / Catalog
-  // still use SCARLS_FORM_ENDPOINT for now, pending their own migration.
+  var AUTH0_DOMAIN = "dev-hfdnqk0f75wdsch3.us.auth0.com";
+  var AUTH0_CLIENT_ID = "jZ4IrFdLu4Z5TbpwuXWUVqpDpBZ4oUsL";
+  var AUTH0_AUDIENCE = "https://api.scarlssystems.com/admin";
   var SUPABASE_URL = "https://zpytjifbhaxniuliopvp.supabase.co";
-  var SUPABASE_FUNCTIONS_BASE = SUPABASE_URL + "/functions/v1";
+  var FN = SUPABASE_URL + "/functions/v1";
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpweXRqaWZiaGF4bml1bGlvcHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyOTMyNjgsImV4cCI6MjEwMzg2OTI2OH0.QFGo9feUbsle_fGxNZvxMaBuRQzS55RKF2_i0oL0LYQ";
 
-  var STATUS_LABELS = { paid: "Paid", in_progress: "In progress", review: "Review", delivered: "Delivered" };
-  var SUB_STATUS_LABELS = { active: "Active", cancelled: "Cancelled" };
-
-  var gate = document.getElementById('gate');
-  var gatePassword = document.getElementById('gatePassword');
-  var gateBtn = document.getElementById('gateBtn');
-  var gateErr = document.getElementById('gateErr');
-  var adminWrap = document.getElementById('adminWrap');
-  var sectionTitle = document.getElementById('sectionTitle');
-  var countEl = document.getElementById('projectCount');
-
-  var password = sessionStorage.getItem('scarls_admin_pw') || '';
-
-  function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str).replace(/[&<>"']/g, function (m) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
-    });
-  }
-
-  function formatDay(value) {
-    var d = new Date(value);
-    return isNaN(d) ? String(value) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-
-  /* ============================================================
-     Gate
-     ============================================================ */
-
-  function tryLoad(pw) {
-    // UPDATED: now calls the Supabase admin-list-projects function
-    // instead of the old Apps Script ?action=adminList endpoint.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-projects?password=' + encodeURIComponent(pw), {
-      headers: {
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) {
-          gateErr.textContent = (data && data.error) ? data.error : 'Could not load projects.';
-          sessionStorage.removeItem('scarls_admin_pw');
-          return;
-        }
-        password = pw;
-        sessionStorage.setItem('scarls_admin_pw', pw);
-        allProjects = data.projects || [];
-        if (data.statuses && data.statuses.length) statuses = data.statuses;
-        gate.style.display = 'none';
-        adminWrap.style.display = 'block';
-        renderTabs();
-        renderList();
-      })
-      .catch(function () {
-        gateErr.textContent = 'Could not reach the server. Check your connection.';
-      });
-  }
-
-  gateBtn.addEventListener('click', function () {
-    var pw = gatePassword.value.trim();
-    if (!pw) return;
-    gateErr.textContent = '';
-    gateBtn.disabled = true;
-    gateBtn.textContent = 'Checking…';
-    tryLoad(pw);
-    setTimeout(function () { gateBtn.disabled = false; gateBtn.textContent = 'Enter'; }, 1200);
-  });
-  gatePassword.addEventListener('keydown', function (e) { if (e.key === 'Enter') gateBtn.click(); });
-
-  /* ============================================================
-     Section switch
-     ============================================================ */
-
-  var sectionSwitch = document.getElementById('sectionSwitch');
-  var projectsSection = document.getElementById('projectsSection');
-  var assessmentsSection = document.getElementById('assessmentsSection');
-  var budgetSection = document.getElementById('budgetSection');
-  var aiquotesSection = document.getElementById('aiquotesSection');
-  var catalogSection = document.getElementById('catalogSection');
-  var discountsSection = document.getElementById('discountsSection');
-  var salesSection = document.getElementById('salesSection');
-  var ticketsSection = document.getElementById('ticketsSection');
-  var manualpaySection = document.getElementById('manualpaySection');
-  var discountsLoaded = false, salesLoaded = false, ticketsLoaded = false, manualpayLoaded = false;
-  var assessmentsLoaded = false;
-  var budgetLoaded = false;
-  var aiQuotesLoaded = false;
-
-  Array.prototype.forEach.call(sectionSwitch.querySelectorAll('button'), function (btn) {
-    btn.addEventListener('click', function () {
-      Array.prototype.forEach.call(sectionSwitch.querySelectorAll('button'), function (b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      var section = btn.getAttribute('data-section');
-      projectsSection.style.display = section === 'projects' ? '' : 'none';
-      assessmentsSection.style.display = section === 'assessments' ? '' : 'none';
-      budgetSection.style.display = section === 'budget' ? '' : 'none';
-      aiquotesSection.style.display = section === 'aiquotes' ? '' : 'none';
-      catalogSection.style.display = section === 'catalog' ? '' : 'none';
-      discountsSection.style.display = section === 'discounts' ? '' : 'none';
-      salesSection.style.display = section === 'sales' ? '' : 'none';
-      ticketsSection.style.display = section === 'tickets' ? '' : 'none';
-      manualpaySection.style.display = section === 'manualpay' ? '' : 'none';
-
-      if (section === 'projects') {
-        sectionTitle.textContent = 'Projects';
-        countEl.textContent = allProjects.length + (allProjects.length === 1 ? ' project' : ' projects');
-      } else if (section === 'assessments') {
-        sectionTitle.textContent = 'Assessments';
-        countEl.textContent = allAssessments.length + (allAssessments.length === 1 ? ' assessment' : ' assessments');
-        if (!assessmentsLoaded) loadAssessments();
-      } else if (section === 'budget') {
-        sectionTitle.textContent = 'Budget Requests';
-        countEl.textContent = allBudgetRequests.length + (allBudgetRequests.length === 1 ? ' request' : ' requests');
-        if (!budgetLoaded) loadBudgetRequests();
-      } else if (section === 'aiquotes') {
-        sectionTitle.textContent = 'AI Quotes';
-        countEl.textContent = allAiQuotes.length + (allAiQuotes.length === 1 ? ' quote' : ' quotes');
-        if (!aiQuotesLoaded) loadAiQuotes();
-      } else if (section === 'catalog') {
-        sectionTitle.textContent = 'Catalog';
-        countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
-        if (!catalogLoaded) loadCatalog();
-      } else if (section === 'discounts') {
-        sectionTitle.textContent = 'Discounts';
-        if (!discountsLoaded) loadDiscounts();
-      } else if (section === 'sales') {
-        sectionTitle.textContent = 'Sale Periods';
-        if (!salesLoaded) loadSales();
-        loadPopupFrequency();
- 
-      } else if (section === 'tickets') {
-        sectionTitle.textContent = 'Support Tickets';
-        if (!ticketsLoaded) loadTickets();
-      } else {
-        sectionTitle.textContent = 'Manual Payments';
-        if (!manualpayLoaded) loadManualPayments();
-      }
-    });
-  });
-
-  /* ============================================================
-     PROJECTS
-     ============================================================ */
-
-  var tabsEl = document.getElementById('tabs');
-  var listEl = document.getElementById('projectList');
-
+  var auth0Client = null;
   var allProjects = [];
-  var statuses = ["paid", "in_progress", "review", "delivered"];
-  var activeTab = "all";
+  var projectFilter = "all";
+  var currentSection = "dashboard";
 
-  function renderTabs() {
-    var tabs = ["all"].concat(statuses);
-    tabsEl.innerHTML = tabs.map(function (t) {
-      var label = t === "all" ? "All" : (STATUS_LABELS[t] || t);
-      return '<button type="button" data-tab="' + t + '" class="' + (t === activeTab ? 'active' : '') + '">' + escapeHtml(label) + '</button>';
-    }).join('');
-    Array.prototype.forEach.call(tabsEl.querySelectorAll('button'), function (btn) {
-      btn.addEventListener('click', function () {
-        activeTab = btn.getAttribute('data-tab');
-        renderTabs();
-        renderList();
-      });
+  var SECTIONS = [
+    { id: "dashboard", label: "Dashboard", wired: true },
+    { id: "projects", label: "Projects", wired: true },
+    { id: "assessments", label: "Assessments", wired: true },
+    { id: "budget", label: "Budget Requests", wired: true },
+    { id: "aiquotes", label: "AI Quotes", wired: true },
+    { id: "catalog", label: "Catalog", wired: true },
+    { id: "discounts", label: "Discounts", wired: true },
+    { id: "sales", label: "Sales", wired: true },
+    { id: "tickets", label: "Tickets", wired: true },
+    { id: "manualpay", label: "Manual Payments", wired: true },
+    { id: "settings", label: "Settings", wired: true },
+  ];
+
+  var allAssessments = [], allBudgetRequests = [], allAiQuotes = [];
+  var catalogData = { categories: [], services: [] }, catalogLoaded = false, catalogCatFilter = "all";
+  var allDiscounts = [], discountsLoaded = false;
+  var allSales = [], salesLoaded = false;
+  var allTickets = [], ticketsLoaded = false, ticketTab = "open";
+  var allManualPayments = [], manualpayLoaded = false, manualpayTab = "pending";
+  var settingsLoaded = false, settingsValues = {};
+
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s).replace(/[&<>"']/g, function (m) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+    });
+  }
+  function fmtDay(v) {
+    if (!v) return "";
+    var d = new Date(v);
+    return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  }
+  var STATUS_LABELS = { paid: "Paid", brief: "Brief", in_progress: "In progress", review: "Review", changes_requested: "Changes requested", delivered: "Delivered" };
+
+  /* ---------------- Auth0 ---------------- */
+
+  async function initAuth0() {
+    auth0Client = await auth0.createAuth0Client({
+      domain: AUTH0_DOMAIN,
+      clientId: AUTH0_CLIENT_ID,
+      authorizationParams: { redirect_uri: window.location.origin + window.location.pathname, audience: AUTH0_AUDIENCE },
+    });
+
+    var query = window.location.search;
+    if (query.includes("code=") && query.includes("state=")) {
+      try { await auth0Client.handleRedirectCallback(); } catch (e) { showLoginError("Login failed: " + e.message); }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    var isAuthenticated = await auth0Client.isAuthenticated();
+    if (isAuthenticated) {
+      var user = await auth0Client.getUser();
+      document.getElementById("whoEmail").textContent = user.email || "";
+      document.getElementById("login").style.display = "none";
+      document.getElementById("shell").style.display = "flex";
+      renderNav();
+      goTo("dashboard");
+    }
+  }
+
+  function showLoginError(msg) {
+    document.getElementById("loginErr").textContent = msg;
+  }
+
+  async function getToken() {
+    return auth0Client.getTokenSilently();
+  }
+
+  async function authedFetch(path, opts) {
+    opts = opts || {};
+    var token = await getToken();
+    var headers = Object.assign({ "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + token }, opts.headers || {});
+    var res = await fetch(FN + path, Object.assign({}, opts, { headers: headers }));
+    var data = await res.json();
+    return { status: res.status, data: data };
+  }
+
+  document.getElementById("loginBtn").addEventListener("click", function () {
+    showLoginError("");
+    auth0Client.loginWithRedirect();
+  });
+  document.getElementById("logoutBtn").addEventListener("click", function () {
+    auth0Client.logout({ logoutParams: { returnTo: window.location.origin + window.location.pathname } });
+  });
+
+  /* ---------------- Nav / routing ---------------- */
+
+  function renderNav() {
+    var navList = document.getElementById("navList");
+    navList.innerHTML = SECTIONS.map(function (s) {
+      var count = s.id === "projects" ? allProjects.length : null;
+      return '<button type="button" class="nav-item" data-section="' + s.id + '">' +
+        '<span>' + escapeHtml(s.label) + '</span>' +
+        (count != null ? '<span class="count">' + count + '</span>' : '') +
+        '</button>';
+    }).join("");
+    Array.prototype.forEach.call(navList.querySelectorAll(".nav-item"), function (btn) {
+      btn.addEventListener("click", function () { goTo(btn.getAttribute("data-section")); });
+    });
+    highlightNav();
+  }
+  function highlightNav() {
+    Array.prototype.forEach.call(document.querySelectorAll(".nav-item"), function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-section") === currentSection);
     });
   }
 
-  function renderList() {
-    var filtered = activeTab === "all" ? allProjects : allProjects.filter(function (p) { return p.status === activeTab; });
-    countEl.textContent = filtered.length + (filtered.length === 1 ? ' project' : ' projects');
+  function goTo(sectionId) {
+    currentSection = sectionId;
+    highlightNav();
+    var section = SECTIONS.filter(function (s) { return s.id === sectionId; })[0];
+    document.getElementById("pageTitle").textContent = section ? section.label : sectionId;
+    document.getElementById("pageActions").innerHTML = "";
+    document.getElementById("pageSub").textContent = "";
 
-    if (!filtered.length) {
-      listEl.innerHTML = '<div class="empty-state">Nothing here yet.</div>';
+    drawer.classList.remove("wide");
+
+    if (sectionId === "dashboard") renderDashboard();
+    else if (sectionId === "projects") renderProjectsSection();
+    else if (sectionId === "assessments") renderAssessmentsSection();
+    else if (sectionId === "budget") renderBudgetSection();
+    else if (sectionId === "aiquotes") renderAiQuotesSection();
+    else if (sectionId === "catalog") renderCatalogSection();
+    else if (sectionId === "discounts") renderDiscountsSection();
+    else if (sectionId === "sales") renderSalesSection();
+    else if (sectionId === "tickets") renderTicketsSection();
+    else if (sectionId === "manualpay") renderManualPaySection();
+    else if (sectionId === "settings") renderSettingsSection();
+    else renderPlaceholder(section.label);
+  }
+
+  function setDrawerFooter(mode, label) {
+    var btn = document.getElementById("drawerSave");
+    if (mode === "none") { btn.style.display = "none"; }
+    else { btn.style.display = ""; btn.textContent = label || "Save"; }
+  }
+
+  function renderPlaceholder(label) {
+    document.getElementById("pageSub").textContent = "Part of the rebuild — not wired up yet.";
+    document.getElementById("pageBody").innerHTML =
+      '<div class="placeholder"><b>' + escapeHtml(label) + ' is next</b>This section is being rebuilt in the same style as Projects. It isn\'t broken — it just hasn\'t been ported over yet.</div>';
+  }
+
+  /* ---------------- Dashboard ---------------- */
+
+  function renderDashboard() {
+    document.getElementById("pageSub").textContent = "A quick look at what needs attention.";
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+
+    loadProjects(function () {
+      var paid = allProjects.filter(function (p) { return p.status === "paid"; }).length;
+      var inProgress = allProjects.filter(function (p) { return p.status === "in_progress"; }).length;
+      var review = allProjects.filter(function (p) { return p.status === "review" || p.status === "changes_requested"; }).length;
+
+      document.getElementById("pageBody").innerHTML =
+        '<div class="stats-row">' +
+          stat(allProjects.length, "Total projects") +
+          stat(paid, "Awaiting brief") +
+          stat(inProgress, "In progress") +
+          stat(review, "Awaiting your review") +
+        '</div>' +
+        (review > 0
+          ? '<div class="placeholder" style="text-align:left;padding:18px 20px;"><b style="margin-bottom:2px;">' + review + ' project' + (review === 1 ? "" : "s") + ' waiting on you</b>Open Projects to review and move them forward.</div>'
+          : '<div class="placeholder"><b>Nothing urgent right now</b>Everything in Projects is up to date.</div>');
+    });
+  }
+  function stat(n, label) {
+    return '<div class="stat"><div class="n">' + n + '</div><div class="l">' + escapeHtml(label) + '</div></div>';
+  }
+
+  /* ---------------- Projects ---------------- */
+
+  function loadProjects(cb) {
+    authedFetch("/admin-list-projects").then(function (r) {
+      if (r.data && r.data.ok) {
+        allProjects = r.data.projects || [];
+        renderNav();
+      }
+      if (cb) cb();
+    });
+  }
+
+  function renderProjectsSection() {
+    document.getElementById("pageSub").textContent = allProjects.length + (allProjects.length === 1 ? " project" : " projects");
+    if (!allProjects.length) {
+      document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+      loadProjects(renderProjectsSection);
       return;
     }
+    drawProjectsTable();
+  }
 
-    listEl.innerHTML = filtered.map(function (p) {
-      var statusOptions = statuses.map(function (s) {
-        return '<option value="' + s + '"' + (s === p.status ? ' selected' : '') + '>' + escapeHtml(STATUS_LABELS[s] || s) + '</option>';
-      }).join('');
+  function drawProjectsTable() {
+    var statuses = ["all", "paid", "brief", "in_progress", "review", "changes_requested", "delivered"];
+    var filtered = projectFilter === "all" ? allProjects : allProjects.filter(function (p) { return p.status === projectFilter; });
 
-      var isSub = p.pricingModel === 'subscription';
-      var subBadge = isSub
-        ? '<span class="badge sub_' + escapeHtml(p.subscriptionStatus || 'active') + '">' + escapeHtml(SUB_STATUS_LABELS[p.subscriptionStatus] || p.subscriptionStatus || 'active') + '</span>'
-        : '';
-      var subLine = isSub
-        ? '<br><b>Subscription:</b> ' + escapeHtml(SUB_STATUS_LABELS[p.subscriptionStatus] || p.subscriptionStatus || 'active') +
-          (p.nextRenewalAt && p.subscriptionStatus !== 'cancelled' ? ' · next charge ' + escapeHtml(formatDay(p.nextRenewalAt)) : '')
-        : '';
-      var subToggleBtn = isSub
-        ? (p.subscriptionStatus === 'cancelled'
-            ? '<button type="button" class="save-btn sub-reactivate-btn">Reactivate Subscription</button>'
-            : '<button type="button" class="save-btn sub-cancel-btn">Cancel Subscription</button>')
-        : '';
+    var filterRow = '<div class="filter-row">' + statuses.map(function (s) {
+      var label = s === "all" ? "All" : (STATUS_LABELS[s] || s);
+      return '<button type="button" data-f="' + s + '" class="' + (s === projectFilter ? "active" : "") + '">' + escapeHtml(label) + '</button>';
+    }).join("") + '</div>';
 
-      return (
-        '<div class="project-card" data-id="' + escapeHtml(p.projectId) + '">' +
-          '<div class="project-card-top">' +
-            '<div>' +
-              '<h3>' + escapeHtml(p.fullName) + (p.businessName ? ' · ' + escapeHtml(p.businessName) : '') + '</h3>' +
-              '<p>' + escapeHtml(p.serviceName) + (p.packageName ? ' — ' + escapeHtml(p.packageName) : '') + '</p>' +
-            '</div>' +
-            '<div>' +
-              '<span class="badge ' + escapeHtml(p.status) + '">' + escapeHtml(STATUS_LABELS[p.status] || p.status) + '</span>' +
-              subBadge +
-            '</div>' +
-          '</div>' +
-          '<div class="project-meta">' +
-            '<b>₦' + Number(p.amount || 0).toLocaleString() + '</b>' + (p.pricingModel === 'subscription' ? '/mo' : '') + '<br>' +
-            escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) + '<br>' +
-            'Ref: ' + escapeHtml(p.orderReference) +
-            subLine +
-            (p.deliveryConfirmedAt ? '<br><span style="color:#7ee0a8;">Delivery confirmed on ' + escapeHtml(formatDay(p.deliveryConfirmedAt)) + '</span>' : '') +
-          '</div>' +
-          '<div class="field"><label>Status</label><select class="f-status">' + statusOptions + '</select></div>' +
-          '<div class="field"><label>Assigned to</label><input class="f-assignedTo" type="text" value="' + escapeHtml(p.assignedTo || '') + '" placeholder="Intern / team member name"></div>' +
-          '<div class="field"><label>Due date</label><input class="f-dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : '') + '"></div>' +
-          '<div class="field"><label>Site link — the real, permanent address (powers the preview below, shown directly once Delivered)</label><input class="f-deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || '') + '" placeholder="Link to the finished work"></div>' +
-          '<div class="field"><label>Magic preview link — auto-generated, shown to the customer at Review</label>' +
-            '<div style="display:flex;gap:8px;">' +
-              '<input class="f-previewLink" type="text" value="' + escapeHtml(p.previewLink || '') + '" placeholder="Fill in the Site link above first" readonly style="flex:1;">' +
-              (p.previewLink ? '<button type="button" class="save-btn copy-preview-btn" style="flex:0 0 auto;">Copy</button>' : '') +
-            '</div></div>' +
-          '<div class="field"><label>Notes</label><textarea class="f-notes" placeholder="Internal notes">' + escapeHtml(p.notes || '') + '</textarea></div>' +
-          '<div class="project-card-actions">' +
-            '<button type="button" class="save-btn">Save</button>' +
-            subToggleBtn +
-            '<span class="save-status"></span>' +
-          '</div>' +
-        '</div>'
-      );
-    }).join('');
+    var body = filtered.length
+      ? '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Amount</th><th>Due</th></tr></thead><tbody>' +
+        filtered.map(function (p) {
+          return '<tr data-id="' + escapeHtml(p.projectId) + '">' +
+            '<td class="name">' + escapeHtml(p.fullName) + (p.businessName ? '<div class="sub">' + escapeHtml(p.businessName) + '</div>' : '') + '</td>' +
+            '<td>' + escapeHtml(p.serviceName) + (p.packageName ? '<div class="sub">' + escapeHtml(p.packageName) + '</div>' : '') + '</td>' +
+            '<td><span class="pill ' + escapeHtml(p.status) + '">' + escapeHtml(STATUS_LABELS[p.status] || p.status) + '</span></td>' +
+            '<td class="amount">\u20a6' + Number(p.amount || 0).toLocaleString() + (p.pricingModel === "subscription" ? "/mo" : "") + '</td>' +
+            '<td>' + escapeHtml(fmtDay(p.dueDate)) + '</td>' +
+            '</tr>';
+        }).join("") + '</tbody></table></div>'
+      : '<div class="empty">Nothing in this view.</div>';
 
-    Array.prototype.forEach.call(listEl.querySelectorAll('.project-card'), function (card) {
-      var saveBtn = card.querySelector('.save-btn:not(.copy-preview-btn):not(.sub-cancel-btn):not(.sub-reactivate-btn)');
-      var saveStatus = card.querySelector('.save-status');
-      var copyBtn = card.querySelector('.copy-preview-btn');
-      if (copyBtn) copyBtn.addEventListener('click', function () {
-        var val = card.querySelector('.f-previewLink').value;
-        if (!val) return;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(val).then(function () {
-            copyBtn.textContent = 'Copied';
-            setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1200);
-          }, function () { window.prompt('Copy this link:', val); });
+    document.getElementById("pageBody").innerHTML = filterRow + body;
+
+    Array.prototype.forEach.call(document.querySelectorAll(".filter-row button"), function (btn) {
+      btn.addEventListener("click", function () { projectFilter = btn.getAttribute("data-f"); drawProjectsTable(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openProjectDrawer(row.getAttribute("data-id")); });
+    });
+  }
+
+  var scrim = document.getElementById("scrim");
+  var drawer = document.getElementById("drawer");
+  function closeDrawer() { scrim.classList.remove("open"); drawer.classList.remove("open"); }
+  scrim.addEventListener("click", closeDrawer);
+  document.getElementById("drawerClose").addEventListener("click", closeDrawer);
+
+  function openProjectDrawer(projectId) {
+    var p = allProjects.filter(function (x) { return x.projectId === projectId; })[0];
+    if (!p) return;
+
+    document.getElementById("drawerTitle").textContent = p.fullName + (p.businessName ? " · " + p.businessName : "");
+    document.getElementById("drawerSub").textContent = p.serviceName + (p.packageName ? " — " + p.packageName : "") + " · " + p.email;
+
+    var statusOptions = ["paid", "brief", "in_progress", "review", "changes_requested", "delivered"].map(function (s) {
+      return '<option value="' + s + '"' + (s === p.status ? " selected" : "") + '>' + escapeHtml(STATUS_LABELS[s] || s) + '</option>';
+    }).join("");
+
+    var isSub = p.pricingModel === "subscription";
+
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Status</label><select id="d_status">' + statusOptions + '</select></div>' +
+      '<div class="field"><label>Assigned to</label><input id="d_assignedTo" type="text" value="' + escapeHtml(p.assignedTo || "") + '" placeholder="Team member name"></div>' +
+      '<div class="field"><label>Due date</label><input id="d_dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : "") + '"></div>' +
+      '<div class="field"><label>Delivered site link</label><input id="d_deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || "") + '" placeholder="https://..."></div>' +
+      '<div class="field"><label>Notes</label><textarea id="d_notes" placeholder="Internal notes">' + escapeHtml(p.notes || "") + '</textarea></div>' +
+      (isSub
+        ? '<div class="field"><label>Subscription</label><button type="button" class="btn' + (p.subscriptionStatus === "cancelled" ? "" : " danger") + '" id="d_subToggle" style="width:100%;">' +
+          (p.subscriptionStatus === "cancelled" ? "Reactivate subscription" : "Cancel subscription") + '</button></div>'
+        : "");
+
+    document.getElementById("drawerStatus").textContent = "";
+
+    document.getElementById("drawerSave").onclick = function () {
+      var payload = {
+        projectId: projectId,
+        status: document.getElementById("d_status").value,
+        assignedTo: document.getElementById("d_assignedTo").value.trim(),
+        dueDate: document.getElementById("d_dueDate").value,
+        deliveryLink: document.getElementById("d_deliveryLink").value.trim(),
+        notes: document.getElementById("d_notes").value.trim(),
+      };
+      saveProject(payload);
+    };
+
+    var subBtn = document.getElementById("d_subToggle");
+    if (subBtn) subBtn.onclick = function () {
+      var next = p.subscriptionStatus === "cancelled" ? "active" : "cancelled";
+      var msg = next === "cancelled" ? "Cancel this subscription? No further charges will be attempted." : "Reactivate this subscription?";
+      if (!confirm(msg)) return;
+      saveProject({ projectId: projectId, subscriptionStatus: next });
+    };
+
+    scrim.classList.add("open");
+    drawer.classList.add("open");
+  }
+
+  function saveProject(payload) {
+    var statusEl = document.getElementById("drawerStatus");
+    var saveBtn = document.getElementById("drawerSave");
+    saveBtn.disabled = true;
+    statusEl.textContent = "Saving…";
+    statusEl.className = "save-status";
+
+    authedFetch("/admin-update-project", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (r) {
+        saveBtn.disabled = false;
+        if (r.data && r.data.ok) {
+          statusEl.textContent = "Saved";
+          statusEl.className = "save-status ok";
+          loadProjects(function () { drawProjectsTable(); closeDrawer(); });
         } else {
-          window.prompt('Copy this link:', val);
+          statusEl.textContent = (r.data && r.data.error) || "Could not save.";
+          statusEl.className = "save-status err";
         }
-      });
-      saveBtn.addEventListener('click', function () {
-        var projectId = card.getAttribute('data-id');
-        var payload = {
-          password: password,
-          projectId: projectId,
-          status: card.querySelector('.f-status').value,
-          assignedTo: card.querySelector('.f-assignedTo').value.trim(),
-          dueDate: card.querySelector('.f-dueDate').value,
-          deliveryLink: card.querySelector('.f-deliveryLink').value.trim(),
-          notes: card.querySelector('.f-notes').value.trim()
-        };
-        saveBtn.disabled = true;
-        saveStatus.textContent = 'Saving…';
-        saveStatus.className = 'save-status';
-
-        // UPDATED: now calls the Supabase admin-update-project function
-        // instead of the old Apps Script endpoint. Note the 'action'
-        // field is no longer needed since this function only does one thing.
-        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-update-project', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-            'apikey': SUPABASE_ANON_KEY
-          },
-          body: JSON.stringify(payload)
-        })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            saveBtn.disabled = false;
-            if (data && data.ok) {
-              saveStatus.textContent = 'Saved';
-              saveStatus.className = 'save-status ok';
-              var local = allProjects.filter(function (p) { return p.projectId === projectId; })[0];
-              if (local) {
-                local.status = payload.status; local.assignedTo = payload.assignedTo;
-                local.dueDate = payload.dueDate; local.deliveryLink = payload.deliveryLink; local.notes = payload.notes;
-              }
-              // The magic preview link only exists once a Site link is set —
-              // reload the list so the (now-editable) Copy button appears.
-              if (payload.deliveryLink && !card.querySelector('.copy-preview-btn')) {
-                tryLoad(password);
-              }
-            } else {
-              saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
-              saveStatus.className = 'save-status err';
-            }
-          })
-          .catch(function () {
-            saveBtn.disabled = false;
-            saveStatus.textContent = 'Network error — try again.';
-            saveStatus.className = 'save-status err';
-          });
-      });
-
-      // NEW: manual subscription cancel / reactivate toggle. Fires
-      // immediately (separate from the main Save button) and cascades to
-      // the underlying order server-side, so the renewal cron respects it.
-      var subBtn = card.querySelector('.sub-cancel-btn, .sub-reactivate-btn');
-      if (subBtn) {
-        subBtn.addEventListener('click', function () {
-          var projectId = card.getAttribute('data-id');
-          var local = allProjects.filter(function (p) { return p.projectId === projectId; })[0];
-          var nextStatus = (local && local.subscriptionStatus === 'cancelled') ? 'active' : 'cancelled';
-          var confirmMsg = nextStatus === 'cancelled'
-            ? 'Cancel this subscription? No further renewal charges will be attempted.'
-            : 'Reactivate this subscription? It will be charged again at its next renewal date.';
-          if (!confirm(confirmMsg)) return;
-
-          subBtn.disabled = true;
-          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-update-project', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-              'apikey': SUPABASE_ANON_KEY
-            },
-            body: JSON.stringify({ password: password, projectId: projectId, subscriptionStatus: nextStatus })
-          })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-              subBtn.disabled = false;
-              if (data && data.ok) {
-                if (local) local.subscriptionStatus = nextStatus;
-                renderList();
-              } else {
-                alert((data && data.error) || 'Could not update subscription.');
-              }
-            })
-            .catch(function () {
-              subBtn.disabled = false;
-              alert('Network error — try again.');
-            });
-        });
-      }
-    });
-  }
-
-  /* ============================================================
-     ASSESSMENTS — human review queue (spec §12/§13)
-     ============================================================ */
-
-  var assessmentListEl = document.getElementById('assessmentList');
-  var allAssessments = [];
-  var CONFIDENCE_LABELS = { qualified: 'Qualified', needs_more_information: 'Needs More Info', human_review_required: 'Human Review Required' };
-  var DECISION_LABELS = { approved: 'Approved', changes_required: 'Changes Required', modified: 'Modified', rejected: 'Rejected' };
-
-  function loadAssessments() {
-    assessmentListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    // UPDATED: now calls the Supabase admin-list-assessments function.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-assessments?password=' + encodeURIComponent(password), {
-      headers: {
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) {
-          assessmentListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load assessments.') + '</div>';
-          return;
-        }
-        assessmentsLoaded = true;
-        allAssessments = data.assessments || [];
-        countEl.textContent = allAssessments.length + (allAssessments.length === 1 ? ' assessment' : ' assessments');
-        renderAssessmentList();
       })
       .catch(function () {
-        assessmentListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
+        saveBtn.disabled = false;
+        statusEl.textContent = "Network error — try again.";
+        statusEl.className = "save-status err";
       });
   }
 
-  function renderAssessmentList() {
-    if (!allAssessments.length) {
-      assessmentListEl.innerHTML = '<div class="empty-state">No completed assessments yet.</div>';
-      return;
+  /* ---------------- Assessments ---------------- */
+
+  var CONFIDENCE_LABELS = { qualified: "Qualified", needs_more_information: "Needs more info", human_review_required: "Needs review" };
+  var DECISION_LABELS = { "": "No decision yet", approved: "Approved", changes_required: "Changes required", modified: "Modified", rejected: "Rejected" };
+
+  function renderAssessmentsSection() {
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-assessments").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allAssessments = r.data.assessments || [];
+      document.getElementById("pageSub").textContent = allAssessments.length + (allAssessments.length === 1 ? " assessment" : " assessments");
+      drawAssessmentsTable();
+    });
+  }
+  function drawAssessmentsTable() {
+    if (!allAssessments.length) { document.getElementById("pageBody").innerHTML = '<div class="empty">No completed assessments yet.</div>'; return; }
+    document.getElementById("pageBody").innerHTML =
+      '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Recommended</th><th>Confidence</th><th>Decision</th></tr></thead><tbody>' +
+      allAssessments.map(function (a, i) {
+        return '<tr data-i="' + i + '"><td class="name">' + escapeHtml(a.fullName) + (a.businessName ? '<div class="sub">' + escapeHtml(a.businessName) + '</div>' : '') + '</td>' +
+          '<td>' + escapeHtml((a.recommendedServices || []).join(", ") || "—") + '</td>' +
+          '<td><span class="pill ' + escapeHtml(a.confidenceState) + '">' + escapeHtml(CONFIDENCE_LABELS[a.confidenceState] || a.confidenceState) + '</span></td>' +
+          '<td>' + escapeHtml(DECISION_LABELS[a.adminDecision || ""] || a.adminDecision) + '</td></tr>';
+      }).join("") + '</tbody></table></div>';
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openAssessmentDrawer(allAssessments[Number(row.getAttribute("data-i"))]); });
+    });
+  }
+  function openAssessmentDrawer(a) {
+    document.getElementById("drawerTitle").textContent = a.fullName + (a.businessName ? " · " + a.businessName : "");
+    document.getElementById("drawerSub").textContent = a.email + (a.whatsapp ? " · " + a.whatsapp : "");
+    var options = ["", "approved", "changes_required", "modified", "rejected"].map(function (d) {
+      return '<option value="' + d + '"' + (d === a.adminDecision ? " selected" : "") + '>' + escapeHtml(DECISION_LABELS[d]) + '</option>';
+    }).join("");
+    document.getElementById("drawerBody").innerHTML =
+      (a.escalationReason ? '<div class="field"><label>Why it was escalated</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(a.escalationReason) + '</div></div>' : "") +
+      (a.mainProblem ? '<div class="field"><label>Main problem</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(a.mainProblem) + '</div></div>' : "") +
+      '<div class="field"><label>Budget · Timeline</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(a.clientBudget || "—") + ' · ' + escapeHtml(a.timeline || "—") + '</div></div>' +
+      '<div class="field"><label>Decision</label><select id="d_decision">' + options + '</select></div>' +
+      '<div class="field"><label>Internal notes</label><textarea id="d_notes">' + escapeHtml(a.adminNotes || "") + '</textarea></div>' +
+      '<div class="field"><label>Message to client (optional)</label><textarea id="d_customerMessage" placeholder="Leave blank for the default message"></textarea></div>';
+    setDrawerFooter("save", "Save decision");
+    document.getElementById("drawerStatus").textContent = "";
+    document.getElementById("drawerSave").onclick = function () {
+      var decision = document.getElementById("d_decision").value;
+      if (!decision) { document.getElementById("drawerStatus").textContent = "Choose a decision first."; document.getElementById("drawerStatus").className = "save-status err"; return; }
+      var payload = { token: a.token, decision: decision, notes: document.getElementById("d_notes").value.trim(), customerMessage: document.getElementById("d_customerMessage").value.trim() };
+      var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
+      btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+      authedFetch("/admin-assessment-decision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(function (r) {
+        btn.disabled = false;
+        if (r.data && r.data.ok) { statusEl.textContent = r.data.warning || "Saved"; statusEl.className = r.data.warning ? "save-status err" : "save-status ok"; a.adminDecision = decision; a.adminNotes = payload.notes; setTimeout(function () { closeDrawer(); drawAssessmentsTable(); }, 500); }
+        else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
+      });
+    };
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+
+  /* ---------------- Budget Requests ---------------- */
+
+  var BUDGET_LABELS = { in_progress: "Chat in progress", awaiting_admin: "Awaiting decision", approved: "Approved", rejected: "Rejected", below_minimum: "Below minimum" };
+
+  function renderBudgetSection() {
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-budget-requests").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allBudgetRequests = r.data.requests || [];
+      document.getElementById("pageSub").textContent = allBudgetRequests.length + (allBudgetRequests.length === 1 ? " request" : " requests");
+      drawBudgetTable();
+    });
+  }
+  function drawBudgetTable() {
+    if (!allBudgetRequests.length) { document.getElementById("pageBody").innerHTML = '<div class="empty">No budget requests yet.</div>'; return; }
+    document.getElementById("pageBody").innerHTML =
+      '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Proposed</th><th>Status</th></tr></thead><tbody>' +
+      allBudgetRequests.map(function (r, i) {
+        var amt = r.proposedAmount ? ("\u20a6" + Number(r.proposedAmount).toLocaleString() + "/" + (r.proposedPeriod || "")) : "—";
+        return '<tr data-i="' + i + '"><td class="name">' + escapeHtml(r.fullName) + '</td><td>' + escapeHtml(r.serviceName) + '</td><td class="amount">' + escapeHtml(amt) + '</td>' +
+          '<td><span class="pill">' + escapeHtml(BUDGET_LABELS[r.status] || r.status) + '</span></td></tr>';
+      }).join("") + '</tbody></table></div>';
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openBudgetDrawer(allBudgetRequests[Number(row.getAttribute("data-i"))]); });
+    });
+  }
+  function openBudgetDrawer(r) {
+    document.getElementById("drawerTitle").textContent = r.fullName;
+    document.getElementById("drawerSub").textContent = r.email + (r.whatsapp ? " · " + r.whatsapp : "");
+    var amt = r.proposedAmount ? ("\u20a6" + Number(r.proposedAmount).toLocaleString() + "/" + (r.proposedPeriod || "")) : "—";
+    var canDecide = r.status === "awaiting_admin";
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Service</label><div style="font-size:13.5px;">' + escapeHtml(r.serviceName) + '</div></div>' +
+      '<div class="field"><label>Proposed budget</label><div style="font-size:13.5px;">' + escapeHtml(amt) + '</div></div>' +
+      (canDecide
+        ? '<div class="inline-actions"><button type="button" class="btn primary" id="b_approve">Approve</button><button type="button" class="btn danger" id="b_reject">Reject</button></div>'
+        : '<div class="field"><label>Status</label><div style="font-size:13.5px;">' + escapeHtml(BUDGET_LABELS[r.status] || r.status) + (r.decisionBy ? " · decided by " + escapeHtml(r.decisionBy) : "") + '</div></div>');
+    setDrawerFooter("none");
+    document.getElementById("drawerStatus").textContent = "";
+    if (canDecide) {
+      ["approve", "reject"].forEach(function (kind) {
+        document.getElementById("b_" + kind).addEventListener("click", function () { decideBudget(r, kind === "approve" ? "approved" : "rejected"); });
+      });
     }
-
-    assessmentListEl.innerHTML = allAssessments.map(function (a) {
-      var decisionOptions = ['', 'approved', 'changes_required', 'modified', 'rejected'].map(function (d) {
-        var label = d ? DECISION_LABELS[d] : 'No decision yet';
-        return '<option value="' + d + '"' + (d === a.adminDecision ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
-      }).join('');
-
-      return (
-        '<div class="project-card" data-token="' + escapeHtml(a.token) + '">' +
-          '<div class="project-card-top">' +
-            '<div>' +
-              '<h3>' + escapeHtml(a.fullName) + (a.businessName ? ' · ' + escapeHtml(a.businessName) : '') + '</h3>' +
-              '<p>' + escapeHtml(a.recommendedServices.join(', ') || 'No recommendation yet') + '</p>' +
-            '</div>' +
-            '<span class="badge ' + escapeHtml(a.confidenceState) + '">' + escapeHtml(CONFIDENCE_LABELS[a.confidenceState] || a.confidenceState) + '</span>' +
-          '</div>' +
-          (a.escalationReason ? '<div class="project-meta"><b>Why it was escalated:</b><br>' + escapeHtml(a.escalationReason) + '</div>' : '') +
-          '<div class="project-meta">' +
-            (a.mainProblem ? '<b>Main problem:</b> ' + escapeHtml(a.mainProblem) + '<br>' : '') +
-            (a.reason ? '<b>Reasoning:</b> ' + escapeHtml(a.reason) + '<br>' : '') +
-            'Budget: ' + escapeHtml(a.clientBudget || '—') + ' · Timeline: ' + escapeHtml(a.timeline || '—') + '<br>' +
-            escapeHtml(a.email) + (a.whatsapp ? ' · ' + escapeHtml(a.whatsapp) : '') +
-          '</div>' +
-          '<div class="field"><label>Decision</label><select class="f-decision">' + decisionOptions + '</select></div>' +
-          '<div class="field"><label>Internal notes</label><textarea class="f-adminNotes" placeholder="Internal notes">' + escapeHtml(a.adminNotes || '') + '</textarea></div>' +
-          '<div class="field"><label>Message to client (optional — used for Changes Required / Rejected emails)</label><textarea class="f-customerMessage" placeholder="Leave blank to use the default message"></textarea></div>' +
-          '<div class="project-card-actions">' +
-            '<button type="button" class="save-btn">Save Decision</button>' +
-            '<span class="save-status"></span>' +
-          '</div>' +
-        '</div>'
-      );
-    }).join('');
-
-    Array.prototype.forEach.call(assessmentListEl.querySelectorAll('.project-card'), function (card) {
-      var saveBtn = card.querySelector('.save-btn');
-      var saveStatus = card.querySelector('.save-status');
-      saveBtn.addEventListener('click', function () {
-        var token = card.getAttribute('data-token');
-        var decision = card.querySelector('.f-decision').value;
-        if (!decision) {
-          saveStatus.textContent = 'Choose a decision first.';
-          saveStatus.className = 'save-status err';
-          return;
-        }
-        var payload = {
-          password: password,
-          token: token,
-          decision: decision,
-          notes: card.querySelector('.f-adminNotes').value.trim(),
-          customerMessage: card.querySelector('.f-customerMessage').value.trim()
-        };
-        saveBtn.disabled = true;
-        saveStatus.textContent = 'Saving…';
-        saveStatus.className = 'save-status';
-
-        // UPDATED: now calls the Supabase admin-assessment-decision function.
-        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-assessment-decision', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-            'apikey': SUPABASE_ANON_KEY
-          },
-          body: JSON.stringify(payload)
-        })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            saveBtn.disabled = false;
-            if (data && data.ok) {
-              // The function returns a warning if the decision saved but
-              // the client notification email couldn't be sent.
-              saveStatus.textContent = data.warning ? data.warning : 'Saved';
-              saveStatus.className = data.warning ? 'save-status err' : 'save-status ok';
-              var local = allAssessments.filter(function (a) { return a.token === token; })[0];
-              if (local) { local.adminDecision = decision; local.adminNotes = payload.notes; }
-            } else {
-              saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
-              saveStatus.className = 'save-status err';
-            }
-          })
-          .catch(function () {
-            saveBtn.disabled = false;
-            saveStatus.textContent = 'Network error — try again.';
-            saveStatus.className = 'save-status err';
-          });
-      });
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+  function decideBudget(r, decision) {
+    var statusEl = document.getElementById("drawerStatus");
+    statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+    authedFetch("/admin-budget-decision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: r.token, decision: decision }) }).then(function (res) {
+      if (res.data && res.data.ok) { r.status = decision; r.decisionBy = "admin"; closeDrawer(); drawBudgetTable(); }
+      else { statusEl.textContent = (res.data && res.data.error) || "Could not save."; statusEl.className = "save-status err"; }
     });
   }
 
-  /* ============================================================
-     BUDGET REQUESTS — Phase 5 budget-gated assessment queue
-     ============================================================ */
+  /* ---------------- AI Quotes ---------------- */
 
-  var budgetListEl = document.getElementById('budgetList');
-  var allBudgetRequests = [];
-  var BUDGET_STATUS_LABELS = {
-    in_progress: 'Chat in progress', awaiting_admin: 'Awaiting Decision',
-    approved: 'Approved', rejected: 'Rejected', below_minimum: 'Below Minimum (auto)'
-  };
+  var AIQUOTE_LABELS = { in_progress: "Chat in progress", awaiting_admin: "Awaiting decision", ready_for_checkout: "Approved", rejected: "Rejected" };
 
-  function loadBudgetRequests() {
-    budgetListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    // UPDATED: now calls the Supabase admin-list-budget-requests function.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-budget-requests?password=' + encodeURIComponent(password), {
-      headers: {
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) {
-          budgetListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load budget requests.') + '</div>';
-          return;
-        }
-        budgetLoaded = true;
-        allBudgetRequests = data.requests || [];
-        countEl.textContent = allBudgetRequests.length + (allBudgetRequests.length === 1 ? ' request' : ' requests');
-        renderBudgetList();
-      })
-      .catch(function () {
-        budgetListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
-      });
+  function renderAiQuotesSection() {
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-aiquotes").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allAiQuotes = r.data.quotes || [];
+      document.getElementById("pageSub").textContent = allAiQuotes.length + (allAiQuotes.length === 1 ? " quote" : " quotes");
+      drawAiQuotesTable();
+    });
   }
-
-  function renderBudgetList() {
-    if (!allBudgetRequests.length) {
-      budgetListEl.innerHTML = '<div class="empty-state">No budget requests yet.</div>';
-      return;
-    }
-
-    budgetListEl.innerHTML = allBudgetRequests.map(function (r) {
-      var amountLabel = r.proposedAmount ? ('₦' + Number(r.proposedAmount).toLocaleString() + '/' + (r.proposedPeriod || '')) : '—';
-      var canDecide = r.status === 'awaiting_admin';
-
-      return (
-        '<div class="project-card" data-token="' + escapeHtml(r.token) + '">' +
-          '<div class="project-card-top">' +
-            '<div>' +
-              '<h3>' + escapeHtml(r.fullName) + '</h3>' +
-              '<p>' + escapeHtml(r.serviceName) + '</p>' +
-            '</div>' +
-            '<span class="badge ' + escapeHtml(r.status) + '">' + escapeHtml(BUDGET_STATUS_LABELS[r.status] || r.status) + '</span>' +
-          '</div>' +
-          '<div class="project-meta">' +
-            '<b>Proposed budget:</b> ' + escapeHtml(amountLabel) + '<br>' +
-            escapeHtml(r.email) + (r.whatsapp ? ' · ' + escapeHtml(r.whatsapp) : '') +
-            (r.decisionBy ? '<br>Decided by ' + escapeHtml(r.decisionBy) : '') +
-          '</div>' +
-          (canDecide ?
-            '<div class="project-card-actions">' +
-              '<button type="button" class="save-btn decide-btn" data-decision="approved">Approve</button>' +
-              '<button type="button" class="save-btn decide-btn" data-decision="rejected" style="background:transparent;color:#ff8b8b;border:1px solid #4a2222;">Reject</button>' +
-              '<span class="save-status"></span>' +
-            '</div>'
-            : '') +
-        '</div>'
-      );
-    }).join('');
-
-    Array.prototype.forEach.call(budgetListEl.querySelectorAll('.project-card'), function (card) {
-      var saveStatus = card.querySelector('.save-status');
-      Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (btn) {
-        btn.addEventListener('click', function () {
-          var token = card.getAttribute('data-token');
-          var decision = btn.getAttribute('data-decision');
-          Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = true; });
-          if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
-
-          // UPDATED: now calls the Supabase admin-budget-decision function.
-          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-budget-decision', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-              'apikey': SUPABASE_ANON_KEY
-            },
-            body: JSON.stringify({ password: password, token: token, decision: decision })
-          })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
-              if (data && data.ok) {
-                var local = allBudgetRequests.filter(function (r) { return r.token === token; })[0];
-                if (local) { local.status = decision; local.decisionBy = 'admin'; }
-                renderBudgetList();
-              } else if (saveStatus) {
-                saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
-                saveStatus.className = 'save-status err';
-              }
-            })
-            .catch(function () {
-              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
-              if (saveStatus) { saveStatus.textContent = 'Network error — try again.'; saveStatus.className = 'save-status err'; }
-            });
+  function drawAiQuotesTable() {
+    if (!allAiQuotes.length) { document.getElementById("pageBody").innerHTML = '<div class="empty">No AI quotes yet.</div>'; return; }
+    document.getElementById("pageBody").innerHTML =
+      '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Total</th><th>Status</th></tr></thead><tbody>' +
+      allAiQuotes.map(function (q, i) {
+        return '<tr data-i="' + i + '"><td class="name">' + escapeHtml(q.fullName) + '</td><td>' + escapeHtml(q.serviceName) + '</td>' +
+          '<td class="amount">' + (q.totalNaira ? "\u20a6" + Number(q.totalNaira).toLocaleString() : "—") + '</td>' +
+          '<td><span class="pill">' + escapeHtml(AIQUOTE_LABELS[q.status] || q.status) + '</span></td></tr>';
+      }).join("") + '</tbody></table></div>';
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openAiQuoteDrawer(allAiQuotes[Number(row.getAttribute("data-i"))]); });
+    });
+  }
+  function openAiQuoteDrawer(q) {
+    document.getElementById("drawerTitle").textContent = q.fullName;
+    document.getElementById("drawerSub").textContent = q.email + (q.whatsapp ? " · " + q.whatsapp : "");
+    var canDecide = q.status === "awaiting_admin";
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Service</label><div style="font-size:13.5px;">' + escapeHtml(q.serviceName) + '</div></div>' +
+      (q.escalationReason ? '<div class="field"><label>Flagged</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(q.escalationReason) + '</div></div>' : "") +
+      (canDecide
+        ? '<div class="two-col"><div class="field"><label>Days</label><input id="q_days" type="number" value="' + escapeHtml(q.days || "") + '"></div><div class="field"><label>Daily spend (\u20a6)</label><input id="q_daily" type="number" value="' + escapeHtml(q.dailyAdSpend || "") + '"></div></div>' +
+          '<div class="two-col"><div class="field"><label>Fee (\u20a6)</label><input id="q_fee" type="number" value="' + escapeHtml(q.feeNaira || "") + '"></div><div class="field"><label>Total (\u20a6, blank = auto)</label><input id="q_total" type="number" value="' + escapeHtml(q.totalNaira || "") + '"></div></div>' +
+          '<div class="inline-actions"><button type="button" class="btn primary" id="q_approve">Approve</button><button type="button" class="btn danger" id="q_reject">Reject</button></div>'
+        : '<div class="field"><label>Drafted</label><div style="font-size:13.5px;">' + (q.totalNaira ? "\u20a6" + Number(q.totalNaira).toLocaleString() : "—") + ' for ' + escapeHtml(String(q.days || "—")) + ' days</div></div>');
+    setDrawerFooter("none");
+    document.getElementById("drawerStatus").textContent = "";
+    if (canDecide) {
+      document.getElementById("q_approve").addEventListener("click", function () {
+        var payload = { token: q.token, decision: "approved" };
+        ["days", "daily", "fee", "total"].forEach(function (k) {
+          var el = document.getElementById("q_" + k); var v = el.value;
+          if (v) payload[k === "daily" ? "dailyAdSpend" : k === "fee" ? "feeNaira" : k === "total" ? "totalNaira" : "days"] = Number(v);
         });
+        decideAiQuote(payload);
       });
-    });
-  }
-
-  /* ============================================================
-     AI QUOTES
-     ============================================================ */
-
-  var aiQuoteListEl = document.getElementById('aiQuoteList');
-  var allAiQuotes = [];
-  var AI_QUOTE_STATUS_LABELS = {
-    in_progress: 'Chat in progress', awaiting_admin: 'Awaiting Decision',
-    ready_for_checkout: 'Approved', rejected: 'Rejected'
-  };
-
-  function loadAiQuotes() {
-    aiQuoteListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    // UPDATED: now calls the Supabase admin-list-aiquotes function.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-aiquotes?password=' + encodeURIComponent(password), {
-      headers: {
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) {
-          aiQuoteListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load AI quotes.') + '</div>';
-          return;
-        }
-        aiQuotesLoaded = true;
-        allAiQuotes = data.quotes || [];
-        countEl.textContent = allAiQuotes.length + (allAiQuotes.length === 1 ? ' quote' : ' quotes');
-        renderAiQuoteList();
-      })
-      .catch(function () {
-        aiQuoteListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
-      });
-  }
-
-  function renderAiQuoteList() {
-    if (!allAiQuotes.length) {
-      aiQuoteListEl.innerHTML = '<div class="empty-state">No AI quotes yet.</div>';
-      return;
+      document.getElementById("q_reject").addEventListener("click", function () { decideAiQuote({ token: q.token, decision: "rejected" }); });
     }
-
-    aiQuoteListEl.innerHTML = allAiQuotes.map(function (q) {
-      var totalLabel = q.totalNaira ? ('₦' + Number(q.totalNaira).toLocaleString()) : '—';
-      var daysLabel = q.days ? (q.days + ' day' + (Number(q.days) === 1 ? '' : 's')) : '—';
-      var canDecide = q.status === 'awaiting_admin';
-
-      return (
-        '<div class="project-card" data-token="' + escapeHtml(q.token) + '">' +
-          '<div class="project-card-top">' +
-            '<div>' +
-              '<h3>' + escapeHtml(q.fullName) + '</h3>' +
-              '<p>' + escapeHtml(q.serviceName) + '</p>' +
-            '</div>' +
-            '<span class="badge ' + escapeHtml(q.status) + '">' + escapeHtml(AI_QUOTE_STATUS_LABELS[q.status] || q.status) + '</span>' +
-          '</div>' +
-          '<div class="project-meta">' +
-            '<b>Drafted:</b> ' + escapeHtml(totalLabel) + ' for ' + escapeHtml(daysLabel) +
-            (q.dailyAdSpend ? ' (₦' + Number(q.dailyAdSpend).toLocaleString() + '/day + ₦' + Number(q.feeNaira || 0).toLocaleString() + ' fee)' : '') + '<br>' +
-            (q.escalationReason ? '<b>Flagged:</b> ' + escapeHtml(q.escalationReason) + '<br>' : '') +
-            escapeHtml(q.email) + (q.whatsapp ? ' · ' + escapeHtml(q.whatsapp) : '') +
-            (q.decisionBy ? '<br>Decided by ' + escapeHtml(q.decisionBy) : '') +
-          '</div>' +
-          (canDecide ?
-            '<div class="field"><label>Days</label><input class="q-days" type="number" value="' + escapeHtml(q.days || '') + '"></div>' +
-            '<div class="field"><label>Daily ad spend (₦)</label><input class="q-daily" type="number" value="' + escapeHtml(q.dailyAdSpend || '') + '"></div>' +
-            '<div class="field"><label>Fee (₦)</label><input class="q-fee" type="number" value="' + escapeHtml(q.feeNaira || '') + '"></div>' +
-            '<div class="field"><label>Total (₦) — leave blank to auto-sum days×daily+fee</label><input class="q-total" type="number" value="' + escapeHtml(q.totalNaira || '') + '"></div>' +
-            '<div class="project-card-actions">' +
-              '<button type="button" class="save-btn decide-btn" data-decision="approved">Approve</button>' +
-              '<button type="button" class="save-btn decide-btn" data-decision="rejected" style="background:transparent;color:#ff8b8b;border:1px solid #4a2222;">Reject</button>' +
-              '<span class="save-status"></span>' +
-            '</div>'
-            : '') +
-        '</div>'
-      );
-    }).join('');
-
-    Array.prototype.forEach.call(aiQuoteListEl.querySelectorAll('.project-card'), function (card) {
-      var saveStatus = card.querySelector('.save-status');
-      Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (btn) {
-        btn.addEventListener('click', function () {
-          var token = card.getAttribute('data-token');
-          var decision = btn.getAttribute('data-decision');
-          var payload = { password: password, token: token, decision: decision };
-
-          if (decision === 'approved') {
-            var days = card.querySelector('.q-days').value;
-            var daily = card.querySelector('.q-daily').value;
-            var fee = card.querySelector('.q-fee').value;
-            var total = card.querySelector('.q-total').value;
-            if (days) payload.days = Number(days);
-            if (daily) payload.dailyAdSpend = Number(daily);
-            if (fee) payload.feeNaira = Number(fee);
-            if (total) payload.totalNaira = Number(total);
-          }
-
-          Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = true; });
-          if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
-
-          // UPDATED: now calls the Supabase admin-aiquote-decision function.
-          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-aiquote-decision', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-              'apikey': SUPABASE_ANON_KEY
-            },
-            body: JSON.stringify(payload)
-          })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
-              if (data && data.ok) {
-                loadAiQuotes();
-              } else if (saveStatus) {
-                saveStatus.textContent = (data && data.error) ? data.error : 'Could not save.';
-                saveStatus.className = 'save-status err';
-              }
-            })
-            .catch(function () {
-              Array.prototype.forEach.call(card.querySelectorAll('.decide-btn'), function (b) { b.disabled = false; });
-              if (saveStatus) { saveStatus.textContent = 'Network error — try again.'; saveStatus.className = 'save-status err'; }
-            });
-        });
-      });
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+  function decideAiQuote(payload) {
+    var statusEl = document.getElementById("drawerStatus");
+    statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+    authedFetch("/admin-aiquote-decision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(function (r) {
+      if (r.data && r.data.ok) { closeDrawer(); renderAiQuotesSection(); }
+      else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
     });
   }
 
-  /* ============================================================
-     CATALOG
-     ============================================================ */
+  /* ---------------- Catalog ---------------- */
 
-  var catTabsEl = document.getElementById('catTabs');
-  var serviceListEl = document.getElementById('serviceList');
-  var addServiceBtn = document.getElementById('addServiceBtn');
-
-  var serviceFormOverlay = document.getElementById('serviceFormOverlay');
-  var serviceFormBody = document.getElementById('serviceFormBody');
-  var serviceFormTitle = document.getElementById('serviceFormTitle');
-  var serviceFormClose = document.getElementById('serviceFormClose');
-
-  var catalogData = { categories: [], services: [] };
-  var catalogLoaded = false;
-  var currentCatTab = 'all';
-  var editingServiceId = null;
-  var pkgRows = [];
-
-  function loadCatalog() {
-    serviceListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    // UPDATED: now calls the Supabase admin-list-catalog function.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-catalog?password=' + encodeURIComponent(password), {
-      headers: {
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) {
-          serviceListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load catalog.') + '</div>';
-          return;
-        }
-        catalogData = { categories: data.categories || [], services: data.services || [] };
-        catalogLoaded = true;
-        countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
-        renderCatTabs();
-        renderServiceList();
-      })
-      .catch(function () {
-        serviceListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>';
-      });
+  function renderCatalogSection() {
+    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addServiceBtn">+ Add service</button>';
+    document.getElementById("addServiceBtn").addEventListener("click", function () { openServiceDrawer(null); });
+    if (catalogLoaded) { drawCatalogTable(); return; }
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-catalog").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      catalogData = { categories: r.data.categories || [], services: r.data.services || [] };
+      catalogLoaded = true;
+      document.getElementById("pageSub").textContent = catalogData.services.length + (catalogData.services.length === 1 ? " service" : " services");
+      drawCatalogTable();
+    });
   }
-
-  function renderCatTabs() {
+  function drawCatalogTable() {
     var cats = catalogData.categories.slice().sort(function (a, b) { return a.order - b.order; });
-    var tabs = [{ id: 'all', name: 'All' }].concat(cats);
-    catTabsEl.innerHTML = tabs.map(function (c) {
-      return '<button type="button" data-cat="' + escapeHtml(c.id) + '" class="' + (c.id === currentCatTab ? 'active' : '') + '">' + escapeHtml(c.name) + '</button>';
-    }).join('');
-    Array.prototype.forEach.call(catTabsEl.querySelectorAll('button'), function (btn) {
-      btn.addEventListener('click', function () {
-        currentCatTab = btn.getAttribute('data-cat');
-        renderCatTabs();
-        renderServiceList();
-      });
-    });
-  }
+    var filterRow = '<div class="filter-row">' + ['<button type="button" data-c="all" class="' + (catalogCatFilter === "all" ? "active" : "") + '">All</button>'].concat(cats.map(function (c) {
+      return '<button type="button" data-c="' + escapeHtml(c.id) + '" class="' + (catalogCatFilter === c.id ? "active" : "") + '">' + escapeHtml(c.name) + '</button>';
+    })).join("") + '</div>';
 
-  function renderServiceList() {
-    var list = currentCatTab === 'all' ? catalogData.services : catalogData.services.filter(function (s) { return s.category_id === currentCatTab; });
+    var list = catalogCatFilter === "all" ? catalogData.services : catalogData.services.filter(function (s) { return s.category_id === catalogCatFilter; });
     list = list.slice().sort(function (a, b) { return a.order - b.order; });
 
-    if (!list.length) {
-      serviceListEl.innerHTML = '<div class="empty-state">No services here yet.</div>';
-      return;
-    }
+    var body = list.length
+      ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Flags</th></tr></thead><tbody>' +
+        list.map(function (s) {
+          var catName = (catalogData.categories.filter(function (c) { return c.id === s.category_id; })[0] || {}).name || s.category_id;
+          var flags = [];
+          if (!s.active) flags.push("Inactive");
+          if (s.coming_soon) flags.push("Coming soon");
+          if (s.featured) flags.push("Featured");
+          if (s.requires_ai_quote) flags.push("AI quote");
+          if (s.pricing_model === "subscription" || s.pricing_model === "both") flags.push("Subscription");
+          return '<tr data-id="' + escapeHtml(s.id) + '"><td class="name">' + escapeHtml(s.name) + '</td><td>' + escapeHtml(catName) + '</td><td>' + escapeHtml(s.price_label || "—") + '</td><td>' + escapeHtml(flags.join(", ") || "—") + '</td></tr>';
+        }).join("") + '</tbody></table></div>'
+      : '<div class="empty">No services here yet.</div>';
 
-    serviceListEl.innerHTML = list.map(function (s) {
-      var catName = (catalogData.categories.filter(function (c) { return c.id === s.category_id; })[0] || {}).name || s.category_id;
-      var flags = '';
-      if (!s.active) flags += '<span class="badge">Inactive</span>';
-      if (s.coming_soon) flags += '<span class="badge">Coming Soon</span>';
-      if (s.featured) flags += '<span class="badge paid">Featured</span>';
-      if (s.requires_consultation) flags += '<span class="badge">Consultation Required</span>';
-      if (s.requires_ai_quote) flags += '<span class="badge">AI Quote</span>';
-      if (s.pricing_model === 'subscription' || s.pricing_model === 'both') flags += '<span class="badge sub_active">Subscription</span>';
-      return (
-        '<div class="project-card" data-id="' + escapeHtml(s.id) + '">' +
-          '<div class="project-card-top">' +
-            '<div><h3>' + escapeHtml(s.name) + '</h3><p>' + escapeHtml(catName) + ' · ' + escapeHtml(s.price_label || '') + '</p></div>' +
-            '<div>' + flags + '</div>' +
-          '</div>' +
-          '<div class="project-card-actions">' +
-            '<button type="button" class="save-btn svc-edit-btn">Edit</button>' +
-            '<button type="button" class="save-btn svc-delete-btn" style="background:#3a1f1f;color:#ff8b8b;">Delete</button>' +
-          '</div>' +
-        '</div>'
-      );
-    }).join('');
-
-    Array.prototype.forEach.call(serviceListEl.querySelectorAll('.project-card'), function (card) {
-      var id = card.getAttribute('data-id');
-      card.querySelector('.svc-edit-btn').addEventListener('click', function () { openServiceForm(id); });
-      card.querySelector('.svc-delete-btn').addEventListener('click', function () { deleteService(id); });
+    document.getElementById("pageBody").innerHTML = filterRow + body;
+    Array.prototype.forEach.call(document.querySelectorAll(".filter-row button"), function (btn) {
+      btn.addEventListener("click", function () { catalogCatFilter = btn.getAttribute("data-c"); drawCatalogTable(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openServiceDrawer(catalogData.services.filter(function (s) { return s.id === row.getAttribute("data-id"); })[0]); });
     });
   }
 
-  function deleteService(id) {
-    var svc = catalogData.services.filter(function (s) { return s.id === id; })[0];
-    if (!confirm('Delete "' + (svc ? svc.name : id) + '"? This cannot be undone.')) return;
+  function linesToArray(str) { return str.split("\n").map(function (s) { return s.trim(); }).filter(Boolean); }
+  var pkgRows = [];
 
-    // UPDATED: now calls the Supabase admin-delete-service function.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-delete-service', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ password: password, id: id })
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data && data.ok) {
-          catalogData.services = catalogData.services.filter(function (s) { return s.id !== id; });
-          countEl.textContent = catalogData.services.length + (catalogData.services.length === 1 ? ' service' : ' services');
-          renderServiceList();
-        } else {
-          alert((data && data.error) || 'Could not delete service.');
-        }
-      })
-      .catch(function () { alert('Network error — try again.'); });
-  }
-
-  function linesToArray(str) {
-    return str.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-  }
-
-  function openServiceForm(id) {
-    editingServiceId = id || null;
-    var svc = id ? catalogData.services.filter(function (s) { return s.id === id; })[0] : null;
-    serviceFormTitle.textContent = svc ? 'Edit Service' : 'Add Service';
+  function openServiceDrawer(svc) {
+    drawer.classList.add("wide");
+    document.getElementById("drawerTitle").textContent = svc ? "Edit service" : "Add service";
+    document.getElementById("drawerSub").textContent = svc ? svc.name : "";
 
     var catOptions = catalogData.categories.slice().sort(function (a, b) { return a.order - b.order; }).map(function (c) {
-      return '<option value="' + escapeHtml(c.id) + '"' + (svc && svc.category_id === c.id ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
-    }).join('');
+      return '<option value="' + escapeHtml(c.id) + '"' + (svc && svc.category_id === c.id ? " selected" : "") + '>' + escapeHtml(c.name) + '</option>';
+    }).join("");
+    var pricingOptions = ["one_time", "subscription", "both", "custom"].map(function (m) {
+      return '<option value="' + m + '"' + (svc && svc.pricing_model === m ? " selected" : "") + '>' + m + '</option>';
+    }).join("");
 
-    var pricingModels = ['one_time', 'subscription', 'both', 'custom'];
-    var pricingOptions = pricingModels.map(function (m) {
-      return '<option value="' + m + '"' + (svc && svc.pricing_model === m ? ' selected' : '') + '>' + m + '</option>';
-    }).join('');
-
-    serviceFormBody.innerHTML =
-      '<div class="field"><label>Name</label><input id="f_name" type="text" value="' + escapeHtml(svc ? svc.name : '') + '"></div>' +
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Name</label><input id="f_name" type="text" value="' + escapeHtml(svc ? svc.name : "") + '"></div>' +
       '<div class="field"><label>Category</label><select id="f_category">' + catOptions + '</select></div>' +
-      '<div class="field"><label>Short description</label><textarea id="f_short">' + escapeHtml(svc ? svc.short_description : '') + '</textarea></div>' +
-      '<div class="field"><label>Full description</label><textarea id="f_full">' + escapeHtml(svc ? svc.full_description : '') + '</textarea></div>' +
-      '<div class="field"><label>Who it&#39;s for</label><textarea id="f_wholeFor">' + escapeHtml(svc ? svc.who_for : '') + '</textarea></div>' +
-      '<div class="field"><label>Included (one per line)</label><textarea id="f_included">' + escapeHtml(((svc && svc.included) || []).join('\n')) + '</textarea></div>' +
-      '<div class="field"><label>Excluded (one per line)</label><textarea id="f_excluded">' + escapeHtml(((svc && svc.excluded) || []).join('\n')) + '</textarea></div>' +
-      '<div class="field"><label>Deliverables (one per line)</label><textarea id="f_deliverables">' + escapeHtml(((svc && svc.deliverables) || []).join('\n')) + '</textarea></div>' +
-      '<div class="field"><label>Requirements (one per line)</label><textarea id="f_requirements">' + escapeHtml(((svc && svc.requirements) || []).join('\n')) + '</textarea></div>' +
-      '<div class="field"><label>Pricing model</label><select id="f_pricingModel">' + pricingOptions + '</select></div>' +
-      '<div class="field"><label>Starting price (₦, one-time)</label><input id="f_startingPrice" type="number" value="' + ((svc && svc.starting_price != null) ? svc.starting_price : '') + '"></div>' +
-      '<div class="field"><label>Price label (one-time)</label><input id="f_priceLabel" type="text" value="' + escapeHtml(svc ? svc.price_label : '') + '" placeholder="e.g. ₦20,000"></div>' +
-      '<div class="field"><label>Subscription price (₦/mo)</label><input id="f_subPrice" type="number" value="' + ((svc && svc.subscription_price != null) ? svc.subscription_price : '') + '"></div>' +
-      '<div class="field"><label>Subscription label</label><input id="f_subLabel" type="text" value="' + escapeHtml(svc ? svc.subscription_label : '') + '" placeholder="e.g. ₦50,000/mo"></div>' +
-      '<div class="field"><label>Subscription billing interval (days)</label><input id="f_billingInterval" type="number" value="' + ((svc && svc.billing_interval_days != null) ? svc.billing_interval_days : 30) + '" placeholder="30"></div>' +
-      '<div class="field"><label>Delivery time</label><input id="f_delivery" type="text" value="' + escapeHtml(svc ? svc.delivery_time : '') + '"></div>' +
-      '<div class="field"><label>Order (sort position)</label><input id="f_order" type="number" value="' + ((svc && svc.order != null) ? svc.order : 99) + '"></div>' +
-      '<div class="field checks">' +
-        '<label><input type="checkbox" id="f_active"' + (!svc || svc.active ? ' checked' : '') + '> Active</label>' +
-        '<label><input type="checkbox" id="f_featured"' + (svc && svc.featured ? ' checked' : '') + '> Featured</label>' +
-        '<label><input type="checkbox" id="f_comingSoon"' + (svc && svc.coming_soon ? ' checked' : '') + '> Coming soon</label>' +
-        '<label><input type="checkbox" id="f_requiresConsultation"' + (svc && svc.requires_consultation ? ' checked' : '') + '> Requires SCARLS consultation before checkout</label>' +
-        '<label><input type="checkbox" id="f_requiresBudgetCheck"' + (svc && svc.requires_budget_check ? ' checked' : '') + '> Requires budget check before checkout</label>' +
-        '<label><input type="checkbox" id="f_requiresAiQuote"' + (svc && svc.requires_ai_quote ? ' checked' : '') + '> AI drafts a custom ad-budget quote (instead of a fixed price)</label>' +
-        '<label><input type="checkbox" id="f_manualPaymentEnabled"' + (svc && svc.manual_payment_enabled ? ' checked' : '') + '> Manual payment (Opay transfer + screenshot, instead of Paystack)</label>' +
-      '</div>' +
-      '<div class="field" id="budgetFields" style="' + (svc && svc.requires_budget_check ? '' : 'display:none;') + '">' +
-        '<label>Minimum budget (₦)</label><input id="f_minBudget" type="number" value="' + ((svc && svc.min_budget != null) ? svc.min_budget : '') + '">' +
-        '<label style="margin-top:8px;">Minimum budget period</label>' +
-        '<select id="f_minBudgetPeriod">' +
-          ['daily', 'weekly', 'monthly', 'total'].map(function (p) {
-            return '<option value="' + p + '"' + (svc && svc.min_budget_period === p ? ' selected' : '') + '>' + p + '</option>';
-          }).join('') +
-        '</select>' +
-      '</div>' +
-      '<div class="field" id="quoteFields" style="' + (svc && svc.requires_ai_quote ? '' : 'display:none;') + '">' +
-        '<label>Cost per lead assumption (₦)</label><input id="f_quoteCpl" type="number" value="' + ((svc && svc.quote_cpl_naira != null) ? svc.quote_cpl_naira : 100) + '">' +
-        '<label style="margin-top:8px;">Target leads/day (min–max)</label>' +
-        '<div style="display:flex;gap:8px;">' +
-          '<input id="f_quoteLeadsMin" type="number" placeholder="Min" value="' + ((svc && svc.quote_leads_min_per_day != null) ? svc.quote_leads_min_per_day : 25) + '">' +
-          '<input id="f_quoteLeadsMax" type="number" placeholder="Max" value="' + ((svc && svc.quote_leads_max_per_day != null) ? svc.quote_leads_max_per_day : 30) + '">' +
-        '</div>' +
-        '<label style="margin-top:8px;">Minimum daily ad spend (₦)</label><input id="f_quoteMinDaily" type="number" value="' + ((svc && svc.quote_min_daily_spend != null) ? svc.quote_min_daily_spend : '') + '">' +
-        '<label style="margin-top:8px;">Auto-quote up to this many days (longer → admin review)</label><input id="f_quoteMaxDays" type="number" value="' + ((svc && svc.quote_max_auto_days != null) ? svc.quote_max_auto_days : 30) + '">' +
-        '<label style="margin-top:8px;">Auto-quote up to this total ₦ (blank = no ceiling, higher → admin review)</label><input id="f_quoteMaxTotal" type="number" value="' + ((svc && svc.quote_max_auto_total_naira != null) ? svc.quote_max_auto_total_naira : '') + '">' +
-        '<label style="margin-top:8px;">SCARLS fee tiers — one per line, "maxDailySpend:fee"</label>' +
-        '<textarea id="f_quoteFeeTiers" placeholder="5000:2000&#10;15000:3500&#10;999999999:5000">' + escapeHtml(svc ? svc.quote_fee_tiers : '') + '</textarea>' +
-        '<p style="font-size:11.5px;color:var(--silver-dim);margin-top:4px;">This fee is added to the ad spend total silently — the client only ever sees one final number.</p>' +
-        '<p style="font-size:11.5px;color:var(--silver-dim);margin-top:8px;">If <b>Pricing model</b> above is set to Subscription or Both, this AI-drafted quote becomes a recurring charge: the same total re-bills automatically every N days, where N is the number of days quoted (so a new flight starts right as the old one ends).</p>' +
-      '</div>' +
-      '<div class="field"><label>Packages</label><div id="pkgList"></div>' +
-        '<button type="button" class="save-btn" id="addPkgBtn" style="margin-top:6px;background:transparent;color:var(--silver);border:1px dashed var(--line);">+ Add package</button></div>' +
-      '<div class="project-card-actions">' +
-        '<button type="button" class="save-btn" id="serviceSaveBtn">Save</button>' +
-        '<span class="save-status" id="serviceSaveStatus"></span>' +
-      '</div>';
+      '<div class="field"><label>Short description</label><textarea id="f_short">' + escapeHtml(svc ? svc.short_description : "") + '</textarea></div>' +
+      '<div class="field"><label>Full description</label><textarea id="f_full">' + escapeHtml(svc ? svc.full_description : "") + '</textarea></div>' +
+      '<div class="field"><label>Who it\u2019s for</label><textarea id="f_wholeFor">' + escapeHtml(svc ? svc.who_for : "") + '</textarea></div>' +
+      '<div class="field"><label>Included (one per line)</label><textarea id="f_included">' + escapeHtml(((svc && svc.included) || []).join("\n")) + '</textarea></div>' +
+      '<div class="field"><label>Deliverables (one per line)</label><textarea id="f_deliverables">' + escapeHtml(((svc && svc.deliverables) || []).join("\n")) + '</textarea></div>' +
+      '<div class="field"><label>Requirements (one per line)</label><textarea id="f_requirements">' + escapeHtml(((svc && svc.requirements) || []).join("\n")) + '</textarea></div>' +
+      '<div class="two-col"><div class="field"><label>Pricing model</label><select id="f_pricingModel">' + pricingOptions + '</select></div><div class="field"><label>Order</label><input id="f_order" type="number" value="' + ((svc && svc.order != null) ? svc.order : 99) + '"></div></div>' +
+      '<div class="two-col"><div class="field"><label>Starting price (\u20a6)</label><input id="f_startingPrice" type="number" value="' + ((svc && svc.starting_price != null) ? svc.starting_price : "") + '"></div><div class="field"><label>Price label</label><input id="f_priceLabel" type="text" value="' + escapeHtml(svc ? svc.price_label : "") + '"></div></div>' +
+      '<div class="two-col"><div class="field"><label>Subscription price (\u20a6/mo)</label><input id="f_subPrice" type="number" value="' + ((svc && svc.subscription_price != null) ? svc.subscription_price : "") + '"></div><div class="field"><label>Subscription label</label><input id="f_subLabel" type="text" value="' + escapeHtml(svc ? svc.subscription_label : "") + '"></div></div>' +
+      '<div class="field"><label>Delivery time</label><input id="f_delivery" type="text" value="' + escapeHtml(svc ? svc.delivery_time : "") + '"></div>' +
+      '<label class="check-row"><input type="checkbox" id="f_active"' + (!svc || svc.active ? " checked" : "") + '> Active</label>' +
+      '<label class="check-row"><input type="checkbox" id="f_featured"' + (svc && svc.featured ? " checked" : "") + '> Featured</label>' +
+      '<label class="check-row"><input type="checkbox" id="f_comingSoon"' + (svc && svc.coming_soon ? " checked" : "") + '> Coming soon</label>' +
+      '<label class="check-row"><input type="checkbox" id="f_requiresAiQuote"' + (svc && svc.requires_ai_quote ? " checked" : "") + '> AI drafts a custom quote</label>' +
+      '<div class="field"><label>Packages</label><div id="pkgList"></div><button type="button" class="btn" id="addPkgBtn" style="width:100%;">+ Add package</button></div>';
 
     renderPkgList(svc ? svc.packages : []);
-    document.getElementById('addPkgBtn').addEventListener('click', function () { addPkgRow(); });
-    document.getElementById('serviceSaveBtn').addEventListener('click', saveServiceForm);
-    document.getElementById('f_requiresBudgetCheck').addEventListener('change', function (e) {
-      document.getElementById('budgetFields').style.display = e.target.checked ? '' : 'none';
-    });
-    document.getElementById('f_requiresAiQuote').addEventListener('change', function (e) {
-      document.getElementById('quoteFields').style.display = e.target.checked ? '' : 'none';
-    });
+    document.getElementById("addPkgBtn").addEventListener("click", function () { pkgRows.push({ name: "", price: null, price_label: "", description: "", features: [], delivery_time: "", recommended: false, active: true, pricing_model: "one_time", billing_interval_days: 30 }); renderPkgList(pkgRows); });
 
-    serviceFormOverlay.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
+    setDrawerFooter("save", "Save service");
+    document.getElementById("drawerStatus").textContent = "";
+    document.getElementById("drawerSave").onclick = function () { saveService(svc ? svc.id : null); };
+    scrim.classList.add("open"); drawer.classList.add("open");
   }
-
   function renderPkgList(packages) {
     pkgRows = (packages || []).slice();
-    var pkgListEl = document.getElementById('pkgList');
-    pkgListEl.innerHTML = pkgRows.map(function (p) {
-      var isSub = p.pricing_model === 'subscription';
-      return (
-        '<div class="pkg-row">' +
-          '<input class="p-name" type="text" placeholder="Package name" value="' + escapeHtml(p.name || '') + '">' +
-          '<input class="p-price" type="number" placeholder="Price ₦" value="' + (p.price != null ? p.price : '') + '">' +
-          '<input class="p-label" type="text" placeholder="Price label" value="' + escapeHtml(p.price_label || '') + '">' +
-          '<textarea class="p-desc" placeholder="Description">' + escapeHtml(p.description || '') + '</textarea>' +
-          '<textarea class="p-features" placeholder="Features, one per line">' + escapeHtml((p.features || []).join('\n')) + '</textarea>' +
-          '<input class="p-delivery" type="text" placeholder="Delivery time" value="' + escapeHtml(p.delivery_time || '') + '">' +
-          '<div class="pkg-sub-row">' +
-            '<select class="p-pricingModel">' +
-              '<option value="one_time"' + (!isSub ? ' selected' : '') + '>One-time payment</option>' +
-              '<option value="subscription"' + (isSub ? ' selected' : '') + '>Subscription (recurring)</option>' +
-            '</select>' +
-            '<input class="p-interval" type="number" placeholder="Days" title="Billing interval in days" value="' + (p.billing_interval_days != null ? p.billing_interval_days : 30) + '" style="' + (isSub ? '' : 'display:none;') + '">' +
-          '</div>' +
-          '<label><input class="p-recommended" type="checkbox"' + (p.recommended ? ' checked' : '') + '> Recommended</label>' +
-          '<button type="button" class="pkg-remove-btn">Remove</button>' +
-        '</div>'
-      );
-    }).join('');
-    Array.prototype.forEach.call(pkgListEl.querySelectorAll('.pkg-row'), function (row, idx) {
-      row.querySelector('.pkg-remove-btn').addEventListener('click', function () {
-        pkgRows.splice(idx, 1);
-        renderPkgList(pkgRows);
-      });
-      // NEW: toggling a package to "Subscription" reveals its billing-interval field.
-      row.querySelector('.p-pricingModel').addEventListener('change', function (e) {
-        row.querySelector('.p-interval').style.display = e.target.value === 'subscription' ? '' : 'none';
-      });
+    document.getElementById("pkgList").innerHTML = pkgRows.map(function (p, i) {
+      return '<div class="pkg-item" data-i="' + i + '">' +
+        '<div class="field"><input class="p-name" type="text" placeholder="Package name" value="' + escapeHtml(p.name || "") + '"></div>' +
+        '<div class="two-col"><input class="p-price" type="number" placeholder="Price \u20a6" value="' + (p.price != null ? p.price : "") + '"><input class="p-label" type="text" placeholder="Price label" value="' + escapeHtml(p.price_label || "") + '"></div>' +
+        '<div class="field"><textarea class="p-features" placeholder="Features, one per line">' + escapeHtml((p.features || []).join("\n")) + '</textarea></div>' +
+        '<button type="button" class="remove">Remove</button></div>';
+    }).join("");
+    Array.prototype.forEach.call(document.querySelectorAll(".pkg-item .remove"), function (btn) {
+      btn.addEventListener("click", function () { pkgRows.splice(Number(btn.parentElement.getAttribute("data-i")), 1); renderPkgList(pkgRows); });
     });
   }
-
-  function addPkgRow() {
-    pkgRows.push({ name: '', price: null, price_label: '', description: '', features: [], delivery_time: '', recommended: false, active: true, pricing_model: 'one_time', billing_interval_days: 30 });
-    renderPkgList(pkgRows);
-  }
-
   function collectPkgRows() {
-    var rows = document.querySelectorAll('#pkgList .pkg-row');
-    return Array.prototype.map.call(rows, function (row) {
+    return Array.prototype.map.call(document.querySelectorAll(".pkg-item"), function (row) {
       return {
-        name: row.querySelector('.p-name').value.trim(),
-        price: row.querySelector('.p-price').value ? Number(row.querySelector('.p-price').value) : null,
-        price_label: row.querySelector('.p-label').value.trim(),
-        description: row.querySelector('.p-desc').value.trim(),
-        features: linesToArray(row.querySelector('.p-features').value),
-        delivery_time: row.querySelector('.p-delivery').value.trim(),
-        recommended: row.querySelector('.p-recommended').checked,
-        active: true,
-        // NEW: per-package subscription toggle + billing interval.
-        pricing_model: row.querySelector('.p-pricingModel').value,
-        billing_interval_days: row.querySelector('.p-interval').value ? Number(row.querySelector('.p-interval').value) : 30
+        name: row.querySelector(".p-name").value.trim(), price: row.querySelector(".p-price").value ? Number(row.querySelector(".p-price").value) : null,
+        price_label: row.querySelector(".p-label").value.trim(), features: linesToArray(row.querySelector(".p-features").value),
+        description: "", delivery_time: "", recommended: false, active: true, pricing_model: "one_time", billing_interval_days: 30,
       };
     }).filter(function (p) { return p.name; });
   }
-
-  function saveServiceForm() {
-    var saveBtn = document.getElementById('serviceSaveBtn');
-    var saveStatus = document.getElementById('serviceSaveStatus');
-
-    var name = document.getElementById('f_name').value.trim();
-    var category_id = document.getElementById('f_category').value;
-    if (!name || !category_id) {
-      saveStatus.textContent = 'Name and category are required.';
-      saveStatus.className = 'save-status err';
-      return;
-    }
-
-    var svcPayload = {
-      id: editingServiceId || undefined,
-      name: name, category_id: category_id,
-      short_description: document.getElementById('f_short').value.trim(),
-      full_description: document.getElementById('f_full').value.trim(),
-      who_for: document.getElementById('f_wholeFor').value.trim(),
-      included: linesToArray(document.getElementById('f_included').value),
-      excluded: linesToArray(document.getElementById('f_excluded').value),
-      deliverables: linesToArray(document.getElementById('f_deliverables').value),
-      requirements: linesToArray(document.getElementById('f_requirements').value),
-      pricing_model: document.getElementById('f_pricingModel').value,
-      starting_price: document.getElementById('f_startingPrice').value ? Number(document.getElementById('f_startingPrice').value) : null,
-      price_label: document.getElementById('f_priceLabel').value.trim(),
-      subscription_price: document.getElementById('f_subPrice').value ? Number(document.getElementById('f_subPrice').value) : null,
-      subscription_label: document.getElementById('f_subLabel').value.trim(),
-      billing_interval_days: document.getElementById('f_billingInterval').value ? Number(document.getElementById('f_billingInterval').value) : 30,
-      delivery_time: document.getElementById('f_delivery').value.trim(),
-      order: document.getElementById('f_order').value ? Number(document.getElementById('f_order').value) : 99,
-      active: document.getElementById('f_active').checked,
-      featured: document.getElementById('f_featured').checked,
-      coming_soon: document.getElementById('f_comingSoon').checked,
-      requires_consultation: document.getElementById('f_requiresConsultation').checked,
-      requires_budget_check: document.getElementById('f_requiresBudgetCheck').checked,
-      min_budget: document.getElementById('f_minBudget').value ? Number(document.getElementById('f_minBudget').value) : null,
-      min_budget_period: document.getElementById('f_minBudgetPeriod').value,
-      requires_ai_quote: document.getElementById('f_requiresAiQuote').checked,
-      manual_payment_enabled: document.getElementById('f_manualPaymentEnabled').checked,
-      quote_cpl_naira: document.getElementById('f_quoteCpl').value ? Number(document.getElementById('f_quoteCpl').value) : null,
-      quote_leads_min_per_day: document.getElementById('f_quoteLeadsMin').value ? Number(document.getElementById('f_quoteLeadsMin').value) : null,
-      quote_leads_max_per_day: document.getElementById('f_quoteLeadsMax').value ? Number(document.getElementById('f_quoteLeadsMax').value) : null,
-      quote_min_daily_spend: document.getElementById('f_quoteMinDaily').value ? Number(document.getElementById('f_quoteMinDaily').value) : null,
-      quote_max_auto_days: document.getElementById('f_quoteMaxDays').value ? Number(document.getElementById('f_quoteMaxDays').value) : null,
-      quote_max_auto_total_naira: document.getElementById('f_quoteMaxTotal').value ? Number(document.getElementById('f_quoteMaxTotal').value) : null,
-      quote_fee_tiers: document.getElementById('f_quoteFeeTiers').value.trim(),
-      packages: collectPkgRows()
+  function saveService(id) {
+    var name = document.getElementById("f_name").value.trim();
+    var category_id = document.getElementById("f_category").value;
+    var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
+    if (!name || !category_id) { statusEl.textContent = "Name and category are required."; statusEl.className = "save-status err"; return; }
+    var payload = {
+      id: id || undefined, name: name, category_id: category_id,
+      short_description: document.getElementById("f_short").value.trim(), full_description: document.getElementById("f_full").value.trim(),
+      who_for: document.getElementById("f_wholeFor").value.trim(), included: linesToArray(document.getElementById("f_included").value),
+      deliverables: linesToArray(document.getElementById("f_deliverables").value), requirements: linesToArray(document.getElementById("f_requirements").value),
+      pricing_model: document.getElementById("f_pricingModel").value, order: Number(document.getElementById("f_order").value || 99),
+      starting_price: document.getElementById("f_startingPrice").value ? Number(document.getElementById("f_startingPrice").value) : null,
+      price_label: document.getElementById("f_priceLabel").value.trim(),
+      subscription_price: document.getElementById("f_subPrice").value ? Number(document.getElementById("f_subPrice").value) : null,
+      subscription_label: document.getElementById("f_subLabel").value.trim(), delivery_time: document.getElementById("f_delivery").value.trim(),
+      active: document.getElementById("f_active").checked, featured: document.getElementById("f_featured").checked,
+      coming_soon: document.getElementById("f_comingSoon").checked, requires_ai_quote: document.getElementById("f_requiresAiQuote").checked,
+      packages: collectPkgRows(),
     };
-
-    saveBtn.disabled = true;
-    saveStatus.textContent = 'Saving…';
-    saveStatus.className = 'save-status';
-
-    // UPDATED: now calls the Supabase admin-save-service function.
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-service', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ password: password, service: svcPayload })
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        saveBtn.disabled = false;
-        if (data && data.ok) {
-          saveStatus.textContent = 'Saved';
-          saveStatus.className = 'save-status ok';
-          setTimeout(function () {
-            closeServiceForm();
-            loadCatalog();
-          }, 400);
-        } else {
-          saveStatus.textContent = (data && data.error) || 'Could not save.';
-          saveStatus.className = 'save-status err';
-        }
-      })
-      .catch(function () {
-        saveBtn.disabled = false;
-        saveStatus.textContent = 'Network error — try again.';
-        saveStatus.className = 'save-status err';
-      });
+    btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+    authedFetch("/admin-save-service", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: payload }) }).then(function (r) {
+      btn.disabled = false;
+      if (r.data && r.data.ok) { statusEl.textContent = "Saved"; statusEl.className = "save-status ok"; catalogLoaded = false; setTimeout(function () { closeDrawer(); renderCatalogSection(); }, 400); }
+      else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
+    });
   }
 
-  function closeServiceForm() {
-    serviceFormOverlay.classList.remove('is-open');
-    document.body.style.overflow = '';
-    editingServiceId = null;
+  /* ---------------- Discounts ---------------- */
+
+  function renderDiscountsSection() {
+    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addDiscountBtn">+ Add discount</button>';
+    document.getElementById("addDiscountBtn").addEventListener("click", function () { openDiscountDrawer(null); });
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-discounts").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allDiscounts = r.data.discounts || []; discountsLoaded = true;
+      document.getElementById("pageSub").textContent = allDiscounts.length + (allDiscounts.length === 1 ? " code" : " codes");
+      drawDiscountsTable();
+    });
   }
-
-  addServiceBtn.addEventListener('click', function () { openServiceForm(null); });
-  serviceFormClose.addEventListener('click', closeServiceForm);
-  serviceFormOverlay.addEventListener('click', function (e) { if (e.target === serviceFormOverlay) closeServiceForm(); });
-
-  /* ============================================================
-     DISCOUNTS
-     ============================================================ */
-  var discountListEl = document.getElementById('discountList');
-  var allDiscounts = [];
-
-  function loadDiscounts() {
-    discountListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-discounts?password=' + encodeURIComponent(password), {
-      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) { discountListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load discounts.') + '</div>'; return; }
-        discountsLoaded = true;
-        allDiscounts = data.discounts || [];
-        renderDiscountList();
-      })
-      .catch(function () { discountListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
+  function drawDiscountsTable() {
+    if (!allDiscounts.length) { document.getElementById("pageBody").innerHTML = '<div class="empty">No discount codes yet.</div>'; return; }
+    document.getElementById("pageBody").innerHTML =
+      '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Value</th><th>Usage</th><th>Status</th></tr></thead><tbody>' +
+      allDiscounts.map(function (d) {
+        var val = d.type === "percent" ? d.value + "% off" : "\u20a6" + Number(d.value).toLocaleString() + " off";
+        var usage = (d.usage_limit != null) ? (d.used_count + " / " + d.usage_limit) : (d.used_count + " used");
+        return '<tr data-id="' + escapeHtml(d.id) + '"><td class="name">' + escapeHtml(d.code) + '</td><td>' + escapeHtml(val) + '</td><td>' + escapeHtml(usage) + '</td><td><span class="pill">' + (d.active ? "Active" : "Inactive") + '</span></td></tr>';
+      }).join("") + '</tbody></table></div>';
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openDiscountDrawer(allDiscounts.filter(function (d) { return d.id === row.getAttribute("data-id"); })[0]); });
+    });
   }
-
-  function renderDiscountList() {
-    if (!allDiscounts.length) { discountListEl.innerHTML = '<div class="empty-state">No discount codes yet.</div>'; return; }
-    discountListEl.innerHTML = allDiscounts.map(function (d) {
-      var valueLabel = d.type === 'percent' ? d.value + '% off' : '₦' + Number(d.value).toLocaleString() + ' off';
-      var usageLabel = (d.usage_limit != null) ? (d.used_count + ' / ' + d.usage_limit + ' used') : (d.used_count + ' used');
-      return '<div class="project-card" data-id="' + escapeHtml(d.id) + '">' +
-        '<div class="project-card-top"><div><h3>' + escapeHtml(d.code) + '</h3><p>' + escapeHtml(valueLabel) + ' · ' + escapeHtml(usageLabel) + '</p></div>' +
-        '<span class="badge">' + (d.active ? 'Active' : 'Inactive') + '</span></div>' +
-        '<div class="project-card-actions">' +
-        '<button type="button" class="save-btn disc-edit-btn">Edit</button>' +
-        '<button type="button" class="save-btn disc-delete-btn" style="background:#3a1f1f;color:#ff8b8b;">Delete</button>' +
-        '</div></div>';
-    }).join('');
-    Array.prototype.forEach.call(discountListEl.querySelectorAll('.project-card'), function (card) {
-      var id = card.getAttribute('data-id');
-      card.querySelector('.disc-edit-btn').addEventListener('click', function () { openDiscountForm(allDiscounts.filter(function (d) { return d.id === id; })[0]); });
-      card.querySelector('.disc-delete-btn').addEventListener('click', function () {
-        var d = allDiscounts.filter(function (x) { return x.id === id; })[0];
-        if (!confirm('Delete code "' + (d ? d.code : id) + '"?')) return;
-        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-delete-discount', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-          body: JSON.stringify({ password: password, id: id })
-        }).then(function (r) { return r.json(); }).then(function (data) {
-          if (data && data.ok) { allDiscounts = allDiscounts.filter(function (x) { return x.id !== id; }); renderDiscountList(); }
-          else alert((data && data.error) || 'Could not delete.');
-        });
+  function openDiscountDrawer(d) {
+    document.getElementById("drawerTitle").textContent = d ? "Edit discount" : "Add discount";
+    document.getElementById("drawerSub").textContent = d ? d.code : "";
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Code</label><input id="f_code" type="text" value="' + escapeHtml(d ? d.code : "") + '" placeholder="BF25"></div>' +
+      '<div class="two-col"><div class="field"><label>Type</label><select id="f_type"><option value="percent"' + (!d || d.type === "percent" ? " selected" : "") + '>Percent</option><option value="fixed"' + (d && d.type === "fixed" ? " selected" : "") + '>Fixed amount</option></select></div>' +
+      '<div class="field"><label>Value</label><input id="f_value" type="number" value="' + (d ? d.value : "") + '"></div></div>' +
+      '<div class="two-col"><div class="field"><label>Usage limit (blank = unlimited)</label><input id="f_usageLimit" type="number" value="' + (d && d.usage_limit != null ? d.usage_limit : "") + '"></div>' +
+      '<div class="field"><label>Minimum order amount</label><input id="f_minAmount" type="number" value="' + (d && d.min_amount != null ? d.min_amount : "") + '"></div></div>' +
+      '<div class="two-col"><div class="field"><label>Starts</label><input id="f_startsAt" type="date" value="' + (d && d.starts_at ? d.starts_at.slice(0, 10) : "") + '"></div>' +
+      '<div class="field"><label>Expires</label><input id="f_expiresAt" type="date" value="' + (d && d.expires_at ? d.expires_at.slice(0, 10) : "") + '"></div></div>' +
+      '<label class="check-row"><input type="checkbox" id="f_active"' + (d && d.active ? " checked" : "") + '> Active</label>' +
+      (d ? '<button type="button" class="btn danger" id="discDeleteBtn" style="width:100%;margin-top:8px;">Delete</button>' : "");
+    setDrawerFooter("save", "Save discount");
+    document.getElementById("drawerStatus").textContent = "";
+    document.getElementById("drawerSave").onclick = function () { saveDiscount(d ? d.id : null); };
+    var delBtn = document.getElementById("discDeleteBtn");
+    if (delBtn) delBtn.addEventListener("click", function () {
+      if (!confirm('Delete code "' + d.code + '"?')) return;
+      authedFetch("/admin-delete-discount", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: d.id }) }).then(function (r) {
+        if (r.data && r.data.ok) { closeDrawer(); renderDiscountsSection(); } else alert((r.data && r.data.error) || "Could not delete.");
       });
     });
+    scrim.classList.add("open"); drawer.classList.add("open");
   }
-
-  function openDiscountForm(d) {
-    var code = prompt('Discount code (e.g. BF25):', d ? d.code : '');
-    if (!code) return;
-    var typeChoice = prompt('Type: "percent" or "fixed"', d ? d.type : 'percent');
-    if (typeChoice !== 'percent' && typeChoice !== 'fixed') return;
-    var value = prompt('Value (percent number, e.g. 20, or naira amount off):', d ? d.value : '');
-    if (value == null || value === '') return;
-    var activeChoice = confirm('Make this code ACTIVE now? (Cancel = inactive)');
-
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-discount', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ password: password, discount: { id: d ? d.id : undefined, code: code, type: typeChoice, value: Number(value), active: activeChoice, applies_to: 'all' } })
-    }).then(function (r) { return r.json(); }).then(function (data) {
-      if (data && data.ok) loadDiscounts(); else alert((data && data.error) || 'Could not save.');
-    });
-  }
-  document.getElementById('addDiscountBtn').addEventListener('click', function () { openDiscountForm(null); });
-
-  /* ============================================================
-     SALE PERIODS (Black Friday etc.)
-     ============================================================ */
-  var saleListEl = document.getElementById('saleList');
-  var allSales = [];
-
-  function loadSales() {
-    saleListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-sales?password=' + encodeURIComponent(password), {
-      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) { saleListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load sales.') + '</div>'; return; }
-        salesLoaded = true;
-        allSales = data.sales || [];
-        renderSaleList();
-      })
-      .catch(function () { saleListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
-  }
-  function loadPopupFrequency() {
-    fetch(SUPABASE_FUNCTIONS_BASE + '/public-active-sales', {
-      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data && data.ok && data.popupFrequency) {
-          document.getElementById('popupFrequencySelect').value = data.popupFrequency;
-        }
-      })
-      .catch(function () { /* leave the default selected option showing */ });
-  }
- 
-  document.getElementById('popupFrequencySelect').addEventListener('change', function (e) {
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-setting', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ password: password, key: 'sale_popup_frequency', value: e.target.value })
-    }).then(function (r) { return r.json(); }).then(function (data) {
-      if (!data || !data.ok) alert((data && data.error) || 'Could not save — please try again.');
-    });
-  });
- 
-
-  function renderSaleList() {
-    if (!allSales.length) { saleListEl.innerHTML = '<div class="empty-state">No sale periods yet.</div>'; return; }
-    saleListEl.innerHTML = allSales.map(function (s) {
-      return '<div class="project-card" data-id="' + escapeHtml(s.id) + '">' +
-        '<div class="project-card-top"><div><h3>' + escapeHtml(s.name) + '</h3><p>' + escapeHtml(String(s.percent_off)) + '% off · ' + escapeHtml(s.applies_to) + '</p></div>' +
-        '<span class="badge">' + (s.active ? 'ACTIVE' : 'Off') + '</span></div>' +
-        '<div class="project-card-actions">' +
-        '<button type="button" class="save-btn sale-toggle-btn">' + (s.active ? 'Turn Off' : 'Turn On') + '</button>' +
-        '<button type="button" class="save-btn sale-edit-btn">Edit</button>' +
-        '</div></div>';
-    }).join('');
-    Array.prototype.forEach.call(saleListEl.querySelectorAll('.project-card'), function (card) {
-      var id = card.getAttribute('data-id');
-      var s = allSales.filter(function (x) { return x.id === id; })[0];
-      card.querySelector('.sale-toggle-btn').addEventListener('click', function () { saveSale(Object.assign({}, s, { id: id, active: !s.active })); });
-      card.querySelector('.sale-edit-btn').addEventListener('click', function () { openSaleForm(s); });
+  function saveDiscount(id) {
+    var code = document.getElementById("f_code").value.trim();
+    var value = document.getElementById("f_value").value;
+    var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
+    if (!code || value === "") { statusEl.textContent = "Code and value are required."; statusEl.className = "save-status err"; return; }
+    var payload = {
+      id: id || undefined, code: code, type: document.getElementById("f_type").value, value: Number(value),
+      active: document.getElementById("f_active").checked,
+      usage_limit: document.getElementById("f_usageLimit").value ? Number(document.getElementById("f_usageLimit").value) : null,
+      min_amount: document.getElementById("f_minAmount").value ? Number(document.getElementById("f_minAmount").value) : null,
+      starts_at: document.getElementById("f_startsAt").value || null, expires_at: document.getElementById("f_expiresAt").value || null,
+      applies_to: "all",
+    };
+    btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+    authedFetch("/admin-save-discount", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discount: payload }) }).then(function (r) {
+      btn.disabled = false;
+      if (r.data && r.data.ok) { statusEl.textContent = "Saved"; statusEl.className = "save-status ok"; setTimeout(function () { closeDrawer(); renderDiscountsSection(); }, 400); }
+      else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
     });
   }
 
-  function saveSale(payload) {
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-save-sale', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ password: password, sale: payload })
-    }).then(function (r) { return r.json(); }).then(function (data) {
-      if (data && data.ok) loadSales(); else alert((data && data.error) || 'Could not save.');
+  /* ---------------- Sales ---------------- */
+
+  function renderSalesSection() {
+    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addSaleBtn">+ Add sale</button>';
+    document.getElementById("addSaleBtn").addEventListener("click", function () { openSaleDrawer(null); });
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-sales").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allSales = r.data.sales || []; salesLoaded = true;
+      document.getElementById("pageSub").textContent = allSales.length + (allSales.length === 1 ? " sale period" : " sale periods");
+      drawSalesTable();
     });
   }
-
-  function openSaleForm(s) {
-    var name = prompt('Sale name (e.g. "Black Friday 2026"):', s ? s.name : '');
-    if (!name) return;
-    var percent = prompt('Percent off (e.g. 25):', s ? s.percent_off : '');
-    if (percent == null || percent === '') return;
-    var starts = prompt('Start date/time (YYYY-MM-DDTHH:MM, blank = starts now):', s && s.starts_at ? s.starts_at.slice(0, 16) : '');
-    var ends = prompt('End date/time (YYYY-MM-DDTHH:MM, blank = no end):', s && s.ends_at ? s.ends_at.slice(0, 16) : '');
-    var activeChoice = confirm('Make this sale ACTIVE right now? (Cancel = save but keep off)');
-    saveSale({
-      id: s ? s.id : undefined, name: name, percent_off: Number(percent), active: activeChoice,
-      starts_at: starts || null, ends_at: ends || null, applies_to: 'all'
+  function drawSalesTable() {
+    if (!allSales.length) { document.getElementById("pageBody").innerHTML = '<div class="empty">No sale periods yet.</div>'; return; }
+    document.getElementById("pageBody").innerHTML =
+      '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Discount</th><th>Applies to</th><th>Status</th></tr></thead><tbody>' +
+      allSales.map(function (s) {
+        return '<tr data-id="' + escapeHtml(s.id) + '"><td class="name">' + escapeHtml(s.name) + '</td><td>' + escapeHtml(String(s.percent_off)) + '% off</td><td>' + escapeHtml(s.applies_to) + '</td><td><span class="pill">' + (s.active ? "Active" : "Off") + '</span></td></tr>';
+      }).join("") + '</tbody></table></div>';
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openSaleDrawer(allSales.filter(function (s) { return s.id === row.getAttribute("data-id"); })[0]); });
     });
   }
-  document.getElementById('addSaleBtn').addEventListener('click', function () { openSaleForm(null); });
-
-  /* ============================================================
-     SUPPORT TICKETS (chatbot escalations)
-     ============================================================ */
-  var ticketListEl = document.getElementById('ticketList');
-  var ticketTabsEl = document.getElementById('ticketTabs');
-  var allTickets = [];
-  var ticketTab = 'open';
-
-  function loadTickets() {
-    ticketListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-tickets?password=' + encodeURIComponent(password), {
-      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) { ticketListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load tickets.') + '</div>'; return; }
-        ticketsLoaded = true;
-        allTickets = data.tickets || [];
-        renderTicketTabs();
-        renderTicketList();
-      })
-      .catch(function () { ticketListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
-  }
-
-  function renderTicketTabs() {
-    var tabs = ['open', 'in_progress', 'resolved', 'all'];
-    ticketTabsEl.innerHTML = tabs.map(function (t) {
-      return '<button type="button" data-tab="' + t + '" class="' + (t === ticketTab ? 'active' : '') + '">' + t.replace('_', ' ') + '</button>';
-    }).join('');
-    Array.prototype.forEach.call(ticketTabsEl.querySelectorAll('button'), function (btn) {
-      btn.addEventListener('click', function () { ticketTab = btn.getAttribute('data-tab'); renderTicketTabs(); renderTicketList(); });
-    });
-  }
-
-  function renderTicketList() {
-    var filtered = ticketTab === 'all' ? allTickets : allTickets.filter(function (t) { return t.status === ticketTab; });
-    if (!filtered.length) { ticketListEl.innerHTML = '<div class="empty-state">Nothing here.</div>'; return; }
-    ticketListEl.innerHTML = filtered.map(function (t) {
-      return '<div class="project-card" data-id="' + escapeHtml(t.id) + '">' +
-        '<div class="project-card-top"><div><h3>' + escapeHtml(t.full_name || 'Anonymous visitor') + '</h3>' +
-        '<p>' + escapeHtml(t.email || '') + (t.whatsapp ? ' · ' + escapeHtml(t.whatsapp) : '') + '</p></div>' +
-        '<span class="badge">' + escapeHtml(t.status) + '</span></div>' +
-        '<div class="project-meta">' + escapeHtml((t.summary || '').slice(0, 400)) + '</div>' +
-        '<div class="field"><label>Status</label><select class="t-status">' +
-        ['open', 'in_progress', 'resolved'].map(function (s) { return '<option value="' + s + '"' + (s === t.status ? ' selected' : '') + '>' + s.replace('_', ' ') + '</option>'; }).join('') +
-        '</select></div>' +
-        '<div class="field"><label>Notes</label><textarea class="t-notes">' + escapeHtml(t.admin_notes || '') + '</textarea></div>' +
-        '<div class="project-card-actions"><button type="button" class="save-btn t-save-btn">Save</button><span class="save-status"></span></div>' +
-        '</div>';
-    }).join('');
-    Array.prototype.forEach.call(ticketListEl.querySelectorAll('.project-card'), function (card) {
-      var id = card.getAttribute('data-id');
-      var saveStatus = card.querySelector('.save-status');
-      card.querySelector('.t-save-btn').addEventListener('click', function () {
-        fetch(SUPABASE_FUNCTIONS_BASE + '/admin-ticket-update', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-          body: JSON.stringify({ password: password, id: id, status: card.querySelector('.t-status').value, adminNotes: card.querySelector('.t-notes').value.trim() })
-        }).then(function (r) { return r.json(); }).then(function (data) {
-          if (data && data.ok) { saveStatus.textContent = 'Saved'; saveStatus.className = 'save-status ok'; loadTickets(); }
-          else { saveStatus.textContent = (data && data.error) || 'Could not save.'; saveStatus.className = 'save-status err'; }
-        });
+  function openSaleDrawer(s) {
+    document.getElementById("drawerTitle").textContent = s ? "Edit sale" : "Add sale";
+    document.getElementById("drawerSub").textContent = s ? s.name : "";
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Name</label><input id="f_name" type="text" value="' + escapeHtml(s ? s.name : "") + '" placeholder="Black Friday 2026"></div>' +
+      '<div class="field"><label>Percent off</label><input id="f_percent" type="number" value="' + (s ? s.percent_off : "") + '"></div>' +
+      '<div class="two-col"><div class="field"><label>Starts</label><input id="f_startsAt" type="datetime-local" value="' + (s && s.starts_at ? s.starts_at.slice(0, 16) : "") + '"></div>' +
+      '<div class="field"><label>Ends</label><input id="f_endsAt" type="datetime-local" value="' + (s && s.ends_at ? s.ends_at.slice(0, 16) : "") + '"></div></div>' +
+      '<label class="check-row"><input type="checkbox" id="f_active"' + (s && s.active ? " checked" : "") + '> Active now</label>';
+    setDrawerFooter("save", "Save sale");
+    document.getElementById("drawerStatus").textContent = "";
+    document.getElementById("drawerSave").onclick = function () {
+      var payload = {
+        id: s ? s.id : undefined, name: document.getElementById("f_name").value.trim(), percent_off: Number(document.getElementById("f_percent").value || 0),
+        active: document.getElementById("f_active").checked, starts_at: document.getElementById("f_startsAt").value || null, ends_at: document.getElementById("f_endsAt").value || null, applies_to: "all",
+      };
+      var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
+      if (!payload.name) { statusEl.textContent = "Name is required."; statusEl.className = "save-status err"; return; }
+      btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+      authedFetch("/admin-save-sale", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sale: payload }) }).then(function (r) {
+        btn.disabled = false;
+        if (r.data && r.data.ok) { statusEl.textContent = "Saved"; statusEl.className = "save-status ok"; setTimeout(function () { closeDrawer(); renderSalesSection(); }, 400); }
+        else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
       });
+    };
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+
+  /* ---------------- Tickets ---------------- */
+
+  function renderTicketsSection() {
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-tickets").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allTickets = r.data.tickets || []; ticketsLoaded = true;
+      drawTicketsSection();
     });
   }
+  function drawTicketsSection() {
+    var tabs = ["open", "in_progress", "resolved", "all"];
+    var filterRow = '<div class="filter-row">' + tabs.map(function (t) {
+      return '<button type="button" data-t="' + t + '" class="' + (t === ticketTab ? "active" : "") + '">' + t.replace("_", " ") + '</button>';
+    }).join("") + '</div>';
+    var filtered = ticketTab === "all" ? allTickets : allTickets.filter(function (t) { return t.status === ticketTab; });
+    document.getElementById("pageSub").textContent = filtered.length + (filtered.length === 1 ? " ticket" : " tickets");
 
-  /* ============================================================
-     MANUAL PAYMENTS (bank/Opay transfer + screenshot review)
-     ============================================================ */
-  var manualpayListEl = document.getElementById('manualpayList');
-  var manualpayTabsEl = document.getElementById('manualpayTabs');
-  var allManualPayments = [];
-  var manualpayTab = 'pending';
+    var body = filtered.length
+      ? '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Summary</th><th>Status</th></tr></thead><tbody>' +
+        filtered.map(function (t) {
+          return '<tr data-id="' + escapeHtml(t.id) + '"><td class="name">' + escapeHtml(t.full_name || "Anonymous visitor") + '<div class="sub">' + escapeHtml(t.email || "") + '</div></td>' +
+            '<td>' + escapeHtml((t.summary || "").slice(0, 90)) + '</td><td><span class="pill">' + t.status.replace("_", " ") + '</span></td></tr>';
+        }).join("") + '</tbody></table></div>'
+      : '<div class="empty">Nothing here.</div>';
 
-  function loadManualPayments() {
-    manualpayListEl.innerHTML = '<div class="empty-state">Loading…</div>';
-    fetch(SUPABASE_FUNCTIONS_BASE + '/admin-list-manual-payments?password=' + encodeURIComponent(password), {
-      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY }
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (!data || !data.ok) { manualpayListEl.innerHTML = '<div class="empty-state">' + escapeHtml((data && data.error) || 'Could not load manual payments.') + '</div>'; return; }
-        manualpayLoaded = true;
-        allManualPayments = data.payments || [];
-        renderManualpayTabs();
-        renderManualpayList();
-      })
-      .catch(function () { manualpayListEl.innerHTML = '<div class="empty-state">Could not reach the server.</div>'; });
-  }
-
-  function renderManualpayTabs() {
-    var tabs = ['pending', 'verified', 'rejected', 'all'];
-    manualpayTabsEl.innerHTML = tabs.map(function (t) {
-      return '<button type="button" data-tab="' + t + '" class="' + (t === manualpayTab ? 'active' : '') + '">' + t + '</button>';
-    }).join('');
-    Array.prototype.forEach.call(manualpayTabsEl.querySelectorAll('button'), function (btn) {
-      btn.addEventListener('click', function () { manualpayTab = btn.getAttribute('data-tab'); renderManualpayTabs(); renderManualpayList(); });
+    document.getElementById("pageBody").innerHTML = filterRow + body;
+    Array.prototype.forEach.call(document.querySelectorAll(".filter-row button"), function (btn) {
+      btn.addEventListener("click", function () { ticketTab = btn.getAttribute("data-t"); drawTicketsSection(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openTicketDrawer(allTickets.filter(function (t) { return t.id === row.getAttribute("data-id"); })[0]); });
     });
   }
-
-  function renderManualpayList() {
-    var filtered = manualpayTab === 'all' ? allManualPayments : allManualPayments.filter(function (p) { return p.status === manualpayTab; });
-    if (!filtered.length) { manualpayListEl.innerHTML = '<div class="empty-state">Nothing here.</div>'; return; }
-
-    manualpayListEl.innerHTML = filtered.map(function (p) {
-      var canDecide = p.status === 'pending';
-      return (
-        '<div class="project-card" data-id="' + escapeHtml(p.id) + '">' +
-          '<div class="project-card-top">' +
-            '<div><h3>' + escapeHtml(p.fullName) + (p.businessName ? ' · ' + escapeHtml(p.businessName) : '') + '</h3>' +
-            '<p>' + escapeHtml(p.serviceName) + (p.packageName ? ' — ' + escapeHtml(p.packageName) : '') + '</p></div>' +
-            '<span class="badge ' + (p.status === 'verified' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'awaiting_admin') + '">' + escapeHtml(p.status) + '</span>' +
-          '</div>' +
-          '<div class="project-meta">' +
-            '<b>Claimed amount:</b> ₦' + Number(p.amount || 0).toLocaleString() + '<br>' +
-            escapeHtml(p.email) + ' · ' + escapeHtml(p.whatsapp) +
-            (p.adminNotes ? '<br><b>Notes:</b> ' + escapeHtml(p.adminNotes) : '') +
-          '</div>' +
-          (p.screenshotUrl ? '<a href="' + escapeHtml(p.screenshotUrl) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(p.screenshotUrl) + '" alt="Payment screenshot" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin-bottom:10px;display:block;"></a>' : '') +
-          (canDecide ?
-            '<div class="field"><label>Notes (optional)</label><textarea class="mp-notes" placeholder="Internal / message to client if rejecting"></textarea></div>' +
-            '<div class="project-card-actions">' +
-              '<button type="button" class="save-btn mp-decide-btn" data-decision="verified">Verified</button>' +
-              '<button type="button" class="save-btn mp-decide-btn" data-decision="rejected" style="background:transparent;color:#ff8b8b;border:1px solid #4a2222;">Reject</button>' +
-              '<span class="save-status"></span>' +
-            '</div>'
-            : '') +
-        '</div>'
-      );
-    }).join('');
-
-    Array.prototype.forEach.call(manualpayListEl.querySelectorAll('.project-card'), function (card) {
-      var id = card.getAttribute('data-id');
-      var saveStatus = card.querySelector('.save-status');
-      Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (btn) {
-        btn.addEventListener('click', function () {
-          var decision = btn.getAttribute('data-decision');
-          var notesEl = card.querySelector('.mp-notes');
-          if (decision === 'verified' && !confirm('Confirm this payment is genuine? This creates the project and emails the client immediately.')) return;
-          Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (b) { b.disabled = true; });
-          if (saveStatus) { saveStatus.textContent = 'Saving…'; saveStatus.className = 'save-status'; }
-
-          fetch(SUPABASE_FUNCTIONS_BASE + '/admin-verify-manual-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-            body: JSON.stringify({ password: password, id: id, decision: decision, notes: notesEl ? notesEl.value.trim() : '' })
-          })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-              if (data && data.ok) { loadManualPayments(); }
-              else {
-                Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (b) { b.disabled = false; });
-                if (saveStatus) { saveStatus.textContent = (data && data.error) || 'Could not save.'; saveStatus.className = 'save-status err'; }
-              }
-            })
-            .catch(function () {
-              Array.prototype.forEach.call(card.querySelectorAll('.mp-decide-btn'), function (b) { b.disabled = false; });
-              if (saveStatus) { saveStatus.textContent = 'Network error — try again.'; saveStatus.className = 'save-status err'; }
-            });
-        });
+  function openTicketDrawer(t) {
+    document.getElementById("drawerTitle").textContent = t.full_name || "Anonymous visitor";
+    document.getElementById("drawerSub").textContent = (t.email || "") + (t.whatsapp ? " · " + t.whatsapp : "");
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Summary</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(t.summary || "") + '</div></div>' +
+      '<div class="field"><label>Status</label><select id="f_status">' + ["open", "in_progress", "resolved"].map(function (s) { return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + '>' + s.replace("_", " ") + '</option>'; }).join("") + '</select></div>' +
+      '<div class="field"><label>Notes</label><textarea id="f_notes">' + escapeHtml(t.admin_notes || "") + '</textarea></div>';
+    setDrawerFooter("save", "Save");
+    document.getElementById("drawerStatus").textContent = "";
+    document.getElementById("drawerSave").onclick = function () {
+      var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
+      btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+      authedFetch("/admin-ticket-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: t.id, status: document.getElementById("f_status").value, adminNotes: document.getElementById("f_notes").value.trim() }) }).then(function (r) {
+        btn.disabled = false;
+        if (r.data && r.data.ok) { statusEl.textContent = "Saved"; statusEl.className = "save-status ok"; setTimeout(function () { closeDrawer(); renderTicketsSection(); }, 400); }
+        else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
       });
+    };
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+
+  /* ---------------- Manual Payments ---------------- */
+
+  function renderManualPaySection() {
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-list-manual-payments").then(function (r) {
+      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
+      allManualPayments = r.data.payments || []; manualpayLoaded = true;
+      drawManualPaySection();
+    });
+  }
+  function drawManualPaySection() {
+    var tabs = ["pending", "verified", "rejected", "all"];
+    var filterRow = '<div class="filter-row">' + tabs.map(function (t) {
+      return '<button type="button" data-t="' + t + '" class="' + (t === manualpayTab ? "active" : "") + '">' + t + '</button>';
+    }).join("") + '</div>';
+    var filtered = manualpayTab === "all" ? allManualPayments : allManualPayments.filter(function (p) { return p.status === manualpayTab; });
+    document.getElementById("pageSub").textContent = filtered.length + (filtered.length === 1 ? " payment" : " payments");
+
+    var body = filtered.length
+      ? '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Amount</th><th>Status</th></tr></thead><tbody>' +
+        filtered.map(function (p) {
+          return '<tr data-id="' + escapeHtml(p.id) + '"><td class="name">' + escapeHtml(p.fullName) + (p.businessName ? '<div class="sub">' + escapeHtml(p.businessName) + '</div>' : '') + '</td>' +
+            '<td>' + escapeHtml(p.serviceName) + (p.packageName ? '<div class="sub">' + escapeHtml(p.packageName) + '</div>' : '') + '</td>' +
+            '<td class="amount">\u20a6' + Number(p.amount || 0).toLocaleString() + '</td><td><span class="pill">' + escapeHtml(p.status) + '</span></td></tr>';
+        }).join("") + '</tbody></table></div>'
+      : '<div class="empty">Nothing here.</div>';
+
+    document.getElementById("pageBody").innerHTML = filterRow + body;
+    Array.prototype.forEach.call(document.querySelectorAll(".filter-row button"), function (btn) {
+      btn.addEventListener("click", function () { manualpayTab = btn.getAttribute("data-t"); drawManualPaySection(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
+      row.addEventListener("click", function () { openManualPayDrawer(allManualPayments.filter(function (p) { return p.id === row.getAttribute("data-id"); })[0]); });
+    });
+  }
+  function openManualPayDrawer(p) {
+    document.getElementById("drawerTitle").textContent = p.fullName + (p.businessName ? " · " + p.businessName : "");
+    document.getElementById("drawerSub").textContent = p.email + " · " + p.whatsapp;
+    var canDecide = p.status === "pending";
+    document.getElementById("drawerBody").innerHTML =
+      (p.screenshotUrl ? '<a href="' + escapeHtml(p.screenshotUrl) + '" target="_blank" rel="noopener"><img class="shot" src="' + escapeHtml(p.screenshotUrl) + '" alt="Payment screenshot"></a>' : "") +
+      '<div class="field"><label>Claimed amount</label><div style="font-size:13.5px;">\u20a6' + Number(p.amount || 0).toLocaleString() + '</div></div>' +
+      (canDecide
+        ? '<div class="field"><label>Notes (optional)</label><textarea id="f_notes" placeholder="Internal or message to client if rejecting"></textarea></div>' +
+          '<div class="inline-actions"><button type="button" class="btn primary" id="mp_verify">Verified</button><button type="button" class="btn danger" id="mp_reject">Reject</button></div>'
+        : '<div class="field"><label>Status</label><div style="font-size:13.5px;">' + escapeHtml(p.status) + (p.adminNotes ? " — " + escapeHtml(p.adminNotes) : "") + '</div></div>');
+    setDrawerFooter("none");
+    document.getElementById("drawerStatus").textContent = "";
+    if (canDecide) {
+      document.getElementById("mp_verify").addEventListener("click", function () {
+        if (!confirm("Confirm this payment is genuine? This creates the project and emails the client immediately.")) return;
+        decideManualPay(p, "verified");
+      });
+      document.getElementById("mp_reject").addEventListener("click", function () { decideManualPay(p, "rejected"); });
+    }
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+  function decideManualPay(p, decision) {
+    var statusEl = document.getElementById("drawerStatus");
+    statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+    var notesEl = document.getElementById("f_notes");
+    authedFetch("/admin-verify-manual-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: p.id, decision: decision, notes: notesEl ? notesEl.value.trim() : "" }) }).then(function (r) {
+      if (r.data && r.data.ok) { closeDrawer(); renderManualPaySection(); }
+      else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
     });
   }
 
-  if (password) tryLoad(password);
+  /* ---------------- Settings ---------------- */
+
+  function renderSettingsSection() {
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    Promise.all([
+      authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "announcement" }) }),
+      authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "sale_popup_frequency" }) }),
+    ]).then(function (results) {
+      settingsValues.announcement = (results[0].data && results[0].data.value) || "";
+      settingsValues.sale_popup_frequency = (results[1].data && results[1].data.value) || "once_per_session";
+      drawSettingsSection();
+    });
+  }
+  function drawSettingsSection() {
+    var freqOptions = [
+      ["always", "Every page load"], ["once_per_session", "Once per visit"],
+      ["hours:1", "Once every hour"], ["hours:3", "Once every 3 hours"], ["hours:12", "Once every 12 hours"], ["hours:24", "Once every 24 hours"],
+    ].map(function (o) { return '<option value="' + o[0] + '"' + (settingsValues.sale_popup_frequency === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("");
+
+    document.getElementById("pageBody").innerHTML =
+      '<div style="max-width:480px;">' +
+      '<div class="field"><label>Site announcement banner</label><textarea id="s_announcement" placeholder="Leave blank to hide the banner">' + escapeHtml(settingsValues.announcement) + '</textarea>' +
+      '<div class="inline-actions"><button type="button" class="btn primary" id="s_saveAnnouncement">Save</button><span class="save-status" id="s_announcementStatus"></span></div></div>' +
+      '<div class="field" style="margin-top:24px;"><label>Sale popup frequency</label><select id="s_popupFreq">' + freqOptions + '</select>' +
+      '<div class="inline-actions"><button type="button" class="btn primary" id="s_savePopup">Save</button><span class="save-status" id="s_popupStatus"></span></div></div>' +
+      '</div>';
+
+    document.getElementById("s_saveAnnouncement").addEventListener("click", function () { saveSetting("announcement", document.getElementById("s_announcement").value, "s_announcementStatus"); });
+    document.getElementById("s_savePopup").addEventListener("click", function () { saveSetting("sale_popup_frequency", document.getElementById("s_popupFreq").value, "s_popupStatus"); });
+  }
+  function saveSetting(key, value, statusElId) {
+    var statusEl = document.getElementById(statusElId);
+    statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+    authedFetch("/admin-save-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: key, value: value }) }).then(function (r) {
+      if (r.data && r.data.ok) { statusEl.textContent = "Saved"; statusEl.className = "save-status ok"; }
+      else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
+    });
+  }
+
+  initAuth0();
 })();
 </script>
-<script src="admin-announcement.js"></script>
-<script src="admin-portal.js"></script>
 </body>
 </html>
