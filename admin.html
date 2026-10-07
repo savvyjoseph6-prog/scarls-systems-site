@@ -25,19 +25,27 @@
 
   /* ---------- Login screen ---------- */
   #login{
-    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:20px; padding:24px; text-align:center;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(900px 480px at 50% -10%, rgba(77,124,255,.16), transparent 70%), var(--bg);
   }
-  #login .mark{ font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:.02em; color:var(--white); }
-  #login .mark span{ color:var(--accent); }
-  #login h1{ font-family:var(--font-display); font-size:26px; font-weight:600; margin:0; }
-  #login p{ color:var(--dim); font-size:14px; max-width:320px; margin:0; line-height:1.5; }
-  #login button{
-    margin-top:8px; background:var(--accent); color:#fff; border:none; border-radius:9px;
-    padding:13px 28px; font-size:14px; font-weight:600; cursor:pointer;
+  .login-card{
+    width:100%; max-width:400px; background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:36px 32px 28px; text-align:center; box-shadow:0 24px 60px rgba(0,0,0,.45);
   }
-  #login button:hover{ background:#3f6ae0; }
-  #login .err{ color:var(--red); font-size:13px; min-height:16px; }
+  .login-logo{ width:56px; height:56px; object-fit:contain; display:block; margin:0 auto 14px; border-radius:12px; }
+  .login-card .mark{ font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:.08em; color:var(--dim); margin-bottom:22px; }
+  .login-card .mark span{ color:var(--accent); }
+  .login-card h1{ font-family:var(--font-display); font-size:24px; font-weight:600; margin:0 0 8px; }
+  .login-card p.lead{ color:var(--dim); font-size:14px; line-height:1.55; margin:0 0 26px; }
+  .login-card button{
+    width:100%; background:var(--accent); color:#fff; border:none; border-radius:10px;
+    padding:14px 20px; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .15s, opacity .15s;
+  }
+  .login-card button:hover:not(:disabled){ background:#3f6ae0; }
+  .login-card button:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+  .login-card button:disabled{ opacity:.6; cursor:default; }
+  .login-card .err{ color:var(--red); font-size:13px; min-height:18px; margin:14px 0 0; line-height:1.4; }
+  .login-foot{ margin-top:18px; padding-top:18px; border-top:1px solid var(--line-soft); font-size:12px; color:var(--dimmer); }
 
   /* ---------- Shell ---------- */
   #shell{ display:none; min-height:100vh; }
@@ -156,16 +164,44 @@
   .check-row{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--dim); margin-bottom:10px; }
   .check-row input{ width:auto; }
   .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* ---------- Revenue ---------- */
+  .rev-table tbody tr{ cursor:default; }
+  .rev-table tbody tr:hover{ background:none; }
+  .rev-grid{ display:grid; grid-template-columns:1.6fr 1fr; gap:16px; margin-bottom:28px; }
+  @media(max-width:900px){ .rev-grid{ grid-template-columns:1fr; } }
+  .rev-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .rev-card h3{ font-family:var(--font-display); font-size:14px; font-weight:600; margin:0 0 14px; }
+  .rev-h{ font-family:var(--font-display); font-size:15px; font-weight:600; margin:0 0 12px; }
+  .rev-bars{ display:flex; align-items:flex-end; gap:6px; height:150px; }
+  .rev-bar{ flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; min-width:0; }
+  .rev-bar i{ display:block; width:100%; min-height:2px; background:var(--accent); border-radius:3px 3px 0 0; }
+  .rev-bar.zero i{ background:var(--line); }
+  .rev-bar span{ font-family:var(--font-mono); font-size:10px; color:var(--dimmer); margin-top:6px; }
+  .rev-alert{ border:1px solid #4a2222; background:rgba(255,139,139,.06); border-radius:10px; padding:16px 18px; margin-bottom:28px; }
+  .rev-alert .rev-h{ color:var(--red); }
+  .rev-alert .table-wrap{ border-color:#4a2222; }
+  .rev-src{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px; }
+  .rev-src:last-child{ border-bottom:none; }
+  .pill.src-order{ color:var(--blue); border-color:#22344a; }
+  .pill.src-renewal{ color:var(--purple); border-color:#3a224a; }
+  .pill.src-manual{ color:var(--gold); border-color:#4a3f22; }
+  .pill.st-failed{ color:var(--red); border-color:#4a2222; }
+  .pill.st-ok{ color:var(--green); border-color:#22452f; }
 </style>
 </head>
 <body>
 
 <div id="login">
-  <div class="mark">SCARLS<span>•</span>SYSTEMS</div>
-  <h1>Admin</h1>
-  <p>Sign in with your SCARLS admin account to manage projects, the catalog, and everything else.</p>
-  <button type="button" id="loginBtn">Log In</button>
-  <p class="err" id="loginErr"></p>
+  <div class="login-card">
+    <img class="login-logo" src="assets/scarls-logo.png" alt="" onerror="this.style.display='none'">
+    <div class="mark">SCARLS<span>•</span>SYSTEMS</div>
+    <h1>Welcome back</h1>
+    <p class="lead">Sign in to your admin account to manage projects, payments and the catalog.</p>
+    <button type="button" id="loginBtn" disabled>Checking session…</button>
+    <p class="err" id="loginErr" role="alert"></p>
+    <div class="login-foot">Authorized administrators only</div>
+  </div>
 </div>
 
 <div id="shell">
@@ -233,6 +269,7 @@
     { id: "sales", label: "Sales", wired: true },
     { id: "tickets", label: "Tickets", wired: true },
     { id: "manualpay", label: "Manual Payments", wired: true },
+    { id: "revenue", label: "Revenue", wired: true },
     { id: "settings", label: "Settings", wired: true },
   ];
 
@@ -280,6 +317,9 @@
       document.getElementById("shell").style.display = "flex";
       renderNav();
       goTo("dashboard");
+    } else {
+      var lb = document.getElementById("loginBtn");
+      lb.disabled = false; lb.textContent = "Sign in";
     }
   }
 
@@ -302,7 +342,12 @@
 
   document.getElementById("loginBtn").addEventListener("click", function () {
     showLoginError("");
-    auth0Client.loginWithRedirect();
+    var lb = document.getElementById("loginBtn");
+    lb.disabled = true; lb.textContent = "Redirecting…";
+    auth0Client.loginWithRedirect().catch(function () {
+      lb.disabled = false; lb.textContent = "Sign in";
+      showLoginError("Could not start sign-in. Please try again.");
+    });
   });
   document.getElementById("logoutBtn").addEventListener("click", function () {
     auth0Client.logout({ logoutParams: { returnTo: window.location.origin + window.location.pathname } });
@@ -350,6 +395,7 @@
     else if (sectionId === "sales") renderSalesSection();
     else if (sectionId === "tickets") renderTicketsSection();
     else if (sectionId === "manualpay") renderManualPaySection();
+    else if (sectionId === "revenue") renderRevenueSection();
     else if (sectionId === "settings") renderSettingsSection();
     else renderPlaceholder(section.label);
   }
@@ -1088,6 +1134,92 @@
     });
   }
 
+  /* ---------------- Revenue ---------------- */
+
+  function naira(n) { return "\u20a6" + Number(n || 0).toLocaleString(); }
+  function revStat(value, label, sub) {
+    return '<div class="stat"><div class="n" style="font-size:21px;">' + value + '</div><div class="l">' + escapeHtml(label) + '</div>' +
+      (sub ? '<div class="l" style="color:var(--dimmer);margin-top:2px;">' + sub + '</div>' : '') + '</div>';
+  }
+
+  function renderRevenueSection() {
+    document.getElementById("pageSub").textContent = "Read-only. Paystack orders, renewals and verified manual payments.";
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    authedFetch("/admin-revenue-stats").then(function (r) {
+      if (!r.data || !r.data.ok) {
+        document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load revenue.") + '</div>';
+        return;
+      }
+      drawRevenue(r.data);
+    }).catch(function () {
+      document.getElementById("pageBody").innerHTML = '<div class="empty">Network error — try again.</div>';
+    });
+  }
+
+  function revDiscountsHtml(x) {
+    if (!x) return "";
+    var rows = x.byCode.length
+      ? x.byCode.map(function (c) { return '<div class="rev-src"><span>' + escapeHtml(c.code) + ' <span style="color:var(--dimmer);">\u00d7 ' + c.count + '</span></span><span class="amount">' + naira(c.total) + '</span></div>'; }).join("")
+      : '<div class="rev-src"><span style="color:var(--dimmer);">No discounts used yet.</span></div>';
+    return '<div class="rev-card" style="margin-bottom:28px;"><h3>Discounts given \u2014 ' + naira(x.totalDiscounted) + ' across ' + x.redemptions + ' paid checkout' + (x.redemptions === 1 ? "" : "s") + '</h3>' + rows +
+      '<div class="rev-src" style="color:var(--dimmer);font-size:12px;">Counts only completed checkouts. Unfinished checkouts that reserved a code are excluded.</div></div>';
+  }
+
+  function drawRevenue(d) {
+    var t = d.totals, s = d.subscriptions;
+    var html = '<div class="stats-row">' +
+      revStat(naira(t.allTime), "All-time revenue") +
+      revStat(naira(t.thisMonth), "This month") +
+      revStat(naira(t.today), "Today") +
+      revStat(String(s.activeCount), "Active subscriptions", "MRR " + naira(s.mrr)) +
+      revStat(naira(t.pendingManual), "Pending manual payments") +
+      '</div>';
+
+    if (d.failedRenewals && d.failedRenewals.length) {
+      html += '<div class="rev-alert"><div class="rev-h">' + d.failedRenewals.length + ' failed renewal' + (d.failedRenewals.length === 1 ? "" : "s") + ' need attention</div>' +
+        '<div class="table-wrap rev-table"><table><thead><tr><th>Client</th><th>Order</th><th>Amount</th><th>Date</th><th>Error</th></tr></thead><tbody>' +
+        d.failedRenewals.map(function (f) {
+          return '<tr><td class="name">' + escapeHtml(f.clientName) + '</td><td class="amount">' + escapeHtml(f.orderReference) + '</td><td class="amount">' + naira(f.amount) + '</td><td>' + escapeHtml(fmtDay(f.chargedAt)) + '</td><td>' + escapeHtml(f.errorMessage || "—") + '</td></tr>';
+        }).join("") + '</tbody></table></div></div>';
+    }
+
+    var max = Math.max.apply(null, [1].concat(d.monthlyTrend.map(function (m) { return m.total; })));
+    var bars = d.monthlyTrend.map(function (m) {
+      var label = new Date(m.month + "-01T00:00:00Z").toLocaleDateString(undefined, { month: "short", timeZone: "UTC" });
+      return '<div class="rev-bar' + (m.total ? "" : " zero") + '" title="' + escapeHtml(m.month) + ': ' + naira(m.total) + '"><i style="height:' + Math.round((m.total / max) * 100) + '%"></i><span>' + escapeHtml(label) + '</span></div>';
+    }).join("");
+
+    html += '<div class="rev-grid">' +
+      '<div class="rev-card"><h3>Monthly revenue — last 12 months</h3><div class="rev-bars">' + bars + '</div></div>' +
+      '<div class="rev-card"><h3>By source</h3>' +
+        '<div class="rev-src"><span>Paystack (orders + renewals)</span><span class="amount">' + naira(d.bySource.paystack) + '</span></div>' +
+        '<div class="rev-src"><span>Manual (Opay / transfer)</span><span class="amount">' + naira(d.bySource.manual) + '</span></div>' +
+      '</div></div>';
+
+    html += revDiscountsHtml(d.discounts);
+
+    html += '<div class="rev-h">Revenue by service</div>' +
+      (d.byService.length
+        ? '<div class="table-wrap rev-table" style="margin-bottom:28px;"><table><thead><tr><th>Service</th><th>Payments</th><th>Total</th></tr></thead><tbody>' +
+          d.byService.map(function (r) { return '<tr><td class="name">' + escapeHtml(r.serviceName) + '</td><td class="amount">' + r.count + '</td><td class="amount">' + naira(r.total) + '</td></tr>'; }).join("") +
+          '</tbody></table></div>'
+        : '<div class="empty">No revenue yet.</div>');
+
+    var SRC = { order: "Paystack", renewal: "Renewal", manual: "Manual" };
+    html += '<div class="rev-h">Transactions</div>' +
+      (d.transactions.length
+        ? '<div class="table-wrap rev-table"><table><thead><tr><th>Source</th><th>Date</th><th>Client</th><th>Service</th><th>Amount</th><th>Status</th></tr></thead><tbody>' +
+          d.transactions.map(function (x) {
+            var bad = x.status !== "success" && x.status !== "verified";
+            return '<tr><td><span class="pill src-' + escapeHtml(x.source) + '">' + (SRC[x.source] || escapeHtml(x.source)) + '</span></td><td>' + escapeHtml(fmtDay(x.date)) + '</td>' +
+              '<td class="name">' + escapeHtml(x.clientName) + '</td><td>' + escapeHtml(x.serviceName) + '</td><td class="amount">' + naira(x.amount) + '</td>' +
+              '<td><span class="pill ' + (bad ? "st-failed" : "st-ok") + '">' + escapeHtml(x.status) + '</span></td></tr>';
+          }).join("") + '</tbody></table></div>'
+        : '<div class="empty">No transactions yet.</div>');
+
+    document.getElementById("pageBody").innerHTML = html;
+  }
+
   /* ---------------- Settings ---------------- */
 
   function renderSettingsSection() {
@@ -1127,7 +1259,11 @@
     });
   }
 
-  initAuth0();
+  initAuth0().catch(function (e) {
+    var lb = document.getElementById("loginBtn");
+    lb.disabled = true; lb.textContent = "Sign in";
+    showLoginError("Could not load sign-in (" + (e && e.message ? e.message : "network error") + "). Refresh the page.");
+  });
 })();
 </script>
 </body>
