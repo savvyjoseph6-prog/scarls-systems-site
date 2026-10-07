@@ -188,6 +188,17 @@
   .pill.src-manual{ color:var(--gold); border-color:#4a3f22; }
   .pill.st-failed{ color:var(--red); border-color:#4a2222; }
   .pill.st-ok{ color:var(--green); border-color:#22452f; }
+  .dash-rev{ cursor:pointer; margin-bottom:28px; display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; transition:border-color .15s; }
+  .dash-rev:hover{ border-color:var(--dim); }
+  @media(max-width:700px){ .dash-rev{ grid-template-columns:1fr; } }
+  .dash-rev .head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+  .dash-rev .head b{ font-family:var(--font-display); font-size:14px; font-weight:600; }
+  .dash-rev .head span{ font-size:12px; color:var(--accent); }
+  .dash-rev .nums{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .dash-rev .nums .n{ font-family:var(--font-mono); font-size:17px; }
+  .dash-rev .nums .l{ font-size:12px; color:var(--dim); margin-top:3px; }
+  .dash-rev .rev-bars{ height:64px; }
+  .dash-rev .warn{ margin-top:12px; font-size:12.5px; color:var(--red); }
 </style>
 </head>
 <body>
@@ -430,9 +441,11 @@
           stat(inProgress, "In progress") +
           stat(review, "Awaiting your review") +
         '</div>' +
+        '<div id="dashRevenue"></div>' +
         (review > 0
           ? '<div class="placeholder" style="text-align:left;padding:18px 20px;"><b style="margin-bottom:2px;">' + review + ' project' + (review === 1 ? "" : "s") + ' waiting on you</b>Open Projects to review and move them forward.</div>'
           : '<div class="placeholder"><b>Nothing urgent right now</b>Everything in Projects is up to date.</div>');
+      loadDashRevenue();
     });
   }
   function stat(n, label) {
@@ -1140,6 +1153,35 @@
   function revStat(value, label, sub) {
     return '<div class="stat"><div class="n" style="font-size:21px;">' + value + '</div><div class="l">' + escapeHtml(label) + '</div>' +
       (sub ? '<div class="l" style="color:var(--dimmer);margin-top:2px;">' + sub + '</div>' : '') + '</div>';
+  }
+
+  function loadDashRevenue() {
+    var slot = document.getElementById("dashRevenue");
+    if (!slot) return;
+    authedFetch("/admin-revenue-stats").then(function (r) {
+      slot = document.getElementById("dashRevenue");
+      if (!slot || currentSection !== "dashboard") return;
+      if (!r.data || !r.data.ok) { slot.remove(); return; }
+      var d = r.data, t = d.totals;
+      var max = Math.max.apply(null, [1].concat(d.monthlyTrend.map(function (m) { return m.total; })));
+      var bars = d.monthlyTrend.map(function (m) {
+        return '<div class="rev-bar' + (m.total ? "" : " zero") + '" title="' + escapeHtml(m.month) + ': ' + naira(m.total) + '"><i style="height:' + Math.round((m.total / max) * 100) + '%"></i></div>';
+      }).join("");
+      var failed = (d.failedRenewals || []).length;
+      slot.className = "rev-card dash-rev";
+      slot.innerHTML =
+        '<div><div class="head"><b>Revenue</b><span>View details \u2192</span></div>' +
+        '<div class="nums">' +
+          '<div><div class="n">' + naira(t.thisMonth) + '</div><div class="l">This month</div></div>' +
+          '<div><div class="n">' + naira(t.today) + '</div><div class="l">Today</div></div>' +
+          '<div><div class="n">' + naira(t.allTime) + '</div><div class="l">All-time</div></div>' +
+        '</div>' +
+        (t.pendingManual ? '<div class="l" style="margin-top:12px;font-size:12.5px;color:var(--gold);">' + naira(t.pendingManual) + ' in manual payments awaiting verification</div>' : '') +
+        (failed ? '<div class="warn">' + failed + ' failed renewal' + (failed === 1 ? "" : "s") + ' need attention</div>' : '') +
+        '</div>' +
+        '<div><div class="rev-bars">' + bars + '</div></div>';
+      slot.onclick = function () { goTo("revenue"); };
+    }).catch(function () { var el = document.getElementById("dashRevenue"); if (el) el.remove(); });
   }
 
   function renderRevenueSection() {
