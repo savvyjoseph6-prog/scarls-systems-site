@@ -335,6 +335,7 @@
 
   var auth0Client = null;
   var allProjects = [];
+  function liveProjects() { return allProjects.filter(function (p) { return !p.archivedAt; }); }
   var projectFilter = "all";
   var currentSection = "dashboard";
   var userRole = "owner";   // "owner" | "intern" (UI only; the server enforces access)
@@ -486,7 +487,7 @@
   function renderNav() {
     var navList = document.getElementById("navList");
     navList.innerHTML = visibleSections().map(function (s) {
-      var count = s.id === "projects" ? allProjects.length : null;
+      var count = s.id === "projects" ? liveProjects().length : null;
       return '<button type="button" class="nav-item" data-section="' + s.id + '">' +
         '<span>' + escapeHtml(s.label) + '</span>' +
         (count != null ? '<span class="count">' + count + '</span>' : '') +
@@ -555,13 +556,13 @@
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
 
     loadProjects(function () {
-      var paid = allProjects.filter(function (p) { return p.status === "paid"; }).length;
-      var inProgress = allProjects.filter(function (p) { return p.status === "in_progress"; }).length;
-      var review = allProjects.filter(function (p) { return p.status === "review" || p.status === "changes_requested"; }).length;
+      var paid = liveProjects().filter(function (p) { return p.status === "paid"; }).length;
+      var inProgress = liveProjects().filter(function (p) { return p.status === "in_progress"; }).length;
+      var review = liveProjects().filter(function (p) { return p.status === "review" || p.status === "changes_requested"; }).length;
 
       document.getElementById("pageBody").innerHTML =
         '<div class="stats-row">' +
-          stat(allProjects.length, "Total projects") +
+          stat(liveProjects().length, "Total projects") +
           stat(paid, "Awaiting brief") +
           stat(inProgress, "In progress") +
           stat(review, "Awaiting your review") +
@@ -590,7 +591,8 @@
   }
 
   function renderProjectsSection() {
-    document.getElementById("pageSub").textContent = allProjects.length + (allProjects.length === 1 ? " project" : " projects");
+    var _n = liveProjects().length;
+    document.getElementById("pageSub").textContent = _n + (_n === 1 ? " project" : " projects");
     if (!allProjects.length) {
       document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
       loadProjects(renderProjectsSection);
@@ -601,10 +603,14 @@
 
   function drawProjectsTable() {
     var statuses = ["all", "paid", "brief", "in_progress", "review", "changes_requested", "delivered"];
-    var filtered = projectFilter === "all" ? allProjects : allProjects.filter(function (p) { return p.status === projectFilter; });
+    if (userRole === "owner") statuses.push("archived");
+    if (projectFilter === "archived" && userRole !== "owner") projectFilter = "all";
+    var live = liveProjects();
+    var filtered = projectFilter === "archived" ? allProjects.filter(function (p) { return !!p.archivedAt; })
+      : (projectFilter === "all" ? live : live.filter(function (p) { return p.status === projectFilter; }));
 
     var filterRow = '<div class="filter-row">' + statuses.map(function (s) {
-      var label = s === "all" ? "All" : (STATUS_LABELS[s] || s);
+      var label = s === "all" ? "All" : (s === "archived" ? "Archived" : (STATUS_LABELS[s] || s));
       return '<button type="button" data-f="' + s + '" class="' + (s === projectFilter ? "active" : "") + '">' + escapeHtml(label) + '</button>';
     }).join("") + '</div>';
 
@@ -659,6 +665,11 @@
       (isSub && userRole === "owner"
         ? '<div class="field"><label>Subscription</label><button type="button" class="btn' + (p.subscriptionStatus === "cancelled" ? "" : " danger") + '" id="d_subToggle" style="width:100%;">' +
           (p.subscriptionStatus === "cancelled" ? "Reactivate subscription" : "Cancel subscription") + '</button></div>'
+        : "") +
+      (userRole === "owner"
+        ? '<div class="field"><label>' + (p.archivedAt ? "Archived" : "Tidy up") + '</label><button type="button" class="btn" id="d_archiveBtn" style="width:100%;">' +
+          (p.archivedAt ? "Restore project" : "Archive project") + '</button>' +
+          '<div class="sub" style="margin-top:6px;">' + (p.archivedAt ? "Hidden from the main list and from interns." : "Hides it from the main list and from interns. Nothing is deleted; the client\u2019s page keeps working.") + '</div></div>'
         : "");
 
     document.getElementById("drawerStatus").textContent = "";
@@ -673,6 +684,17 @@
         notes: document.getElementById("d_notes").value.trim(),
       };
       saveProject(payload);
+    };
+
+    var archBtn = document.getElementById("d_archiveBtn");
+    if (archBtn) archBtn.onclick = function () {
+      var archiving = !p.archivedAt;
+      if (archiving && !confirm("Archive this project? It will be hidden from the main list and from interns. You can restore it any time from the Archived tab.")) return;
+      archBtn.disabled = true;
+      authedFetch("/admin-archive-project", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: projectId, archived: archiving }) }).then(function (r) {
+        if (r.data && r.data.ok) { loadProjects(function () { drawProjectsTable(); closeDrawer(); }); }
+        else { archBtn.disabled = false; alert((r.data && r.data.error) || "Could not update."); }
+      }).catch(function () { archBtn.disabled = false; alert("Network error — try again."); });
     };
 
     var subBtn = document.getElementById("d_subToggle");
