@@ -339,6 +339,7 @@
   var currentSection = "dashboard";
   var userRole = "owner";   // "owner" | "intern" (UI only; the server enforces access)
   var noAccess = false;
+  var mySections = [];     // areas an intern was granted (owner = all)
 
   var SECTIONS = [
     { id: "dashboard", label: "Dashboard", wired: true, staff: true },
@@ -346,11 +347,11 @@
     { id: "assessments", label: "Assessments", wired: true, staff: true },
     { id: "budget", label: "Budget Requests", wired: true },
     { id: "aiquotes", label: "AI Quotes", wired: true },
-    { id: "catalog", label: "Catalog", wired: true },
-    { id: "discounts", label: "Discounts", wired: true },
-    { id: "sales", label: "Sales", wired: true },
+    { id: "catalog", staff: true, label: "Catalog", wired: true },
+    { id: "discounts", staff: true, label: "Discounts", wired: true },
+    { id: "sales", staff: true, label: "Sales", wired: true },
     { id: "tickets", label: "Tickets", wired: true, staff: true },
-    { id: "manualpay", label: "Manual Payments", wired: true },
+    { id: "manualpay", staff: true, label: "Manual Payments", wired: true },
     { id: "revenue", label: "Revenue", wired: true },
     { id: "team", label: "Team", wired: true },
     { id: "settings", label: "Settings", wired: true },
@@ -397,6 +398,9 @@
       var user = await auth0Client.getUser();
       userRole = roleFromToken(await getToken());
       if (!userRole) { showNoAccess(user.email); return; }
+      if (userRole === "intern") {
+        try { var me = await authedFetch("/admin-me"); mySections = (me.data && me.data.sections) || []; } catch (e) { mySections = []; }
+      }
       document.getElementById("whoEmail").textContent = (user.email || "") + (userRole === "intern" ? " · Intern" : "");
       document.getElementById("login").style.display = "none";
       document.getElementById("shell").style.display = "flex";
@@ -453,10 +457,17 @@
   }
   function canSee(sectionId) {
     var s = SECTIONS.filter(function (x) { return x.id === sectionId; })[0];
-    return !!s && (userRole === "owner" || !!s.staff);
+    if (!s) return false;
+    if (userRole === "owner") return true;
+    if (sectionId === "dashboard") return true;
+    return !!s.staff && mySections.indexOf(sectionId) !== -1;
+  }
+  function canEdit(sectionId) {
+    if (userRole === "owner") return true;
+    return mySections.indexOf(sectionId + ":edit") !== -1 && mySections.indexOf(sectionId) !== -1;
   }
   function visibleSections() {
-    return SECTIONS.filter(function (s) { return userRole === "owner" || s.staff; });
+    return SECTIONS.filter(function (s) { return canSee(s.id); });
   }
   function lockDrawerInputs() {
     Array.prototype.forEach.call(document.querySelectorAll("#drawerBody input, #drawerBody select, #drawerBody textarea, #drawerBody button"), function (el) { el.disabled = true; });
@@ -536,6 +547,11 @@
 
   function renderDashboard() {
     document.getElementById("pageSub").textContent = "A quick look at what needs attention.";
+    if (userRole !== "owner" && mySections.indexOf("projects") === -1) {
+      document.getElementById("pageBody").innerHTML = '<div class="placeholder"><b>' + (mySections.length ? "Welcome" : "No access yet") + '</b>' +
+        (mySections.length ? "Use the menu to open the areas you have access to." : "Ask the owner to give you access to an area.") + '</div>';
+      return;
+    }
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
 
     loadProjects(function () {
@@ -640,7 +656,7 @@
       '<div class="field"><label>Due date</label><input id="d_dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : "") + '"></div>' +
       '<div class="field"><label>Delivered site link</label><input id="d_deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || "") + '" placeholder="https://..."></div>' +
       '<div class="field"><label>Notes</label><textarea id="d_notes" placeholder="Internal notes">' + escapeHtml(p.notes || "") + '</textarea></div>' +
-      (isSub
+      (isSub && userRole === "owner"
         ? '<div class="field"><label>Subscription</label><button type="button" class="btn' + (p.subscriptionStatus === "cancelled" ? "" : " danger") + '" id="d_subToggle" style="width:100%;">' +
           (p.subscriptionStatus === "cancelled" ? "Reactivate subscription" : "Cancel subscription") + '</button></div>'
         : "");
@@ -667,7 +683,7 @@
       saveProject({ projectId: projectId, subscriptionStatus: next });
     };
 
-    if (userRole !== "owner") { lockDrawerInputs(); setDrawerFooter("none"); } else { setDrawerFooter("save", "Save"); }
+    if (!canEdit("projects")) { lockDrawerInputs(); setDrawerFooter("none"); } else { setDrawerFooter("save", "Save"); }
     scrim.classList.add("open");
     drawer.classList.add("open");
   }
@@ -739,7 +755,7 @@
       '<div class="field"><label>Decision</label><select id="d_decision">' + options + '</select></div>' +
       '<div class="field"><label>Internal notes</label><textarea id="d_notes">' + escapeHtml(a.adminNotes || "") + '</textarea></div>' +
       '<div class="field"><label>Message to client (optional)</label><textarea id="d_customerMessage" placeholder="Leave blank for the default message"></textarea></div>';
-    setDrawerFooter(userRole === "owner" ? "save" : "none", "Save decision"); if (userRole !== "owner") lockDrawerInputs();
+    setDrawerFooter(canEdit("assessments") ? "save" : "none", "Save decision"); if (!canEdit("assessments")) lockDrawerInputs();
     document.getElementById("drawerStatus").textContent = "";
     document.getElementById("drawerSave").onclick = function () {
       var decision = document.getElementById("d_decision").value;
@@ -876,8 +892,8 @@
   /* ---------------- Catalog ---------------- */
 
   function renderCatalogSection() {
-    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addServiceBtn">+ Add service</button>';
-    document.getElementById("addServiceBtn").addEventListener("click", function () { openServiceDrawer(null); });
+    document.getElementById("pageActions").innerHTML = canEdit("catalog") ? '<button type="button" class="btn primary" id="addServiceBtn">+ Add service</button>' : "";
+    var _ab = document.getElementById("addServiceBtn"); if (_ab) _ab.addEventListener("click", function () { openServiceDrawer(null); });
     if (catalogLoaded) { drawCatalogTable(); return; }
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
     authedFetch("/admin-list-catalog").then(function (r) {
@@ -957,7 +973,7 @@
     renderPkgList(svc ? svc.packages : []);
     document.getElementById("addPkgBtn").addEventListener("click", function () { pkgRows.push({ name: "", price: null, price_label: "", description: "", features: [], delivery_time: "", recommended: false, active: true, pricing_model: "one_time", billing_interval_days: 30 }); renderPkgList(pkgRows); });
 
-    setDrawerFooter("save", "Save service");
+    setDrawerFooter(canEdit("catalog") ? "save" : "none", "Save service"); if (!canEdit("catalog")) lockDrawerInputs();
     document.getElementById("drawerStatus").textContent = "";
     document.getElementById("drawerSave").onclick = function () { saveService(svc ? svc.id : null); };
     scrim.classList.add("open"); drawer.classList.add("open");
@@ -1014,8 +1030,8 @@
   /* ---------------- Discounts ---------------- */
 
   function renderDiscountsSection() {
-    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addDiscountBtn">+ Add discount</button>';
-    document.getElementById("addDiscountBtn").addEventListener("click", function () { openDiscountDrawer(null); });
+    document.getElementById("pageActions").innerHTML = canEdit("discounts") ? '<button type="button" class="btn primary" id="addDiscountBtn">+ Add discount</button>' : "";
+    var _ab = document.getElementById("addDiscountBtn"); if (_ab) _ab.addEventListener("click", function () { openDiscountDrawer(null); });
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
     authedFetch("/admin-list-discounts").then(function (r) {
       if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
@@ -1050,7 +1066,7 @@
       '<div class="field"><label>Expires</label><input id="f_expiresAt" type="date" value="' + (d && d.expires_at ? d.expires_at.slice(0, 10) : "") + '"></div></div>' +
       '<label class="check-row"><input type="checkbox" id="f_active"' + (d && d.active ? " checked" : "") + '> Active</label>' +
       (d ? '<button type="button" class="btn danger" id="discDeleteBtn" style="width:100%;margin-top:8px;">Delete</button>' : "");
-    setDrawerFooter("save", "Save discount");
+    setDrawerFooter(canEdit("discounts") ? "save" : "none", "Save discount"); if (!canEdit("discounts")) lockDrawerInputs();
     document.getElementById("drawerStatus").textContent = "";
     document.getElementById("drawerSave").onclick = function () { saveDiscount(d ? d.id : null); };
     var delBtn = document.getElementById("discDeleteBtn");
@@ -1086,8 +1102,8 @@
   /* ---------------- Sales ---------------- */
 
   function renderSalesSection() {
-    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addSaleBtn">+ Add sale</button>';
-    document.getElementById("addSaleBtn").addEventListener("click", function () { openSaleDrawer(null); });
+    document.getElementById("pageActions").innerHTML = canEdit("sales") ? '<button type="button" class="btn primary" id="addSaleBtn">+ Add sale</button>' : "";
+    var _ab = document.getElementById("addSaleBtn"); if (_ab) _ab.addEventListener("click", function () { openSaleDrawer(null); });
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
     authedFetch("/admin-list-sales").then(function (r) {
       if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
@@ -1116,7 +1132,7 @@
       '<div class="two-col"><div class="field"><label>Starts</label><input id="f_startsAt" type="datetime-local" value="' + (s && s.starts_at ? s.starts_at.slice(0, 16) : "") + '"></div>' +
       '<div class="field"><label>Ends</label><input id="f_endsAt" type="datetime-local" value="' + (s && s.ends_at ? s.ends_at.slice(0, 16) : "") + '"></div></div>' +
       '<label class="check-row"><input type="checkbox" id="f_active"' + (s && s.active ? " checked" : "") + '> Active now</label>';
-    setDrawerFooter("save", "Save sale");
+    setDrawerFooter(canEdit("sales") ? "save" : "none", "Save sale"); if (!canEdit("sales")) lockDrawerInputs();
     document.getElementById("drawerStatus").textContent = "";
     document.getElementById("drawerSave").onclick = function () {
       var payload = {
@@ -1176,7 +1192,7 @@
       '<div class="field"><label>Summary</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(t.summary || "") + '</div></div>' +
       '<div class="field"><label>Status</label><select id="f_status">' + ["open", "in_progress", "resolved"].map(function (s) { return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + '>' + s.replace("_", " ") + '</option>'; }).join("") + '</select></div>' +
       '<div class="field"><label>Notes</label><textarea id="f_notes">' + escapeHtml(t.admin_notes || "") + '</textarea></div>';
-    setDrawerFooter(userRole === "owner" ? "save" : "none", "Save"); if (userRole !== "owner") lockDrawerInputs();
+    setDrawerFooter(canEdit("tickets") ? "save" : "none", "Save"); if (!canEdit("tickets")) lockDrawerInputs();
     document.getElementById("drawerStatus").textContent = "";
     document.getElementById("drawerSave").onclick = function () {
       var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
@@ -1228,7 +1244,7 @@
   function openManualPayDrawer(p) {
     document.getElementById("drawerTitle").textContent = p.fullName + (p.businessName ? " · " + p.businessName : "");
     document.getElementById("drawerSub").textContent = p.email + " · " + p.whatsapp;
-    var canDecide = p.status === "pending";
+    var canDecide = p.status === "pending" && canEdit("manualpay");
     document.getElementById("drawerBody").innerHTML =
       (p.screenshotUrl ? '<a href="' + escapeHtml(p.screenshotUrl) + '" target="_blank" rel="noopener"><img class="shot" src="' + escapeHtml(p.screenshotUrl) + '" alt="Payment screenshot"></a>' : "") +
       '<div class="field"><label>Claimed amount</label><div style="font-size:13.5px;">\u20a6' + Number(p.amount || 0).toLocaleString() + '</div></div>' +
@@ -1260,16 +1276,52 @@
   /* ---------------- Team (owner only) ---------------- */
 
   var teamMembers = [];
+  var TEAM_AREAS = [
+    ["projects", "Projects", "Start work: change status, assign, notes"],
+    ["assessments", "Assessments", "Approve / decline"],
+    ["tickets", "Tickets", "Reply & update"],
+    ["manualpay", "Manual payments", "Approve / reject payments"],
+    ["discounts", "Discounts", "Create, edit & delete codes"],
+    ["sales", "Sales", "Create & edit sales"],
+    ["catalog", "Catalog", "Add & edit services"]
+  ];
+  var DEFAULT_ACCESS = ["projects", "assessments", "tickets"];
 
   function teamCall(payload) {
     return authedFetch("/admin-team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   }
+  function areaChecks(selected) {
+    selected = selected || [];
+    return TEAM_AREAS.map(function (a) {
+      var lvl = selected.indexOf(a[0] + ":edit") !== -1 ? "edit" : (selected.indexOf(a[0]) !== -1 ? "view" : "none");
+      return '<div class="field" style="margin-bottom:10px;"><label>' + a[1] + '</label><select class="t_area" data-area="' + a[0] + '">' +
+        '<option value="none"' + (lvl === "none" ? " selected" : "") + '>No access</option>' +
+        '<option value="view"' + (lvl === "view" ? " selected" : "") + '>View only</option>' +
+        '<option value="edit"' + (lvl === "edit" ? " selected" : "") + '>Can edit \u2014 ' + a[2] + '</option></select></div>';
+    }).join("");
+  }
+  function pickedAreas() {
+    var out = [];
+    Array.prototype.forEach.call(document.querySelectorAll(".t_area"), function (el) {
+      var a = el.getAttribute("data-area");
+      if (el.value === "view") out.push(a);
+      else if (el.value === "edit") { out.push(a); out.push(a + ":edit"); }
+    });
+    return out;
+  }
+  function areaNames(list) {
+    list = list || [];
+    var names = TEAM_AREAS.filter(function (a) { return list.indexOf(a[0]) !== -1; }).map(function (a) {
+      return a[1] + (list.indexOf(a[0] + ":edit") !== -1 ? " (edit)" : "");
+    });
+    return names.length ? names.join(", ") : "None";
+  }
 
   function renderTeamSection() {
-    document.getElementById("pageSub").textContent = "Interns can view Projects, Tickets and Assessments (read-only, no amounts).";
+    document.getElementById("pageSub").textContent = "Choose what each person can open, and whether they can only view it or also make changes. Revenue, settings and project amounts stay hidden.";
     document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addInternBtn">+ Add intern</button>';
     document.getElementById("addInternBtn").addEventListener("click", openAddInternDrawer);
-    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading\u2026</div>';
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
     teamCall({ action: "list" }).then(function (r) {
       if (!r.data || !r.data.ok) {
         document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load the team.") + '</div>';
@@ -1277,18 +1329,19 @@
       }
       teamMembers = r.data.members || [];
       drawTeamTable();
-    }).catch(function () { document.getElementById("pageBody").innerHTML = '<div class="empty">Network error \u2014 try again.</div>'; });
+    }).catch(function () { document.getElementById("pageBody").innerHTML = '<div class="empty">Network error — try again.</div>'; });
   }
 
   function drawTeamTable() {
     if (!teamMembers.length) {
-      document.getElementById("pageBody").innerHTML = '<div class="empty">No interns yet. Tap \u201c+ Add intern\u201d to invite someone.</div>';
+      document.getElementById("pageBody").innerHTML = '<div class="empty">No interns yet. Tap “+ Add intern” to invite someone.</div>';
       return;
     }
     document.getElementById("pageBody").innerHTML =
-      '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Status</th><th>Last login</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Access</th><th>Status</th><th>Last login</th></tr></thead><tbody>' +
       teamMembers.map(function (m, i) {
         return '<tr data-i="' + i + '"><td class="name">' + escapeHtml(m.email) + '</td>' +
+          '<td>' + escapeHtml(areaNames(m.sections)) + '</td>' +
           '<td><span class="pill ' + (m.blocked ? "st-failed" : "st-ok") + '">' + (m.blocked ? "Blocked" : "Active") + '</span></td>' +
           '<td>' + escapeHtml(m.lastLogin ? fmtDay(m.lastLogin) : "Never") + '</td></tr>';
       }).join("") + '</tbody></table></div>';
@@ -1304,14 +1357,18 @@
       '<div class="inline-actions">' +
       '<button type="button" class="btn primary" id="copyInvite">Copy link</button>' +
       '<a class="btn" style="text-decoration:none;" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(msg) + '">Send on WhatsApp</a></div>' +
-      '<div class="save-status" style="margin-top:12px;">Send this only to ' + escapeHtml(email) + '. Anyone with the link can set that account\u2019s password.</div>';
+      '<div class="save-status" style="margin-top:12px;">Send this only to ' + escapeHtml(email) + '. Anyone with the link can set that account’s password.</div>';
+  }
+  function emailNotice(d) {
+    if (d.emailed) return '<div class="save-status ok" style="margin-bottom:14px;font-size:13.5px;">✓ Invite emailed to ' + escapeHtml(d.email || "them") + '</div>';
+    return '<div class="save-status err" style="margin-bottom:14px;font-size:13.5px;">Couldn’t send the email' + (d.emailError ? " (" + escapeHtml(d.emailError) + ")" : "") + '. Use the link below instead.</div>';
   }
   function wireInvite() {
     var btn = document.getElementById("copyInvite");
     if (!btn) return;
     btn.addEventListener("click", function () {
       var inp = document.getElementById("inviteUrl");
-      function done() { btn.textContent = "Copied \u2713"; }
+      function done() { btn.textContent = "Copied ✓"; }
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(inp.value).then(done, function () { inp.select(); document.execCommand("copy"); done(); });
       else { inp.select(); document.execCommand("copy"); done(); }
     });
@@ -1319,52 +1376,67 @@
 
   function openAddInternDrawer() {
     document.getElementById("drawerTitle").textContent = "Add intern";
-    document.getElementById("drawerSub").textContent = "They\u2019ll get read-only access to Projects, Tickets and Assessments.";
+    document.getElementById("drawerSub").textContent = "They’ll get an email with a link to set their password.";
     document.getElementById("drawerBody").innerHTML =
-      '<div class="field"><label>Their email address</label><input id="t_email" type="email" placeholder="name@example.com" autocapitalize="off" autocomplete="off"></div>';
-    setDrawerFooter("save", "Add intern");
+      '<div class="field"><label>Their email address</label><input id="t_email" type="email" placeholder="name@example.com" autocapitalize="off" autocomplete="off"></div>' +
+      '<div class="field"><label>Give access to</label>' + areaChecks(DEFAULT_ACCESS) + '</div>';
+    setDrawerFooter("save", "Add & send invite");
     document.getElementById("drawerStatus").textContent = "";
     document.getElementById("drawerSave").onclick = function () {
       var email = document.getElementById("t_email").value.trim();
+      var sections = pickedAreas();
       var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
       if (!email) { statusEl.textContent = "Enter an email."; statusEl.className = "save-status err"; return; }
-      btn.disabled = true; statusEl.textContent = "Adding\u2026"; statusEl.className = "save-status";
-      teamCall({ action: "add", email: email }).then(function (r) {
+      btn.disabled = true; statusEl.textContent = "Adding…"; statusEl.className = "save-status";
+      teamCall({ action: "add", email: email, sections: sections }).then(function (r) {
         btn.disabled = false;
         if (r.data && r.data.ok) {
-          document.getElementById("drawerBody").innerHTML = inviteBlock(r.data.email, r.data.inviteUrl);
+          document.getElementById("drawerBody").innerHTML = emailNotice(r.data) + inviteBlock(r.data.email, r.data.inviteUrl);
           wireInvite();
           setDrawerFooter("none");
           statusEl.textContent = "";
           renderTeamSection();
         } else { statusEl.textContent = (r.data && r.data.error) || "Could not add."; statusEl.className = "save-status err"; }
-      }).catch(function () { btn.disabled = false; statusEl.textContent = "Network error \u2014 try again."; statusEl.className = "save-status err"; });
+      }).catch(function () { btn.disabled = false; statusEl.textContent = "Network error — try again."; statusEl.className = "save-status err"; });
     };
     scrim.classList.add("open"); drawer.classList.add("open");
   }
 
   function openMemberDrawer(m) {
     document.getElementById("drawerTitle").textContent = m.email;
-    document.getElementById("drawerSub").textContent = m.blocked ? "Blocked" : "Active intern";
+    document.getElementById("drawerSub").textContent = (m.blocked ? "Blocked" : "Active") + " · last login " + (m.lastLogin ? fmtDay(m.lastLogin) : "never");
     document.getElementById("drawerBody").innerHTML =
-      '<div class="field"><label>Last login</label><div style="font-size:13.5px;">' + escapeHtml(m.lastLogin ? fmtDay(m.lastLogin) : "Never") + '</div></div>' +
+      '<div class="field"><label>Access</label>' + areaChecks(m.sections || []) + '</div>' +
       '<div id="memberResult"></div>' +
-      '<div class="inline-actions"><button type="button" class="btn" id="m_invite">Get new invite link</button>' +
+      '<div class="inline-actions"><button type="button" class="btn" id="m_invite">Resend invite</button>' +
       '<button type="button" class="btn danger" id="m_remove">Remove access</button></div>' +
       '<div class="save-status" id="m_status" style="margin-top:12px;"></div>';
-    setDrawerFooter("none");
-    document.getElementById("drawerStatus").textContent = "";
+    setDrawerFooter("save", "Save access");
+    var statusEl = document.getElementById("drawerStatus"), saveBtn = document.getElementById("drawerSave");
+    statusEl.textContent = "";
+    saveBtn.onclick = function () {
+      saveBtn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
+      teamCall({ action: "set_access", userId: m.userId, sections: pickedAreas() }).then(function (r) {
+        saveBtn.disabled = false;
+        if (r.data && r.data.ok) { statusEl.textContent = "Saved"; statusEl.className = "save-status ok"; setTimeout(function () { closeDrawer(); renderTeamSection(); }, 400); }
+        else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
+      }).catch(function () { saveBtn.disabled = false; statusEl.textContent = "Network error — try again."; statusEl.className = "save-status err"; });
+    };
     var st = document.getElementById("m_status");
     document.getElementById("m_invite").addEventListener("click", function () {
-      st.textContent = "Working\u2026"; st.className = "save-status";
-      teamCall({ action: "invite_link", userId: m.userId }).then(function (r) {
-        if (r.data && r.data.ok) { st.textContent = ""; document.getElementById("memberResult").innerHTML = inviteBlock(m.email, r.data.inviteUrl); wireInvite(); }
-        else { st.textContent = (r.data && r.data.error) || "Could not create link."; st.className = "save-status err"; }
+      st.textContent = "Sending…"; st.className = "save-status";
+      teamCall({ action: "invite_link", userId: m.userId, send: true }).then(function (r) {
+        if (r.data && r.data.ok) {
+          st.textContent = "";
+          r.data.email = m.email;
+          document.getElementById("memberResult").innerHTML = emailNotice(r.data) + inviteBlock(m.email, r.data.inviteUrl);
+          wireInvite();
+        } else { st.textContent = (r.data && r.data.error) || "Could not create link."; st.className = "save-status err"; }
       });
     });
     document.getElementById("m_remove").addEventListener("click", function () {
       if (!confirm("Remove access for " + m.email + "? They won't be able to log in.")) return;
-      st.textContent = "Removing\u2026"; st.className = "save-status";
+      st.textContent = "Removing…"; st.className = "save-status";
       teamCall({ action: "remove", userId: m.userId }).then(function (r) {
         if (r.data && r.data.ok) { closeDrawer(); renderTeamSection(); }
         else { st.textContent = (r.data && r.data.error) || "Could not remove."; st.className = "save-status err"; }
