@@ -25,27 +25,55 @@
 
   /* ---------- Login screen ---------- */
   #login{
-    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
-    background:radial-gradient(900px 480px at 50% -10%, rgba(77,124,255,.16), transparent 70%), var(--bg);
+    min-height:100vh; display:grid; grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr); background:var(--bg);
   }
-  .login-card{
-    width:100%; max-width:400px; background:var(--panel); border:1px solid var(--line); border-radius:16px;
-    padding:36px 32px 28px; text-align:center; box-shadow:0 24px 60px rgba(0,0,0,.45);
+  .login-stage{
+    position:relative; overflow:hidden; padding:40px 56px; display:flex; flex-direction:column; justify-content:space-between;
+    background:radial-gradient(700px 420px at 12% 0%, rgba(77,124,255,.14), transparent 70%), #0c0c10;
+    border-right:1px solid var(--line);
   }
-  .login-logo{ width:56px; height:56px; object-fit:contain; display:block; margin:0 auto 14px; border-radius:12px; }
-  .login-card .mark{ font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:.08em; color:var(--dim); margin-bottom:22px; }
-  .login-card .mark span{ color:var(--accent); }
-  .login-card h1{ font-family:var(--font-display); font-size:24px; font-weight:600; margin:0 0 8px; }
-  .login-card p.lead{ color:var(--dim); font-size:14px; line-height:1.55; margin:0 0 26px; }
-  .login-card button{
+  .login-brand{ display:flex; align-items:center; gap:12px; font-family:var(--font-display); font-weight:700; font-size:16px; letter-spacing:.01em; position:relative; z-index:1; }
+  .login-brand img{ width:34px; height:34px; object-fit:contain; border-radius:8px; }
+  .login-stage h2{
+    position:relative; z-index:1; margin:0; font-family:var(--font-display); font-weight:600;
+    font-size:clamp(34px,4.4vw,60px); line-height:1.02; letter-spacing:-.025em; max-width:9ch;
+  }
+  .login-steps{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .login-steps .base{ fill:none; stroke:#2a2a34; stroke-width:2; vector-effect:non-scaling-stroke; }
+  .login-steps .run{
+    fill:none; stroke:url(#stairGrad); stroke-width:3; stroke-linejoin:round;
+    stroke-dasharray:1; stroke-dashoffset:1; animation:stairDraw 1.8s cubic-bezier(.4,0,.2,1) .25s forwards;
+  }
+  .login-steps .node{ fill:var(--accent); opacity:0; animation:nodeIn .5s ease 1.9s forwards; }
+  .login-steps .ring{ fill:none; stroke:var(--accent); stroke-width:1.5; opacity:0; vector-effect:non-scaling-stroke; transform-box:fill-box; transform-origin:center; animation:ringOut 1.4s ease-out 1.9s 1 forwards; }
+  @keyframes stairDraw{ to{ stroke-dashoffset:0; } }
+  @keyframes nodeIn{ to{ opacity:1; } }
+  @keyframes ringOut{ 0%{ opacity:.8; transform:scale(1); } 100%{ opacity:0; transform:scale(4.5); } }
+  @media (prefers-reduced-motion:reduce){
+    .login-steps .run{ animation:none; stroke-dashoffset:0; }
+    .login-steps .node{ animation:none; opacity:1; }
+    .login-steps .ring{ display:none; }
+  }
+  .login-panel{ display:flex; align-items:center; justify-content:center; padding:40px 32px; }
+  .login-form{ width:100%; max-width:360px; }
+  .login-form h1{ font-family:var(--font-display); font-size:30px; font-weight:600; letter-spacing:-.01em; margin:0 0 10px; }
+  .login-form p.lead{ color:var(--dim); font-size:15px; line-height:1.55; margin:0 0 28px; }
+  .login-form button{
     width:100%; background:var(--accent); color:#fff; border:none; border-radius:10px;
-    padding:14px 20px; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .15s, opacity .15s;
+    padding:15px 20px; font-size:15px; font-weight:600; cursor:pointer; transition:background .15s, opacity .15s;
   }
-  .login-card button:hover:not(:disabled){ background:#3f6ae0; }
-  .login-card button:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
-  .login-card button:disabled{ opacity:.6; cursor:default; }
-  .login-card .err{ color:var(--red); font-size:13px; min-height:18px; margin:14px 0 0; line-height:1.4; }
-  .login-foot{ margin-top:18px; padding-top:18px; border-top:1px solid var(--line-soft); font-size:12px; color:var(--dimmer); }
+  .login-form button:hover:not(:disabled){ background:#3f6ae0; }
+  .login-form button:focus-visible{ outline:2px solid var(--blue); outline-offset:3px; }
+  .login-form button:disabled{ opacity:.6; cursor:default; }
+  .login-form .err{ color:var(--red); font-size:13.5px; min-height:20px; margin:16px 0 0; line-height:1.45; }
+  .login-foot{ margin-top:28px; font-size:13px; line-height:1.5; color:var(--dimmer); }
+  @media (max-width:820px){
+    #login{ grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+    .login-stage{ padding:22px 24px; min-height:190px; border-right:none; border-bottom:1px solid var(--line); }
+    .login-stage h2{ font-size:28px; max-width:none; margin-top:36px; }
+    .login-steps{ left:auto; right:0; width:58%; }
+    .login-panel{ align-items:flex-start; padding:32px 24px 40px; }
+  }
 
   /* ---------- Shell ---------- */
   #shell{ display:none; min-height:100vh; }
@@ -268,25 +296,43 @@
 <body>
 
 <div id="login">
-  <div class="login-card">
-    <img class="login-logo" src="assets/scarls-logo.png" alt="" onerror="this.style.display='none'">
-    <div class="mark">SCARLS<span>•</span>SYSTEMS</div>
-    <h1>Welcome back</h1>
-    <p class="lead">Sign in to your admin account to manage projects, payments and the catalog.</p>
-    <button type="button" id="loginBtn" disabled>Checking session…</button>
-    <p class="err" id="loginErr" role="alert"></p>
-    <div class="login-foot">Authorized administrators only</div>
-  </div>
+  <section class="login-stage" aria-hidden="false">
+    <svg class="login-steps" viewBox="0 0 640 420" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="stairGrad" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#4d7cff"/><stop offset="1" stop-color="#8b6cff"/>
+        </linearGradient>
+      </defs>
+      <path class="base" d="M0 400 H90 V340 H190 V270 H290 V200 H390 V130 H490 V60 H600"/>
+      <path class="run" pathLength="1" d="M0 400 H90 V340 H190 V270 H290 V200 H390 V130 H490 V60 H600"/>
+      <circle class="ring" cx="600" cy="60" r="6"/>
+      <circle class="node" cx="600" cy="60" r="6"/>
+    </svg>
+    <div class="login-brand">
+      <img src="assets/scarls-logo.png" alt="" onerror="this.style.display='none'">
+      <span>SCARLS SYSTEMS</span>
+    </div>
+    <h2>Built for scale.</h2>
+  </section>
+  <section class="login-panel">
+    <div class="login-form">
+      <h1>Sign in</h1>
+      <p class="lead">Use your SCARLS account to open the admin dashboard.</p>
+      <button type="button" id="loginBtn" disabled>Checking session…</button>
+      <p class="err" id="loginErr" role="alert"></p>
+      <p class="login-foot">No access yet? Ask the owner to add you to the team.</p>
+    </div>
+  </section>
 </div>
 
 <div id="shell">
   <div class="topbar">
     <button type="button" id="menuBtn" aria-label="Open menu">☰</button>
-    <div class="brand">SCARLS<span>•</span>SYSTEMS</div>
+    <div class="brand">SCARLS SYSTEMS</div>
   </div>
   <div class="nav-scrim" id="navScrim"></div>
   <div class="sidebar">
-    <div class="brand">SCARLS<span>•</span>SYSTEMS</div>
+    <div class="brand">SCARLS SYSTEMS</div>
     <div class="nav-group">
       <nav id="navList"></nav>
     </div>
@@ -476,7 +522,7 @@
   function showNoAccess(email) {
     noAccess = true;
     document.getElementById("shell").style.display = "none";
-    document.getElementById("login").style.display = "flex";
+    document.getElementById("login").style.display = "grid";
     var lb = document.getElementById("loginBtn");
     lb.disabled = false; lb.textContent = "Sign out";
     showLoginError("This account (" + (email || "unknown") + ") doesn’t have access to the admin area. Ask the owner to add you.");
