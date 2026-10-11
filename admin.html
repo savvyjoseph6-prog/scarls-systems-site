@@ -914,8 +914,21 @@
   /* ---------------- Catalog ---------------- */
 
   function renderCatalogSection() {
-    document.getElementById("pageActions").innerHTML = canEdit("catalog") ? '<button type="button" class="btn primary" id="addServiceBtn">+ Add service</button>' : "";
+    document.getElementById("pageActions").innerHTML = (userRole === "owner" ? '<button type="button" class="btn" id="bulkManualOn">Manual pay: all on</button><button type="button" class="btn" id="bulkManualOff">All off</button>' : "") +
+      (canEdit("catalog") ? '<button type="button" class="btn primary" id="addServiceBtn">+ Add service</button>' : "");
     var _ab = document.getElementById("addServiceBtn"); if (_ab) _ab.addEventListener("click", function () { openServiceDrawer(null); });
+    [["bulkManualOn", true], ["bulkManualOff", false]].forEach(function (x) {
+      var b = document.getElementById(x[0]); if (!b) return;
+      b.addEventListener("click", function () {
+        if (!confirm(x[1] ? "Offer manual payment (bank transfer + screenshot) on ALL services?" : "Turn manual payment OFF on ALL services?")) return;
+        b.disabled = true;
+        authedFetch("/admin-bulk-manual-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: x[1] }) }).then(function (r) {
+          b.disabled = false;
+          if (r.data && r.data.ok) { catalogLoaded = false; renderCatalogSection(); }
+          else alert((r.data && r.data.error) || "Could not update.");
+        }).catch(function () { b.disabled = false; alert("Network error — try again."); });
+      });
+    });
     if (catalogLoaded) { drawCatalogTable(); return; }
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
     authedFetch("/admin-list-catalog").then(function (r) {
@@ -944,6 +957,7 @@
           if (s.coming_soon) flags.push("Coming soon");
           if (s.featured) flags.push("Featured");
           if (s.requires_ai_quote) flags.push("AI quote");
+          if (s.manual_payment_enabled) flags.push("Manual pay");
           if (s.pricing_model === "subscription" || s.pricing_model === "both") flags.push("Subscription");
           return '<tr data-id="' + escapeHtml(s.id) + '"><td class="name">' + escapeHtml(s.name) + '</td><td>' + escapeHtml(catName) + '</td><td>' + escapeHtml(s.price_label || "—") + '</td><td>' + escapeHtml(flags.join(", ") || "—") + '</td></tr>';
         }).join("") + '</tbody></table></div>'
@@ -990,6 +1004,7 @@
       '<label class="check-row"><input type="checkbox" id="f_featured"' + (svc && svc.featured ? " checked" : "") + '> Featured</label>' +
       '<label class="check-row"><input type="checkbox" id="f_comingSoon"' + (svc && svc.coming_soon ? " checked" : "") + '> Coming soon</label>' +
       '<label class="check-row"><input type="checkbox" id="f_requiresAiQuote"' + (svc && svc.requires_ai_quote ? " checked" : "") + '> AI drafts a custom quote</label>' +
+      '<label class="check-row"><input type="checkbox" id="f_manualPay"' + (svc && svc.manual_payment_enabled ? " checked" : "") + '> Offer manual payment (bank transfer + screenshot) alongside Paystack</label>' +
       '<div class="field"><label>Packages</label><div id="pkgList"></div><button type="button" class="btn" id="addPkgBtn" style="width:100%;">+ Add package</button></div>';
 
     renderPkgList(svc ? svc.packages : []);
@@ -1027,7 +1042,8 @@
     var category_id = document.getElementById("f_category").value;
     var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
     if (!name || !category_id) { statusEl.textContent = "Name and category are required."; statusEl.className = "save-status err"; return; }
-    var payload = {
+    var existing = id ? (catalogData.services.filter(function (x) { return x.id === id; })[0] || {}) : {};
+    var payload = Object.assign({}, existing, {
       id: id || undefined, name: name, category_id: category_id,
       short_description: document.getElementById("f_short").value.trim(), full_description: document.getElementById("f_full").value.trim(),
       who_for: document.getElementById("f_wholeFor").value.trim(), included: linesToArray(document.getElementById("f_included").value),
@@ -1039,8 +1055,10 @@
       subscription_label: document.getElementById("f_subLabel").value.trim(), delivery_time: document.getElementById("f_delivery").value.trim(),
       active: document.getElementById("f_active").checked, featured: document.getElementById("f_featured").checked,
       coming_soon: document.getElementById("f_comingSoon").checked, requires_ai_quote: document.getElementById("f_requiresAiQuote").checked,
+      manual_payment_enabled: document.getElementById("f_manualPay").checked,
+      order: Number(document.getElementById("f_order").value || 99),
       packages: collectPkgRows(),
-    };
+    });
     btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
     authedFetch("/admin-save-service", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: payload }) }).then(function (r) {
       btn.disabled = false;
