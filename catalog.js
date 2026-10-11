@@ -550,6 +550,11 @@
   }
 
   function openCheckoutModal(checkout) {
+    // A package saved without a "price label" would show a blank price (and a blank
+    // transfer amount) — fall back to the real price so the amount is always shown.
+    if (!checkout.priceLabel && checkout.amountNaira != null) {
+      checkout.priceLabel = '\u20a6' + Number(checkout.amountNaira).toLocaleString() + (checkout.pricingModel === 'subscription' ? '/mo' : '');
+    }
     currentCheckout = checkout;
     checkoutBaseAmountNaira = checkout.amountNaira;
     checkoutBasePriceLabel = checkout.priceLabel;
