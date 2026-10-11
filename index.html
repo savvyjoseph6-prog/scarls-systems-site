@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <!-- Google Tag (gtag.js) - SCARLS SYSTEMS Analytics Tracker -->
-  <script async src="https://googletagmanager.com"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q26V29GH7T"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
@@ -410,6 +410,17 @@
     </div>
     <p class="discount-msg" id="checkoutDiscountMsg"></p>
 
+    <!-- Payment method choice. Only shown when the service has manual payment
+         switched on in the admin Catalog tab; otherwise customers just see Paystack. -->
+    <div class="pay-method-tabs" id="payMethodTabs" role="tablist" aria-label="Payment method" style="display:none;">
+      <button type="button" class="pay-method-tab is-active" data-method="paystack" role="tab" aria-selected="true">
+        Pay online<span>Card or bank via Paystack</span>
+      </button>
+      <button type="button" class="pay-method-tab" data-method="manual" role="tab" aria-selected="false">
+        Pay by transfer<span>Opay, then upload your receipt</span>
+      </button>
+    </div>
+
     <form class="offer-form" id="checkoutForm" novalidate>
       <div class="form-grid">
         <div class="form-field full">
@@ -446,8 +457,8 @@
       <p>A confirmation email is on its way, and a member of the SCARLS team will be in touch to begin your project.</p>
     </div>
 
-    <!-- Shown instead of the Paystack form/button above when the service has
-         manual payment switched on in the admin Catalog tab. -->
+    <!-- Shown when the customer picks "Pay by transfer" (only offered for services
+         with manual payment switched on in the admin Catalog tab). -->
     <div class="manual-payment-panel" id="manualPaymentPanel" style="display:none;">
       <div class="manual-payment-details">
         <p class="manual-payment-label">Pay by transfer to:</p>
@@ -643,6 +654,16 @@
   .discount-msg{ font-size:12px; margin:0 0 18px; min-height:14px; }
   .discount-msg.is-ok{ color:#7ee0a8; }
   .discount-msg.is-err{ color:#ff8b8b; }
+
+  .pay-method-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 20px; }
+  .pay-method-tab{
+    background:var(--graphite-1); border:1px solid var(--line); color:var(--white);
+    border-radius:10px; padding:11px 12px; font-family:inherit; font-size:13.5px; font-weight:600;
+    text-align:left; cursor:pointer; line-height:1.3;
+  }
+  .pay-method-tab span{ display:block; font-weight:400; font-size:11.5px; color:var(--silver-dim); margin-top:2px; }
+  .pay-method-tab.is-active{ border-color:var(--accent-blue); box-shadow:0 0 0 1px var(--accent-blue) inset; }
+  @media (max-width:420px){ .pay-method-tabs{ grid-template-columns:1fr; } }
 
   .manual-payment-details{
     background:var(--graphite-1); border:1px solid var(--line); border-radius:10px;

@@ -557,29 +557,27 @@
     checkoutSale = null;
 
     var manualPanel = document.getElementById('manualPaymentPanel');
-    var isManual = !!checkout.manualPaymentEnabled;
+    var isManual = !!checkout.manualPaymentEnabled && !!manualPanel;
 
     checkoutSuccess.classList.remove('is-visible');
     checkoutFormError.classList.remove('is-visible');
     checkoutPayBtn.disabled = false;
     checkoutPayBtn.textContent = 'Pay with Paystack';
 
-    if (isManual) {
-      checkoutForm.style.display = 'none';
-      if (manualPanel) {
-        manualPanel.style.display = '';
-        var manualForm = document.getElementById('manualPaymentForm');
-        var manualSuccess = document.getElementById('manualPayFormSuccess');
-        var manualError = document.getElementById('manualPayFormError');
-        if (manualForm) { manualForm.style.display = ''; manualForm.reset(); }
-        if (manualSuccess) manualSuccess.classList.remove('is-visible');
-        if (manualError) manualError.classList.remove('is-visible');
-      }
-    } else {
-      checkoutForm.style.display = '';
-      checkoutForm.reset();
-      if (manualPanel) manualPanel.style.display = 'none';
+    // Always start from a clean slate for both payment methods.
+    checkoutForm.reset();
+    if (manualPanel) {
+      var manualForm = document.getElementById('manualPaymentForm');
+      var manualSuccess = document.getElementById('manualPayFormSuccess');
+      var manualError = document.getElementById('manualPayFormError');
+      if (manualForm) { manualForm.style.display = ''; manualForm.reset(); }
+      if (manualSuccess) manualSuccess.classList.remove('is-visible');
+      if (manualError) manualError.classList.remove('is-visible');
     }
+    // Services with manual payment on show a choice (Paystack first); others only Paystack.
+    var payTabs = document.getElementById('payMethodTabs');
+    if (payTabs) payTabs.style.display = isManual ? '' : 'none';
+    setPayMethod('paystack');
 
     var discountInput = document.getElementById('checkoutDiscountCode');
     var discountBtn = document.getElementById('checkoutDiscountApplyBtn');
@@ -603,6 +601,20 @@
       }
     });
   }
+  function setPayMethod(method) {
+    var manualPanel = document.getElementById('manualPaymentPanel');
+    var useManual = method === 'manual' && !!manualPanel;
+    checkoutForm.style.display = useManual ? 'none' : '';
+    if (manualPanel) manualPanel.style.display = useManual ? '' : 'none';
+    Array.prototype.forEach.call(document.querySelectorAll('.pay-method-tab'), function (tab) {
+      var on = tab.getAttribute('data-method') === (useManual ? 'manual' : 'paystack');
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.pay-method-tab'), function (tab) {
+    tab.addEventListener('click', function () { setPayMethod(tab.getAttribute('data-method')); });
+  });
   function renderCheckoutSummary() {
     var label = currentCheckout.serviceName + (currentCheckout.packageName ? ' — ' + currentCheckout.packageName : '');
     if (currentDiscountToken || checkoutSale) {
