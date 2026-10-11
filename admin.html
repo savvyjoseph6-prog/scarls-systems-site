@@ -1653,7 +1653,9 @@
     Promise.all([
       authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "announcement" }) }),
       authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "sale_popup_frequency" }) }),
+      authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "paystack_fee_passthrough" }) }),
     ]).then(function (results) {
+      settingsValues.paystack_fee_passthrough = (results[2].data && results[2].data.value) === "true" ? "true" : "false";
       settingsValues.announcement = (results[0].data && results[0].data.value) || "";
       settingsValues.sale_popup_frequency = (results[1].data && results[1].data.value) || "once_per_session";
       drawSettingsSection();
@@ -1671,9 +1673,15 @@
       '<div class="inline-actions"><button type="button" class="btn primary" id="s_saveAnnouncement">Save</button><span class="save-status" id="s_announcementStatus"></span></div></div>' +
       '<div class="field" style="margin-top:24px;"><label>Sale popup frequency</label><select id="s_popupFreq">' + freqOptions + '</select>' +
       '<div class="inline-actions"><button type="button" class="btn primary" id="s_savePopup">Save</button><span class="save-status" id="s_popupStatus"></span></div></div>' +
+      '<div class="field" style="margin-top:24px;"><label>Paystack fees</label><select id="s_passFees">' +
+      '<option value="false"' + (settingsValues.paystack_fee_passthrough !== "true" ? " selected" : "") + '>You pay the fee (customer pays the listed price)</option>' +
+      '<option value="true"' + (settingsValues.paystack_fee_passthrough === "true" ? " selected" : "") + '>Customer pays the fee (added at checkout)</option></select>' +
+      '<div style="font-size:12px;color:var(--silver-dim,#8a8f98);margin-top:6px;line-height:1.5;">Paystack charges 1.5% + ₦100 (no ₦100 under ₦2,500, max ₦2,000). When on, online card/transfer payments add this so you receive the full listed price. Not applied to subscriptions or manual transfers. Reports and project amounts always show the listed price.</div>' +
+      '<div class="inline-actions"><button type="button" class="btn primary" id="s_savePassFees">Save</button><span class="save-status" id="s_passFeesStatus"></span></div></div>' +
       '</div>';
 
     document.getElementById("s_saveAnnouncement").addEventListener("click", function () { saveSetting("announcement", document.getElementById("s_announcement").value, "s_announcementStatus"); });
+    document.getElementById("s_savePassFees").addEventListener("click", function () { saveSetting("paystack_fee_passthrough", document.getElementById("s_passFees").value, "s_passFeesStatus"); });
     document.getElementById("s_savePopup").addEventListener("click", function () { saveSetting("sale_popup_frequency", document.getElementById("s_popupFreq").value, "s_popupStatus"); });
   }
   function saveSetting(key, value, statusElId) {

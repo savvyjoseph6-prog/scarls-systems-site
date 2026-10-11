@@ -513,6 +513,42 @@
   var currentDiscountToken = null;
   var checkoutSale = null; // the automatic sale currently applied to this checkout, if any
 
+  // ---- Paystack fee pass-through (owner switch: site setting "paystack_fee_passthrough") ----
+  // Paystack local fee: 1.5% + N100 (the N100 is waived under N2,500), capped at N2,000.
+  // Customers pay the base price + this fee, so SCARLS receives the full base price.
+  // Same maths on the server side isn't needed: verify-payment accepts anything from the
+  // base price up to base + 2% + N200 (max N2,500), and always records the BASE price.
+  var passFees = false;
+  function paystackFeeKobo_(grossKobo) {
+    var pct = Math.round(grossKobo * 0.015);
+    var flat = grossKobo >= 250000 ? 10000 : 0;
+    return Math.min(pct + flat, 200000);
+  }
+  function grossUpKobo_(baseKobo) {
+    var g = Math.ceil((baseKobo + (baseKobo >= 235000 ? 10000 : 0)) / 0.985);
+    while (g - paystackFeeKobo_(g) < baseKobo) g++;
+    while (g > baseKobo && (g - 1) - paystackFeeKobo_(g - 1) >= baseKobo) g--;
+    return g;
+  }
+  // Total the customer pays via Paystack, in kobo. Subscriptions are never grossed up
+  // (renewals are charged at the plain price).
+  function paystackChargeKobo_() {
+    var base = Math.round(currentCheckout.amountNaira * 100);
+    if (!passFees || currentCheckout.pricingModel === 'subscription' || base <= 0) return base;
+    return grossUpKobo_(base);
+  }
+  function loadCheckoutConfig_() {
+    return fetch(SUPABASE_FUNCTIONS_BASE + '/public-checkout-config', {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+    }).then(function (r) { return r.json(); })
+      .then(function (d) { passFees = !!(d && d.passFees); })
+      .catch(function () { /* keep last known value; default is no fee */ });
+  }
+  function naira_(kobo) {
+    var n = kobo / 100;
+    return '\u20a6' + n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+  }
+
   // Applies the best active automatic sale to the open checkout (same
   // maths as the server), or restores the list price if there is none.
   // A discount code, AI quote or budget approval carries its own locked
@@ -599,6 +635,9 @@
     checkoutOverlay.classList.add('is-open');
     document.body.style.overflow = 'hidden';
 
+    loadCheckoutConfig_().then(function () {
+      if (currentCheckout === checkout && checkoutOverlay.classList.contains('is-open')) renderCheckoutSummary();
+    });
     refreshSales().then(function () {
       if (currentCheckout === checkout && checkoutOverlay.classList.contains('is-open') && !currentDiscountToken) {
         applySaleToCheckout_();
@@ -629,6 +668,25 @@
     }
     var manualAmountEl = document.getElementById('manualPaymentAmount');
     if (manualAmountEl) manualAmountEl.textContent = currentCheckout.priceLabel;
+
+    // Processing-fee line + total (only when the owner has switched fee pass-through on).
+    var feeEl = document.getElementById('checkoutFeeLine');
+    if (!feeEl) {
+      feeEl = document.createElement('div');
+      feeEl.id = 'checkoutFeeLine';
+      feeEl.style.cssText = 'font-size:13px;color:var(--silver-dim);margin:6px 0 0;display:none;';
+      checkoutSummaryEl.parentNode.insertBefore(feeEl, checkoutSummaryEl.nextSibling);
+    }
+    var base = Math.round(currentCheckout.amountNaira * 100);
+    var total = paystackChargeKobo_();
+    if (total > base) {
+      feeEl.style.display = '';
+      feeEl.innerHTML = '<div style="display:flex;justify-content:space-between;"><span>Payment processing fee</span><span>' + naira_(total - base) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;color:inherit;font-weight:600;margin-top:2px;"><span>Total to pay online</span><span>' + naira_(total) + '</span></div>';
+    } else {
+      feeEl.style.display = 'none';
+      feeEl.innerHTML = '';
+    }
   }
   function closeCheckoutModal() {
     checkoutOverlay.classList.remove('is-open');
@@ -715,11 +773,12 @@
     // ended since the checkout opened, show the new total instead of
     // charging the old one.
     var priceBefore = currentCheckout.amountNaira;
-    refreshSales().then(function () {
+    var chargeBefore = paystackChargeKobo_();
+    Promise.all([refreshSales(), loadCheckoutConfig_()]).then(function () {
       applySaleToCheckout_();
-      if (currentCheckout.amountNaira !== priceBefore) {
+      if (currentCheckout.amountNaira !== priceBefore || paystackChargeKobo_() !== chargeBefore) {
         renderCheckoutSummary();
-        showCheckoutError('The price was just updated (a sale started or ended). Please check the new total, then click Pay again.');
+        showCheckoutError('The price was just updated (a sale or processing fee changed). Please check the new total, then click Pay again.');
         return;
       }
 
@@ -728,7 +787,7 @@
       var txParams = {
         key: PAYSTACK_PUBLIC_KEY,
         email: email,
-        amount: Math.round(currentCheckout.amountNaira * 100),
+        amount: paystackChargeKobo_(),
         currency: 'NGN',
         ref: reference,
         metadata: {
