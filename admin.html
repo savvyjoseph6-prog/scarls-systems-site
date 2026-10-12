@@ -1620,6 +1620,7 @@
       revStat(naira(t.today), "Today") +
       revStat(String(s.activeCount), "Active subscriptions", "MRR " + naira(s.mrr)) +
       revStat(naira(t.pendingManual), "Pending manual payments") +
+      revStat(naira(t.feesAllTime), "Paystack fees paid by customers", "This month " + naira(t.feesThisMonth) + " \u00b7 " + (t.feePayments || 0) + " payment" + (t.feePayments === 1 ? "" : "s")) +
       '</div>';
 
     if (d.failedRenewals && d.failedRenewals.length) {
@@ -1659,7 +1660,7 @@
           d.transactions.map(function (x) {
             var bad = x.status !== "success" && x.status !== "verified";
             return '<tr><td><span class="pill src-' + escapeHtml(x.source) + '">' + (SRC[x.source] || escapeHtml(x.source)) + '</span></td><td>' + escapeHtml(fmtDay(x.date)) + '</td>' +
-              '<td class="name">' + escapeHtml(x.clientName) + '</td><td>' + escapeHtml(x.serviceName) + '</td><td class="amount">' + naira(x.amount) + '</td>' +
+              '<td class="name">' + escapeHtml(x.clientName) + '</td><td>' + escapeHtml(x.serviceName) + '</td><td class="amount">' + naira(x.amount) + (x.fee ? '<div style="font-size:11px;color:var(--dimmer);font-weight:400;">+ ' + naira(x.fee) + ' fee</div>' : '') + '</td>' +
               '<td><span class="pill ' + (bad ? "st-failed" : "st-ok") + '">' + escapeHtml(x.status) + '</span></td></tr>';
           }).join("") + '</tbody></table></div>'
         : '<div class="empty">No transactions yet.</div>');
