@@ -399,9 +399,9 @@
     { id: "sales", staff: true, label: "Sales", wired: true },
     { id: "tickets", label: "Tickets", wired: true, staff: true },
     { id: "manualpay", staff: true, label: "Manual Payments", wired: true },
-    { id: "revenue", label: "Revenue", wired: true },
+    { id: "revenue", label: "Revenue", staff: true, wired: true },
     { id: "team", label: "Team", wired: true },
-    { id: "settings", label: "Settings", wired: true },
+    { id: "settings", label: "Settings", staff: true, wired: true },
   ];
 
   var allAssessments = [], allBudgetRequests = [], allAiQuotes = [];
@@ -448,7 +448,7 @@
       if (userRole === "intern") {
         try { var me = await authedFetch("/admin-me"); mySections = (me.data && me.data.sections) || []; } catch (e) { mySections = []; }
       }
-      document.getElementById("whoEmail").textContent = (user.email || "") + (userRole === "intern" ? " · Intern" : "");
+      document.getElementById("whoEmail").textContent = (user.email || "") + (userRole === "intern" ? (mySections.indexOf("revenue") !== -1 && mySections.indexOf("settings") !== -1 ? " · Manager" : " · Intern") : "");
       document.getElementById("login").style.display = "none";
       document.getElementById("shell").style.display = "flex";
       renderNav();
@@ -617,7 +617,7 @@
         (review > 0
           ? '<div class="placeholder" style="text-align:left;padding:18px 20px;"><b style="margin-bottom:2px;">' + review + ' project' + (review === 1 ? "" : "s") + ' waiting on you</b>Open Projects to review and move them forward.</div>'
           : '<div class="placeholder"><b>Nothing urgent right now</b>Everything in Projects is up to date.</div>');
-      if (userRole === "owner") loadDashRevenue();
+      if (canSee("revenue")) loadDashRevenue();
     });
   }
   function stat(n, label) {
@@ -1369,8 +1369,15 @@
     ["manualpay", "Manual payments", "Approve / reject payments"],
     ["discounts", "Discounts", "Create, edit & delete codes"],
     ["sales", "Sales", "Create & edit sales"],
-    ["catalog", "Catalog", "Add & edit services"]
+    ["catalog", "Catalog", "Add & edit services"],
+    ["revenue", "Revenue", "", "viewonly"],
+    ["settings", "Settings", "Banner, sale popup & Paystack fee switch"]
   ];
+  // One-click access presets for the Team page.
+  var PRESETS = {
+    manager: { projects: "edit", assessments: "edit", tickets: "edit", manualpay: "edit", discounts: "edit", sales: "edit", catalog: "edit", revenue: "view", settings: "edit" },
+    clear: {}
+  };
   var DEFAULT_ACCESS = ["projects", "assessments", "tickets"];
 
   function teamCall(payload) {
@@ -1378,14 +1385,28 @@
   }
   function areaChecks(selected) {
     selected = selected || [];
-    return TEAM_AREAS.map(function (a) {
+    var rows = TEAM_AREAS.map(function (a) {
       var lvl = selected.indexOf(a[0] + ":edit") !== -1 ? "edit" : (selected.indexOf(a[0]) !== -1 ? "view" : "none");
+      if (a[3] === "viewonly" && lvl === "edit") lvl = "view";
       return '<div class="field" style="margin-bottom:10px;"><label>' + a[1] + '</label><select class="t_area" data-area="' + a[0] + '">' +
         '<option value="none"' + (lvl === "none" ? " selected" : "") + '>No access</option>' +
         '<option value="view"' + (lvl === "view" ? " selected" : "") + '>View only</option>' +
-        '<option value="edit"' + (lvl === "edit" ? " selected" : "") + '>Can edit \u2014 ' + a[2] + '</option></select></div>';
+        (a[3] === "viewonly" ? "" : '<option value="edit"' + (lvl === "edit" ? " selected" : "") + '>Can edit \u2014 ' + a[2] + '</option>') +
+        '</select></div>';
     }).join("");
+    return '<div class="inline-actions" style="margin:0 0 14px;">' +
+      '<button type="button" class="btn t_preset" data-preset="manager">Manager preset</button>' +
+      '<button type="button" class="btn t_preset" data-preset="clear">Clear all</button></div>' +
+      '<div class="save-status" style="margin:-6px 0 14px;font-size:12.5px;">Manager = can edit everything below and see Revenue. Team, archiving and the owner-only controls always stay with you.</div>' + rows;
   }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".t_preset") : null;
+    if (!b) return;
+    var preset = PRESETS[b.getAttribute("data-preset")] || {};
+    Array.prototype.forEach.call(document.querySelectorAll(".t_area"), function (el) {
+      el.value = preset[el.getAttribute("data-area")] || "none";
+    });
+  });
   function pickedAreas() {
     var out = [];
     Array.prototype.forEach.call(document.querySelectorAll(".t_area"), function (el) {
@@ -1404,7 +1425,7 @@
   }
 
   function renderTeamSection() {
-    document.getElementById("pageSub").textContent = "Choose what each person can open, and whether they can only view it or also make changes. Revenue, settings and project amounts stay hidden.";
+    document.getElementById("pageSub").textContent = "Choose what each person can open, and whether they can only view it or also make changes. Revenue and Settings can be granted too. Team, archiving and project amounts stay with you.";
     document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addInternBtn">+ Add intern</button>';
     document.getElementById("addInternBtn").addEventListener("click", openAddInternDrawer);
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
@@ -1683,6 +1704,10 @@
     document.getElementById("s_saveAnnouncement").addEventListener("click", function () { saveSetting("announcement", document.getElementById("s_announcement").value, "s_announcementStatus"); });
     document.getElementById("s_savePassFees").addEventListener("click", function () { saveSetting("paystack_fee_passthrough", document.getElementById("s_passFees").value, "s_passFeesStatus"); });
     document.getElementById("s_savePopup").addEventListener("click", function () { saveSetting("sale_popup_frequency", document.getElementById("s_popupFreq").value, "s_popupStatus"); });
+    if (!canEdit("settings")) {
+      Array.prototype.forEach.call(document.querySelectorAll("#pageBody input, #pageBody select, #pageBody textarea, #pageBody button"), function (el) { el.disabled = true; });
+      document.getElementById("pageBody").insertAdjacentHTML("afterbegin", '<div class="save-status" style="margin-bottom:14px;">You can view these settings but not change them.</div>');
+    }
   }
   function saveSetting(key, value, statusElId) {
     var statusEl = document.getElementById(statusElId);
