@@ -689,6 +689,123 @@
   scrim.addEventListener("click", closeDrawer);
   document.getElementById("drawerClose").addEventListener("click", closeDrawer);
 
+  /* ---------------- Client brief + messages (inside the project drawer) ---------------- */
+
+  function portalCall(body) {
+    return authedFetch("/admin-portal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  }
+  function fmtSize(n) { n = Number(n) || 0; return n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+  var BRIEF_STATUS = { submitted: "Submitted", changes_requested: "Waiting on customer", approved: "Approved", draft: "Draft" };
+
+  function loadBriefBox(p) {
+    var box = document.getElementById("d_briefBox");
+    if (!box) return;
+    box.innerHTML = '<div class="field"><label>Client brief</label><div class="sub">Loading…</div></div>';
+    portalCall({ action: "get_brief", projectId: p.projectId }).then(function (r) {
+      if (!document.getElementById("d_briefBox")) return;
+      if (!r.data || !r.data.ok) { box.innerHTML = '<div class="field"><label>Client brief</label><div class="sub">' + escapeHtml((r.data && r.data.error) || "Could not load the brief.") + '</div></div>'; return; }
+      drawBriefBox(p, r.data);
+    }).catch(function () { box.innerHTML = '<div class="field"><label>Client brief</label><div class="sub">Network error — close and reopen to retry.</div></div>'; });
+  }
+
+  function drawBriefBox(p, d) {
+    var box = document.getElementById("d_briefBox");
+    var b = d.brief || {};
+    var st = b.status ? (BRIEF_STATUS[b.status] || b.status) : "Not started";
+    var answered = (b.items || []).some(function (it) { return it.value && String(it.value).trim(); }) || (b.extra && String(b.extra).trim());
+    var html = '<div class="field"><label>Client brief · ' + escapeHtml(st) + (b.submittedAt ? ' · sent ' + escapeHtml(fmtDay(b.submittedAt)) : '') + '</label>';
+    if (!b.status && !answered && !(d.files || []).length) {
+      html += '<div class="sub">The client hasn’t sent anything yet.' + (d.project && d.project.portalUrl ? ' Their page: <a href="' + escapeHtml(d.project.portalUrl) + '" target="_blank" rel="noopener">open</a>' : '') + '</div>';
+    } else {
+      html += '<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel-2);">';
+      (b.items || []).forEach(function (it) {
+        var v = it.value && String(it.value).trim();
+        html += '<div style="margin-bottom:12px;"><div style="font-size:12px;color:var(--dim);margin-bottom:3px;">' + escapeHtml(it.label || "") + '</div>' +
+          '<div style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5;' + (v ? '' : 'color:var(--dimmer);') + '">' + (v ? escapeHtml(v) : "(not answered)") + '</div></div>';
+      });
+      if (b.extra && String(b.extra).trim()) {
+        html += '<div style="margin-bottom:12px;"><div style="font-size:12px;color:var(--dim);margin-bottom:3px;">Anything else</div><div style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5;">' + escapeHtml(b.extra) + '</div></div>';
+      }
+      var files = d.files || [];
+      html += '<div style="font-size:12px;color:var(--dim);margin-bottom:6px;">Files (' + files.length + ')</div>';
+      if (files.length) {
+        html += files.map(function (f) {
+          var isImg = /^image\//.test(f.type || "") && f.url;
+          return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+            (isImg ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(f.url) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);"></a>' : '') +
+            (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener" style="word-break:break-all;">' + escapeHtml(f.name) + '</a>' : '<span>' + escapeHtml(f.name) + '</span>') +
+            '<span style="color:var(--dimmer);font-size:12px;white-space:nowrap;">' + escapeHtml(fmtSize(f.size)) + '</span></div>';
+        }).join("");
+      } else { html += '<div class="sub">No files uploaded.</div>'; }
+      if (b.adminNote) html += '<div style="margin-top:10px;font-size:12px;color:var(--dim);">Your last note to the client: <span style="color:var(--white);white-space:pre-wrap;">' + escapeHtml(b.adminNote) + '</span></div>';
+      html += '</div>';
+    }
+    if (p.status === "brief" && canEdit("projects")) {
+      html += '<textarea id="d_briefNote" placeholder="Note to the client (needed if you ask for more details)" style="margin-top:10px;min-height:60px;"></textarea>' +
+        '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        '<button type="button" class="btn primary" id="d_briefApprove" style="flex:1;">Approve &amp; start project</button>' +
+        '<button type="button" class="btn" id="d_briefChanges" style="flex:1;">Ask for more details</button></div>' +
+        '<div class="save-status" id="d_briefMsg" style="margin-top:6px;"></div>';
+    }
+    html += '</div>' +
+      '<div class="field"><label>Messages</label><div id="d_thread" class="sub">Loading…</div></div>';
+    box.innerHTML = html;
+
+    function decide(kind) {
+      var note = (document.getElementById("d_briefNote").value || "").trim();
+      var msg = document.getElementById("d_briefMsg");
+      if (kind === "approve" && !confirm("Approve this brief and move the project to In progress? The client will be emailed.")) return;
+      if (kind === "changes" && note.length < 3) { msg.className = "save-status err"; msg.textContent = "Write what you need from the client first."; return; }
+      document.getElementById("d_briefApprove").disabled = true; document.getElementById("d_briefChanges").disabled = true;
+      msg.className = "save-status"; msg.textContent = "Saving…";
+      portalCall({ action: "decide", projectId: p.projectId, decision: kind, note: note }).then(function (r) {
+        if (r.data && r.data.ok) { loadProjects(function () { drawProjectsTable(); closeDrawer(); }); }
+        else { document.getElementById("d_briefApprove").disabled = false; document.getElementById("d_briefChanges").disabled = false; msg.className = "save-status err"; msg.textContent = (r.data && r.data.error) || "Could not save."; }
+      }).catch(function () { document.getElementById("d_briefApprove").disabled = false; document.getElementById("d_briefChanges").disabled = false; msg.className = "save-status err"; msg.textContent = "Network error — try again."; });
+    }
+    var ap = document.getElementById("d_briefApprove"); if (ap) ap.onclick = function () { decide("approve"); };
+    var ch = document.getElementById("d_briefChanges"); if (ch) ch.onclick = function () { decide("changes"); };
+    loadThreadBox(p);
+  }
+
+  function loadThreadBox(p) {
+    portalCall({ action: "thread", projectId: p.projectId }).then(function (r) {
+      var el = document.getElementById("d_thread");
+      if (!el) return;
+      if (!r.data || !r.data.ok) { el.textContent = (r.data && r.data.error) || "Could not load messages."; return; }
+      drawThreadBox(p, r.data.messages || []);
+    }).catch(function () { var el = document.getElementById("d_thread"); if (el) el.textContent = "Network error."; });
+  }
+
+  function drawThreadBox(p, msgs) {
+    var el = document.getElementById("d_thread");
+    if (!el) return;
+    var html = msgs.length ? msgs.map(function (m) {
+      var mine = m.from === "admin";
+      var sys = m.kind === "system";
+      return '<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:' + (mine ? 'var(--accent-dim)' : 'var(--panel-2)') + ';border:1px solid var(--line);">' +
+        '<div style="font-size:11px;color:var(--dim);margin-bottom:2px;">' + escapeHtml(sys ? "System" : mine ? "You" : "Client") + ' · ' + escapeHtml(fmtDay(m.at)) +
+        (m.kind === "changes_request" ? ' · changes requested' : '') + '</div>' +
+        '<div style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5;color:var(--white);">' + escapeHtml(m.text || "") + '</div></div>';
+    }).join("") : '<div class="sub">No messages yet.</div>';
+    if (canEdit("projects")) {
+      html += '<textarea id="d_replyText" placeholder="Reply to the client (they get an email)" style="min-height:60px;"></textarea>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><button type="button" class="btn" id="d_replyBtn">Send reply</button><span class="save-status" id="d_replyMsg"></span></div>';
+    }
+    el.className = ""; el.innerHTML = html;
+    var rb = document.getElementById("d_replyBtn");
+    if (rb) rb.onclick = function () {
+      var t = (document.getElementById("d_replyText").value || "").trim();
+      var m = document.getElementById("d_replyMsg");
+      if (!t) { m.className = "save-status err"; m.textContent = "Type your message first."; return; }
+      rb.disabled = true; m.className = "save-status"; m.textContent = "Sending…";
+      portalCall({ action: "reply", projectId: p.projectId, text: t }).then(function (r) {
+        if (r.data && r.data.ok) { drawThreadBox(p, r.data.messages || []); }
+        else { rb.disabled = false; m.className = "save-status err"; m.textContent = (r.data && r.data.error) || "Could not send."; }
+      }).catch(function () { rb.disabled = false; m.className = "save-status err"; m.textContent = "Network error."; });
+    };
+  }
+
   function openProjectDrawer(projectId) {
     var p = allProjects.filter(function (x) { return x.projectId === projectId; })[0];
     if (!p) return;
@@ -703,6 +820,7 @@
     var isSub = p.pricingModel === "subscription";
 
     document.getElementById("drawerBody").innerHTML =
+      '<div id="d_briefBox"></div>' +
       '<div class="field"><label>Status</label><select id="d_status">' + statusOptions + '</select></div>' +
       '<div class="field"><label>Assigned to</label><input id="d_assignedTo" type="text" value="' + escapeHtml(p.assignedTo || "") + '" placeholder="Team member name"></div>' +
       '<div class="field"><label>Due date</label><input id="d_dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : "") + '"></div>' +
@@ -719,6 +837,7 @@
         : "");
 
     document.getElementById("drawerStatus").textContent = "";
+    loadBriefBox(p);
 
     document.getElementById("drawerSave").onclick = function () {
       var payload = {
