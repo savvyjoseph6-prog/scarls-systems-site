@@ -519,6 +519,26 @@
   // Same maths on the server side isn't needed: verify-payment accepts anything from the
   // base price up to base + 2% + N200 (max N2,500), and always records the BASE price.
   var passFees = false;
+  // ---- Pay in parts (owner switches: global site setting + per-service option) ----
+  var installCfg = { enabled: false, count: 3, intervalDays: 1 };
+  var installmentChoice = false;
+  // The plan for the open checkout, or null if this checkout can't be paid in parts.
+  function installmentPlanFor_() {
+    if (!currentCheckout || currentCheckout.pricingModel === 'subscription') return null;
+    var svc = findService(currentCheckout.serviceId) || {};
+    var mode = svc.installments_mode || 'inherit';
+    if (!(mode === 'on' || (mode === 'inherit' && installCfg.enabled))) return null;
+    var count = Math.round(Number(svc.installments_count || installCfg.count));
+    var days = Math.round(Number(svc.installments_interval_days || installCfg.intervalDays));
+    if (!(count >= 2 && count <= 12)) count = installCfg.count;
+    if (!(days >= 1 && days <= 30)) days = installCfg.intervalDays;
+    var total = Math.round(currentCheckout.amountNaira * 100);
+    if (total <= 0) return null;
+    var base = Math.floor(total / count);
+    if (base < 10000) return null;
+    return { count: count, intervalDays: days, first: base, total: total, last: total - base * (count - 1) };
+  }
+  function installmentOn_() { return installmentChoice && !!installmentPlanFor_(); }
   function paystackFeeKobo_(grossKobo) {
     var pct = Math.round(grossKobo * 0.015);
     var flat = grossKobo >= 250000 ? 10000 : 0;
@@ -534,6 +554,7 @@
   // (renewals are charged at the plain price).
   function paystackChargeKobo_() {
     var base = Math.round(currentCheckout.amountNaira * 100);
+    if (installmentOn_()) return installmentPlanFor_().first; // first part only, never grossed up
     if (!passFees || currentCheckout.pricingModel === 'subscription' || base <= 0) return base;
     return grossUpKobo_(base);
   }
@@ -541,7 +562,10 @@
     return fetch(SUPABASE_FUNCTIONS_BASE + '/public-checkout-config', {
       headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
     }).then(function (r) { return r.json(); })
-      .then(function (d) { passFees = !!(d && d.passFees); })
+      .then(function (d) {
+        passFees = !!(d && d.passFees);
+        if (d && d.installments) installCfg = { enabled: !!d.installments.enabled, count: Number(d.installments.count) || 3, intervalDays: Number(d.installments.intervalDays) || 1 };
+      })
       .catch(function () { /* keep last known value; default is no fee */ });
   }
   function naira_(kobo) {
@@ -596,6 +620,7 @@
     checkoutBasePriceLabel = checkout.priceLabel;
     currentDiscountToken = null;
     checkoutSale = null;
+    installmentChoice = false;
 
     var manualPanel = document.getElementById('manualPaymentPanel');
     var isManual = !!checkout.manualPaymentEnabled && !!manualPanel;
@@ -679,6 +704,33 @@
     }
     var base = Math.round(currentCheckout.amountNaira * 100);
     var total = paystackChargeKobo_();
+
+    // Pay-in-parts choice: stays hidden unless the owner has it on for this service.
+    var plan = installmentPlanFor_();
+    if (!plan) installmentChoice = false;
+    var instEl = document.getElementById('checkoutInstallment');
+    if (!instEl && plan) {
+      instEl = document.createElement('div');
+      instEl.id = 'checkoutInstallment';
+      instEl.style.cssText = 'font-size:13px;color:var(--silver-dim);margin:10px 0 0;';
+      checkoutSummaryEl.parentNode.insertBefore(instEl, feeEl.nextSibling);
+    }
+    if (instEl) {
+      if (!plan) {
+        instEl.style.display = 'none';
+        instEl.innerHTML = '';
+      } else {
+        var every = plan.intervalDays === 1 ? 'every day' : 'every ' + plan.intervalDays + ' days';
+        var partTxt = plan.first === plan.last ? naira_(plan.first) : naira_(plan.first) + ' (last one ' + naira_(plan.last) + ')';
+        instEl.style.display = '';
+        instEl.innerHTML = '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">' +
+          '<input type="checkbox" id="checkoutInstallmentToggle"' + (installmentChoice ? ' checked' : '') + ' style="margin-top:3px;">' +
+          '<span><span style="color:inherit;font-weight:600;">Pay in ' + plan.count + ' parts</span> &mdash; ' + plan.count + ' payments of ' + partTxt + ', one ' + every + '.</span></label>' +
+          (installmentChoice ? '<div style="margin:6px 0 0 24px;line-height:1.5;">Due today: <strong style="color:inherit;">' + naira_(plan.first) + '</strong>. By paying you allow us to charge the same card for the remaining ' + (plan.count - 1) + ' payment(s). Card payment only.</div>' : '');
+        var tg = document.getElementById('checkoutInstallmentToggle');
+        if (tg) tg.addEventListener('change', function () { installmentChoice = !!tg.checked; renderCheckoutSummary(); });
+      }
+    }
     if (total > base) {
       feeEl.style.display = '';
       feeEl.innerHTML = '<div style="display:flex;justify-content:space-between;"><span>Payment processing fee</span><span>' + naira_(total - base) + '</span></div>' +
@@ -774,8 +826,10 @@
     // charging the old one.
     var priceBefore = currentCheckout.amountNaira;
     var chargeBefore = paystackChargeKobo_();
+    var instBefore = installmentOn_();
     Promise.all([refreshSales(), loadCheckoutConfig_()]).then(function () {
       applySaleToCheckout_();
+      if (instBefore && !installmentOn_()) installmentChoice = false;
       if (currentCheckout.amountNaira !== priceBefore || paystackChargeKobo_() !== chargeBefore) {
         renderCheckoutSummary();
         showCheckoutError('The price was just updated (a sale or processing fee changed). Please check the new total, then click Pay again.');
@@ -800,6 +854,7 @@
           budgetToken: currentCheckout.budgetToken || '',
           quoteToken: currentCheckout.quoteToken || '',
           discountToken: currentDiscountToken || '',
+          installment: instBefore && installmentOn_(),
           custom_fields: [
             { display_name: 'Service', variable_name: 'service', value: currentCheckout.serviceName },
             { display_name: 'WhatsApp', variable_name: 'whatsapp', value: whatsapp }
@@ -813,7 +868,8 @@
             fullName: fullName, email: email, whatsapp: whatsapp, businessName: businessName,
             budgetToken: currentCheckout.budgetToken || '',
             quoteToken: currentCheckout.quoteToken || '',
-            discountToken: currentDiscountToken || ''
+            discountToken: currentDiscountToken || '',
+            installment: instBefore
           });
         },
         onCancel: function () {
@@ -829,7 +885,7 @@
       // reusable:false, so letting someone pick those here would create
       // a subscription that silently can never auto-renew. Restrict the
       // popup to card only for subscription checkouts.
-      if (currentCheckout.pricingModel === 'subscription') {
+      if (currentCheckout.pricingModel === 'subscription' || txParams.metadata.installment) {
         txParams.channels = ['card'];
       }
 

@@ -291,6 +291,97 @@
     .dash-rev .nums{ grid-template-columns:1fr 1fr; }
     #s_announcement, #s_popupFreq{ font-size:16px; }
   }
+  /* ---------- Team chat ---------- */
+  .chat-wrap{ position:relative; display:grid; grid-template-columns:320px minmax(0,1fr); height:calc(100vh - 190px); min-height:440px; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .chat-side{ border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  .chat-side-head{ padding:14px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:12px; }
+  .chat-side-actions{ display:flex; gap:8px; }
+  .chat-side-actions .btn{ flex:1; padding:8px 12px; font-size:13px; }
+  .chat-me{ display:flex; align-items:center; gap:10px; }
+  .chat-me-txt{ min-width:0; }
+  .chat-me-name{ font-weight:600; font-size:14px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .chat-link{ background:none; border:0; color:var(--accent); font-size:12px; padding:0; cursor:pointer; }
+  .chat-list{ overflow-y:auto; flex:1; min-height:0; }
+  .chat-av{ width:38px; height:38px; flex:none; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:var(--white); }
+  .chat-av.big{ width:42px; height:42px; }
+  .chat-item{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 14px; background:none; border:0; border-bottom:1px solid var(--line-soft); color:inherit; cursor:pointer; }
+  .chat-item:hover{ background:var(--panel-2); }
+  .chat-item.on{ background:var(--panel-2); box-shadow:inset 3px 0 0 var(--accent); }
+  .chat-item-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .chat-item-top{ display:flex; align-items:center; gap:6px; min-width:0; }
+  .chat-item-name{ font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-item-time{ margin-left:auto; font-size:11px; color:var(--dimmer); flex:none; }
+  .chat-item-prev{ font-size:13px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-unread{ flex:none; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--accent); color:#fff; font-size:11px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+  .chat-tag{ display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.02em; padding:1px 7px; border-radius:20px; border:1px solid; line-height:1.5; white-space:nowrap; flex:none; }
+  .chat-main{ display:flex; flex-direction:column; min-width:0; min-height:0; background:#0e0e12; }
+  .chat-empty{ margin:auto; color:var(--dimmer); font-size:14px; padding:24px; text-align:center; }
+  .chat-head{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid var(--line); background:var(--panel); }
+  .chat-head-name{ font-weight:600; font-size:15px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .chat-head-sub{ font-size:12px; color:var(--dimmer); }
+  .chat-head-sub.typing{ color:var(--green); }
+  .chat-back{ display:none; background:none; border:0; color:var(--white); font-size:22px; cursor:pointer; padding:0 4px; }
+  .chat-msgs{ flex:1; min-height:0; overflow-y:auto; padding:16px 14px; display:flex; flex-direction:column; gap:3px; }
+  .chat-day{ text-align:center; margin:12px 0 6px; }
+  .chat-day span{ font-size:11px; color:var(--dim); background:var(--panel-2); padding:4px 12px; border-radius:20px; }
+  .chat-older{ text-align:center; margin-bottom:8px; }
+  .chat-row{ display:flex; }
+  .chat-row.mine{ justify-content:flex-end; }
+  .chat-bubble{ position:relative; max-width:min(78%,520px); padding:7px 22px 5px 11px; border-radius:12px; font-size:14px; line-height:1.45; word-wrap:break-word; overflow-wrap:anywhere; }
+  .chat-row.theirs .chat-bubble{ background:var(--panel-2); border-top-left-radius:4px; }
+  .chat-row.mine .chat-bubble{ background:var(--accent-dim); border-top-right-radius:4px; }
+  .chat-sender{ font-size:12px; font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .chat-text a{ color:var(--blue); }
+  .chat-meta{ font-size:10.5px; color:var(--dimmer); text-align:right; margin-top:2px; }
+  .chat-deleted{ font-style:italic; color:var(--dimmer); font-size:13px; }
+  .chat-img{ display:block; max-width:100%; max-height:260px; border-radius:8px; margin-bottom:4px; }
+  .chat-file{ display:flex; gap:10px; align-items:center; color:inherit; text-decoration:none; background:rgba(255,255,255,.05); border-radius:8px; padding:8px 10px; margin-bottom:4px; }
+  .chat-file small{ color:var(--dim); }
+  .chat-voice{ display:flex; align-items:center; gap:10px; min-width:200px; padding:2px 0; }
+  .chat-play{ width:34px; height:34px; flex:none; border-radius:50%; border:0; background:var(--accent); color:#fff; cursor:pointer; font-size:12px; }
+  .chat-wave{ flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.14); overflow:hidden; }
+  .chat-wave-fill{ height:100%; width:0; background:var(--blue); }
+  .chat-dur{ font-size:12px; color:var(--dim); font-family:var(--font-mono); }
+  .chat-more{ position:absolute; top:2px; right:2px; background:none; border:0; color:var(--dim); cursor:pointer; font-size:15px; opacity:0; padding:0 4px; }
+  .chat-bubble:hover .chat-more{ opacity:1; }
+  .chat-menu{ position:absolute; top:22px; right:2px; z-index:5; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  .chat-menu button{ display:block; width:100%; text-align:left; background:none; border:0; color:var(--white); padding:9px 18px; font-size:13px; cursor:pointer; }
+  .chat-menu button:hover{ background:var(--panel-2); }
+  .chat-compose{ border-top:1px solid var(--line); background:var(--panel); padding:10px 12px; }
+  .chat-compose-row{ display:flex; align-items:flex-end; gap:8px; }
+  .chat-compose textarea{ flex:1; resize:none; background:var(--panel-2); border:1px solid var(--line); border-radius:20px; color:var(--white); padding:10px 14px; font-size:14px; max-height:120px; line-height:1.4; }
+  .chat-compose textarea:focus{ outline:none; border-color:var(--accent); }
+  .chat-icon{ width:40px; height:40px; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--panel-2); color:var(--white); font-size:18px; cursor:pointer; }
+  .chat-icon.main{ background:var(--accent); border-color:var(--accent); }
+  .chat-icon:disabled{ opacity:.5; }
+  .chat-editing{ font-size:12px; color:var(--gold); margin-bottom:8px; }
+  .chat-recording{ display:flex; align-items:center; gap:12px; }
+  .chat-recording .btn{ padding:8px 14px; }
+  .chat-rec-hint{ flex:1; color:var(--dim); font-size:13px; }
+  .chat-rec-dot{ width:10px; height:10px; border-radius:50%; background:var(--red); animation:chatPulse 1s infinite; }
+  @keyframes chatPulse{ 50%{ opacity:.25; } }
+  .chat-overlay{ position:absolute; inset:0; background:rgba(0,0,0,.55); z-index:10; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .chat-panel{ background:var(--panel); border:1px solid var(--line); border-radius:14px; width:100%; max-width:560px; max-height:100%; overflow-y:auto; }
+  .chat-panel-head{ display:flex; justify-content:space-between; align-items:center; padding:14px; border-bottom:1px solid var(--line); }
+  .chat-hint{ font-size:12px; color:var(--dim); padding:10px 14px 0; line-height:1.5; }
+  .chat-tag-row{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 92px auto; gap:8px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line-soft); }
+  .chat-tag-who{ display:flex; align-items:center; gap:8px; min-width:0; font-size:13px; }
+  .chat-tag-who span:last-child{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-tag-row input, .chat-tag-row select{ background:var(--panel-2); border:1px solid var(--line); border-radius:8px; color:var(--white); padding:8px; font-size:13px; min-width:0; }
+  .chat-tag-row .btn{ padding:8px 12px; font-size:13px; }
+  .chat-tag-row .save-status{ grid-column:1 / -1; font-size:12px; }
+  @media (max-width:820px){
+    .chat-wrap{ grid-template-columns:1fr; height:calc(100dvh - 230px); min-height:380px; border-radius:10px; }
+    .chat-main{ display:none; }
+    .chat-wrap.in-conv .chat-side{ display:none; }
+    .chat-wrap.in-conv .chat-main{ display:flex; }
+    .chat-back{ display:block; }
+    .chat-bubble{ max-width:86%; }
+    .chat-more{ opacity:.7; }
+    .chat-compose textarea{ font-size:16px; }
+    .chat-tag-row{ grid-template-columns:1fr 1fr; }
+    .chat-tag-who{ grid-column:1 / -1; }
+  }
 </style>
 </head>
 <body>
@@ -391,6 +482,7 @@
   var SECTIONS = [
     { id: "dashboard", label: "Dashboard", wired: true, staff: true },
     { id: "projects", label: "Projects", wired: true, staff: true },
+    { id: "chat", label: "Chat", wired: true, staff: true },
     { id: "assessments", label: "Assessments", wired: true, staff: true },
     { id: "budget", label: "Budget Requests", wired: true },
     { id: "aiquotes", label: "AI Quotes", wired: true },
@@ -448,10 +540,12 @@
       if (userRole === "intern") {
         try { var me = await authedFetch("/admin-me"); mySections = (me.data && me.data.sections) || []; } catch (e) { mySections = []; }
       }
+      authUserName = (user.name && user.name.indexOf("@") === -1) ? user.name : String(user.email || "").split("@")[0];
       document.getElementById("whoEmail").textContent = (user.email || "") + (userRole === "intern" ? (mySections.indexOf("revenue") !== -1 && mySections.indexOf("settings") !== -1 ? " · Manager" : " · Intern") : "");
       document.getElementById("login").style.display = "none";
       document.getElementById("shell").style.display = "flex";
       renderNav();
+      chatStartBadgePoll();
       goTo("dashboard");
     } else {
       var lb = document.getElementById("loginBtn");
@@ -506,7 +600,7 @@
     var s = SECTIONS.filter(function (x) { return x.id === sectionId; })[0];
     if (!s) return false;
     if (userRole === "owner") return true;
-    if (sectionId === "dashboard") return true;
+    if (sectionId === "dashboard" || sectionId === "chat") return true;
     return !!s.staff && mySections.indexOf(sectionId) !== -1;
   }
   function canEdit(sectionId) {
@@ -533,7 +627,7 @@
   function renderNav() {
     var navList = document.getElementById("navList");
     navList.innerHTML = visibleSections().map(function (s) {
-      var count = s.id === "projects" ? liveProjects().length : null;
+      var count = s.id === "projects" ? liveProjects().length : (s.id === "chat" && chat.unreadTotal > 0 ? (chat.unreadTotal > 99 ? "99+" : chat.unreadTotal) : null);
       return '<button type="button" class="nav-item" data-section="' + s.id + '">' +
         '<span>' + escapeHtml(s.label) + '</span>' +
         (count != null ? '<span class="count">' + count + '</span>' : '') +
@@ -552,6 +646,7 @@
 
   function goTo(sectionId) {
     if (!canSee(sectionId)) sectionId = "dashboard";
+    if (currentSection === "chat" && sectionId !== "chat") stopChat();
     currentSection = sectionId;
     highlightNav();
     var section = SECTIONS.filter(function (s) { return s.id === sectionId; })[0];
@@ -575,6 +670,7 @@
     else if (sectionId === "revenue") renderRevenueSection();
     else if (sectionId === "team") renderTeamSection();
     else if (sectionId === "settings") renderSettingsSection();
+    else if (sectionId === "chat") renderChatSection();
     else renderPlaceholder(section.label);
   }
 
@@ -1123,6 +1219,7 @@
           if (s.featured) flags.push("Featured");
           if (s.requires_ai_quote) flags.push("AI quote");
           if (s.manual_payment_enabled) flags.push("Manual pay");
+          if (s.installments_mode === "on") flags.push("Installments");
           if (s.pricing_model === "subscription" || s.pricing_model === "both") flags.push("Subscription");
           return '<tr data-id="' + escapeHtml(s.id) + '"><td class="name">' + escapeHtml(s.name) + '</td><td>' + escapeHtml(catName) + '</td><td>' + escapeHtml(s.price_label || "—") + '</td><td>' + escapeHtml(flags.join(", ") || "—") + '</td></tr>';
         }).join("") + '</tbody></table></div>'
@@ -1170,6 +1267,9 @@
       '<label class="check-row"><input type="checkbox" id="f_comingSoon"' + (svc && svc.coming_soon ? " checked" : "") + '> Coming soon</label>' +
       '<label class="check-row"><input type="checkbox" id="f_requiresAiQuote"' + (svc && svc.requires_ai_quote ? " checked" : "") + '> AI drafts a custom quote</label>' +
       '<label class="check-row"><input type="checkbox" id="f_manualPay"' + (svc && svc.manual_payment_enabled ? " checked" : "") + '> Offer manual payment (bank transfer + screenshot) alongside Paystack</label>' +
+      '<div class="field"><label>Pay in installments (card debited automatically)</label><select id="f_instMode">' +
+      [["inherit", "Follow the site-wide setting (Settings page)"], ["on", "On for this service"], ["off", "Off for this service"]].map(function (o) { return '<option value="' + o[0] + '"' + (((svc && svc.installments_mode) || "inherit") === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>' +
+      '<div class="two-col"><div class="field"><label>Number of payments (2-12)</label><input id="f_instCount" type="number" min="2" max="12" placeholder="Site default" value="' + ((svc && svc.installments_count != null) ? svc.installments_count : "") + '"></div><div class="field"><label>Days between payments (1-30)</label><input id="f_instDays" type="number" min="1" max="30" placeholder="Site default" value="' + ((svc && svc.installments_interval_days != null) ? svc.installments_interval_days : "") + '"></div></div>' +
       '<div class="field"><label>Packages</label><div id="pkgList"></div><button type="button" class="btn" id="addPkgBtn" style="width:100%;">+ Add package</button></div>';
 
     renderPkgList(svc ? svc.packages : []);
@@ -1221,6 +1321,9 @@
       active: document.getElementById("f_active").checked, featured: document.getElementById("f_featured").checked,
       coming_soon: document.getElementById("f_comingSoon").checked, requires_ai_quote: document.getElementById("f_requiresAiQuote").checked,
       manual_payment_enabled: document.getElementById("f_manualPay").checked,
+      installments_mode: document.getElementById("f_instMode").value,
+      installments_count: document.getElementById("f_instCount").value ? Number(document.getElementById("f_instCount").value) : null,
+      installments_interval_days: document.getElementById("f_instDays").value ? Number(document.getElementById("f_instDays").value) : null,
       order: Number(document.getElementById("f_order").value || 99),
       packages: collectPkgRows(),
     });
@@ -1787,6 +1890,506 @@
     document.getElementById("pageBody").innerHTML = html;
   }
 
+  /* ---------------- Team chat ---------------- */
+
+  var authUserName = "";
+  var TAG_COLORS = ["#ffd479", "#7fb2ff", "#c98bff", "#7ee0a8", "#ff8b8b", "#ffa86b", "#9a9aa4"];
+  var chat = {
+    ready: false, me: null, members: {}, convs: [], active: null, msgs: [], cursor: null, hasMore: false,
+    typing: [], reads: [], timer: null, badgeTimer: null, busy: false, editing: null, unreadTotal: 0,
+    lastTypingPost: 0, rec: null, audio: null, audioId: null, membersAt: 0, token: 0,
+  };
+
+  function chatApi(action, extra) {
+    return authedFetch("/admin-chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ action: action, name: authUserName }, extra || {})),
+    }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
+      .catch(function () { return { ok: false, error: "Could not reach the server." }; });
+  }
+  function chatMember(sub) {
+    return chat.members[sub] || { sub: sub, name: "Team member", tag: "", color: "", is_owner: false };
+  }
+  function chatSetMembers(list) {
+    chat.members = {};
+    (list || []).forEach(function (m) { chat.members[m.sub] = m; });
+    chat.membersAt = Date.now();
+  }
+  function chatAvatarColor(sub) {
+    var h = 0; for (var i = 0; i < sub.length; i++) h = (h * 31 + sub.charCodeAt(i)) >>> 0;
+    return ["#2a3a66", "#3d2a66", "#1f4d3a", "#5a2a2a", "#5a4a1f", "#1f4a55"][h % 6];
+  }
+  function chatAvatar(name, sub, big) {
+    return '<span class="chat-av' + (big ? " big" : "") + '" style="background:' + chatAvatarColor(sub || name) + '">' + escapeHtml((name || "?").trim().charAt(0).toUpperCase()) + '</span>';
+  }
+  function chatTagPill(m) {
+    if (!m || !m.tag) return "";
+    var c = m.color || "#9a9aa4";
+    return '<span class="chat-tag" style="color:' + c + ';border-color:' + c + '55;background:' + c + '1a">' + escapeHtml(m.tag) + '</span>';
+  }
+  function chatTime(v) {
+    var d = new Date(v); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  function chatDayLabel(v) {
+    var d = new Date(v), t = new Date();
+    var sod = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var diff = Math.round((sod(t) - sod(d)) / 86400000);
+    if (diff === 0) return "Today"; if (diff === 1) return "Yesterday";
+    return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === t.getFullYear() ? undefined : "numeric" });
+  }
+  function chatConvName(c) {
+    return c.kind === "group" ? "Team" : chatMember(c.other_sub).name;
+  }
+  function chatPreview(c) {
+    if (!c.last) return c.kind === "group" ? "Say hello to the team" : "No messages yet";
+    var who = c.last.sender_sub === chat.me.sub ? "You: " : (c.kind === "group" ? chatMember(c.last.sender_sub).name.split(" ")[0] + ": " : "");
+    if (c.last.deleted) return who + "Message deleted";
+    if (c.last.kind === "voice") return who + "Voice message";
+    if (c.last.kind === "image") return who + "Photo";
+    if (c.last.kind === "file") return who + "File";
+    return who + (c.last.body || "");
+  }
+  function chatLinkify(text) {
+    return escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, function (u) {
+      return '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + u + '</a>';
+    }).replace(/\n/g, "<br>");
+  }
+  function chatFmtDur(s) {
+    s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
+  }
+  function chatFmtSize(n) {
+    n = Number(n) || 0; return n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+  }
+
+  function stopChat() {
+    chat.token++;
+    clearTimeout(chat.timer); chat.timer = null;
+    if (chat.audio) { try { chat.audio.pause(); } catch (e) {} chat.audio = null; chat.audioId = null; }
+    chatCancelRecording(true);
+  }
+
+  function renderChatSection() {
+    document.getElementById("pageSub").textContent = "Talk to your team. Messages are private to the people in each chat.";
+    document.getElementById("pageBody").innerHTML =
+      '<div class="chat-wrap" id="chatWrap">' +
+        '<div class="chat-side" id="chatSide">' +
+          '<div class="chat-side-head"><div id="chatMe" class="chat-me"></div>' +
+          '<div class="chat-side-actions"><button type="button" class="btn" id="chatNewBtn">New chat</button>' +
+          (userRole === "owner" ? '<button type="button" class="btn" id="chatTagsBtn">Tags</button>' : '') + '</div></div>' +
+          '<div id="chatList" class="chat-list"><div class="empty">Loading…</div></div>' +
+        '</div>' +
+        '<div class="chat-main" id="chatMain"><div class="chat-empty">Pick a conversation</div></div>' +
+        '<div class="chat-overlay" id="chatOverlay" style="display:none"></div>' +
+      '</div>';
+    document.getElementById("chatNewBtn").addEventListener("click", chatShowNewChat);
+    var tb = document.getElementById("chatTagsBtn"); if (tb) tb.addEventListener("click", chatShowTags);
+    var myToken = ++chat.token;
+    chatApi("bootstrap").then(function (d) {
+      if (myToken !== chat.token) return;
+      if (!d.ok) { document.getElementById("chatList").innerHTML = '<div class="empty">' + escapeHtml(d.error || "Chat could not load.") + '</div>'; return; }
+      chat.ready = true; chat.me = d.me; chatSetMembers(d.members); chat.convs = d.conversations;
+      chatDrawMe(); chatDrawList(); chatUpdateBadge();
+      var keep = chat.active && chat.convs.filter(function (c) { return c.id === chat.active; })[0];
+      chatOpen(keep ? keep.id : chat.convs[0].id, true);
+    });
+  }
+
+  function chatDrawMe() {
+    var el = document.getElementById("chatMe"); if (!el || !chat.me) return;
+    var m = chatMember(chat.me.sub);
+    el.innerHTML = chatAvatar(chat.me.name, chat.me.sub, true) + '<div class="chat-me-txt"><div class="chat-me-name">' + escapeHtml(chat.me.name) + ' ' + chatTagPill(m) + '</div>' +
+      '<button type="button" class="chat-link" id="chatRename">Change my name</button></div>';
+    document.getElementById("chatRename").addEventListener("click", function () {
+      var n = window.prompt("Your name in chat", chat.me.name);
+      if (n == null || !n.trim()) return;
+      chatApi("set_profile", { display_name: n.trim() }).then(function (d) {
+        if (d.ok) { chat.me.name = n.trim().slice(0, 40); chat.members[chat.me.sub] = Object.assign({}, chatMember(chat.me.sub), { name: chat.me.name }); chatDrawMe(); chatDrawList(); chatDrawMessages(false); }
+      });
+    });
+  }
+
+  function chatDrawList() {
+    var box = document.getElementById("chatList"); if (!box) return;
+    box.innerHTML = chat.convs.map(function (c) {
+      var name = chatConvName(c), sub = c.kind === "group" ? "team" : c.other_sub;
+      var m = c.kind === "group" ? null : chatMember(c.other_sub);
+      return '<button type="button" class="chat-item' + (c.id === chat.active ? " on" : "") + '" data-id="' + c.id + '">' +
+        chatAvatar(name, sub) +
+        '<span class="chat-item-body"><span class="chat-item-top"><span class="chat-item-name">' + escapeHtml(name) + '</span>' + (m ? chatTagPill(m) : "") +
+        '<span class="chat-item-time">' + (c.last ? chatTime(c.last.created_at) : "") + '</span></span>' +
+        '<span class="chat-item-prev">' + escapeHtml(chatPreview(c)) + '</span></span>' +
+        (c.unread ? '<span class="chat-unread">' + (c.unread > 99 ? "99+" : c.unread) + '</span>' : "") +
+        '</button>';
+    }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll(".chat-item"), function (b) {
+      b.addEventListener("click", function () { chatOpen(b.getAttribute("data-id"), false); });
+    });
+  }
+
+  function chatUpdateBadge() {
+    var total = chat.convs.reduce(function (a, c) { return a + (c.unread || 0); }, 0);
+    chat.unreadTotal = total;
+    var btn = document.querySelector('.nav-item[data-section="chat"]');
+    if (btn) {
+      var span = btn.querySelector(".count");
+      if (total > 0) {
+        if (!span) { span = document.createElement("span"); span.className = "count"; btn.appendChild(span); }
+        span.textContent = total > 99 ? "99+" : total;
+      } else if (span) span.remove();
+    }
+    var base = "Admin — SCARLS SYSTEMS";
+    document.title = total > 0 ? "(" + total + ") " + base : base;
+  }
+
+  function chatStartBadgePoll() {
+    clearInterval(chat.badgeTimer);
+    var tick = function () {
+      if (currentSection === "chat" || document.visibilityState !== "visible") return;
+      chatApi("sync").then(function (d) { if (d.ok) { if (!chat.me) chat.me = { sub: "" }; chat.convs = d.conversations; chatUpdateBadge(); } });
+    };
+    chat.badgeTimer = setInterval(tick, 30000);
+    setTimeout(tick, 1500);
+  }
+
+  function chatOpen(id, silent) {
+    var conv = chat.convs.filter(function (c) { return c.id === id; })[0]; if (!conv) return;
+    chat.active = id; chat.msgs = []; chat.cursor = null; chat.hasMore = false; chat.typing = []; chat.reads = []; chat.editing = null;
+    if (chat.audio) { try { chat.audio.pause(); } catch (e) {} chat.audio = null; chat.audioId = null; }
+    chatCancelRecording(true);
+    chatDrawList();
+    var name = chatConvName(conv), m = conv.kind === "group" ? null : chatMember(conv.other_sub);
+    document.getElementById("chatWrap").classList.add("in-conv");
+    document.getElementById("chatMain").innerHTML =
+      '<div class="chat-head"><button type="button" class="chat-back" id="chatBack" aria-label="Back">&larr;</button>' + chatAvatar(name, conv.kind === "group" ? "team" : conv.other_sub) +
+      '<div class="chat-head-txt"><div class="chat-head-name">' + escapeHtml(name) + (m ? " " + chatTagPill(m) : "") + '</div><div class="chat-head-sub" id="chatSub">' + (conv.kind === "group" ? "Everyone on the team" : "Private chat") + '</div></div></div>' +
+      '<div class="chat-msgs" id="chatMsgs"><div class="empty">Loading…</div></div>' +
+      '<div class="chat-compose" id="chatCompose"></div>';
+    document.getElementById("chatBack").addEventListener("click", function () { document.getElementById("chatWrap").classList.remove("in-conv"); });
+    document.getElementById("chatMsgs").addEventListener("scroll", function () {
+      var el = this; if (el.scrollTop < 40 && chat.hasMore && !chat.busy) chatLoadOlder();
+    });
+    chatDrawCompose();
+    chatSync(true);
+  }
+
+  function chatSync(first) {
+    clearTimeout(chat.timer);
+    var token = chat.token, active = chat.active;
+    if (!active || currentSection !== "chat") return;
+    var visible = document.visibilityState === "visible";
+    chatApi("sync", { active: active, after: first ? null : chat.cursor, read: visible }).then(function (d) {
+      if (token !== chat.token || active !== chat.active) return;
+      if (d.ok) {
+        chat.convs = d.conversations; chat.typing = d.typing || []; chat.reads = d.reads || [];
+        var unknown = false;
+        (d.messages || []).forEach(function (m) { if (!chat.members[m.sender_sub]) unknown = true; });
+        var changed = chatMerge(d.messages || []);
+        if (first) { chat.hasMore = !!d.hasMore; }
+        chat.cursor = new Date(new Date(d.now).getTime() - 2500).toISOString();
+        chatDrawList(); chatUpdateBadge(); chatDrawTyping();
+        if (first || changed) chatDrawMessages(first || chatNearBottom());
+        if (unknown || Date.now() - chat.membersAt > 60000) chatApi("members").then(function (r) { if (r.ok) { chatSetMembers(r.members); chatDrawList(); chatDrawMessages(false); } });
+      }
+      chat.timer = setTimeout(function () { chatSync(false); }, document.visibilityState === "visible" ? 2500 : 20000);
+    });
+  }
+
+  function chatMerge(list) {
+    var changed = false;
+    list.forEach(function (m) {
+      var i = -1;
+      for (var k = chat.msgs.length - 1; k >= 0; k--) { if (chat.msgs[k].id === m.id) { i = k; break; } }
+      if (i === -1) { chat.msgs.push(m); changed = true; }
+      else {
+        var o = chat.msgs[i];
+        if (o.edited_at !== m.edited_at || o.deleted !== m.deleted) { m.url = m.url || o.url; chat.msgs[i] = m; changed = true; }
+      }
+    });
+    if (changed) chat.msgs.sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+    return changed;
+  }
+
+  function chatNearBottom() {
+    var el = document.getElementById("chatMsgs"); if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
+
+  function chatLoadOlder() {
+    if (!chat.msgs.length) return;
+    chat.busy = true;
+    var el = document.getElementById("chatMsgs"), prevH = el.scrollHeight, id = chat.active;
+    chatApi("history", { conversation_id: id, before: chat.msgs[0].created_at }).then(function (d) {
+      chat.busy = false;
+      if (!d.ok || id !== chat.active) return;
+      chat.hasMore = !!d.hasMore; chatMerge(d.messages || []); chatDrawMessages(false);
+      var e2 = document.getElementById("chatMsgs"); if (e2) e2.scrollTop = e2.scrollHeight - prevH;
+    });
+  }
+
+  function chatDrawTyping() {
+    var el = document.getElementById("chatSub"); if (!el) return;
+    var conv = chat.convs.filter(function (c) { return c.id === chat.active; })[0];
+    if (chat.typing.length) {
+      var names = chat.typing.map(function (s) { return chatMember(s).name.split(" ")[0]; });
+      el.textContent = names.slice(0, 2).join(" and ") + (names.length > 1 ? " are typing…" : " is typing…");
+      el.classList.add("typing");
+    } else {
+      el.textContent = conv && conv.kind === "group" ? "Everyone on the team" : "Private chat";
+      el.classList.remove("typing");
+    }
+  }
+
+  function chatMsgHtml(m, prev, conv) {
+    var mine = m.sender_sub === chat.me.sub, sender = chatMember(m.sender_sub);
+    var day = !prev || chatDayLabel(prev.created_at) !== chatDayLabel(m.created_at) ? '<div class="chat-day"><span>' + escapeHtml(chatDayLabel(m.created_at)) + '</span></div>' : "";
+    var showName = !mine && conv.kind === "group" && (!prev || prev.sender_sub !== m.sender_sub || day);
+    var inner;
+    if (m.deleted) inner = '<span class="chat-deleted">This message was deleted</span>';
+    else if (m.kind === "voice") {
+      inner = '<div class="chat-voice" data-id="' + m.id + '"><button type="button" class="chat-play" data-url="' + escapeHtml(m.url || "") + '" aria-label="Play">&#9654;</button>' +
+        '<div class="chat-wave"><div class="chat-wave-fill"></div></div><span class="chat-dur">' + chatFmtDur(m.duration_s) + '</span></div>';
+    } else if (m.kind === "image") {
+      inner = (m.url ? '<a href="' + escapeHtml(m.url) + '" target="_blank" rel="noopener noreferrer"><img class="chat-img" src="' + escapeHtml(m.url) + '" alt="' + escapeHtml(m.file_name || "Photo") + '" loading="lazy"></a>' : '<span class="chat-deleted">Photo unavailable</span>') +
+        (m.body ? '<div class="chat-text">' + chatLinkify(m.body) + '</div>' : "");
+    } else if (m.kind === "file") {
+      inner = '<a class="chat-file" href="' + escapeHtml(m.url || "#") + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(m.file_name || "file") + '"><span class="chat-file-ic">&#128196;</span><span><b>' + escapeHtml(m.file_name || "File") + '</b><br><small>' + chatFmtSize(m.size_bytes) + '</small></span></a>' +
+        (m.body ? '<div class="chat-text">' + chatLinkify(m.body) + '</div>' : "");
+    } else inner = '<div class="chat-text">' + chatLinkify(m.body || "") + '</div>';
+    var canEditMsg = mine && !m.deleted && m.kind === "text";
+    var canDel = !m.deleted && (mine || userRole === "owner");
+    var menu = (canEditMsg || canDel) ? '<button type="button" class="chat-more" data-id="' + m.id + '" aria-label="Message options">&#8942;</button>' : "";
+    var seen = "";
+    if (mine && conv.kind === "dm" && !m.deleted) {
+      var last = null; for (var i = chat.msgs.length - 1; i >= 0; i--) if (chat.msgs[i].sender_sub === chat.me.sub && !chat.msgs[i].deleted) { last = chat.msgs[i]; break; }
+      var rd = chat.reads[0];
+      if (last && last.id === m.id) seen = rd && new Date(rd.last_read_at) >= new Date(m.created_at) ? " &middot; Seen" : "";
+    }
+    return day + '<div class="chat-row ' + (mine ? "mine" : "theirs") + '" data-mid="' + m.id + '"><div class="chat-bubble">' +
+      (showName ? '<div class="chat-sender" style="color:' + (sender.color || "#7fb2ff") + '">' + escapeHtml(sender.name) + ' ' + chatTagPill(sender) + '</div>' : "") +
+      inner + '<div class="chat-meta">' + (m.edited_at && !m.deleted ? "edited &middot; " : "") + chatTime(m.created_at) + seen + '</div>' + menu + '</div></div>';
+  }
+
+  function chatDrawMessages(stick) {
+    var box = document.getElementById("chatMsgs"); if (!box) return;
+    var conv = chat.convs.filter(function (c) { return c.id === chat.active; })[0]; if (!conv) return;
+    var top = box.scrollTop, h = box.scrollHeight;
+    var html = chat.hasMore ? '<div class="chat-older"><button type="button" class="chat-link" id="chatOlder">Load earlier messages</button></div>' : "";
+    html += chat.msgs.length ? chat.msgs.map(function (m, i) { return chatMsgHtml(m, chat.msgs[i - 1], conv); }).join("") : '<div class="chat-empty">No messages yet. Say hello.</div>';
+    box.innerHTML = html;
+    if (stick) box.scrollTop = box.scrollHeight; else box.scrollTop = top;
+    var older = document.getElementById("chatOlder"); if (older) older.addEventListener("click", chatLoadOlder);
+    Array.prototype.forEach.call(box.querySelectorAll(".chat-play"), function (b) { b.addEventListener("click", function () { chatTogglePlay(b); }); });
+    Array.prototype.forEach.call(box.querySelectorAll(".chat-more"), function (b) { b.addEventListener("click", function (e) { e.stopPropagation(); chatMsgMenu(b); }); });
+    if (chat.audioId) { var cur = box.querySelector('.chat-voice[data-id="' + chat.audioId + '"] .chat-play'); if (cur && chat.audio && !chat.audio.paused) cur.innerHTML = "&#10074;&#10074;"; }
+  }
+
+  function chatMsgMenu(btn) {
+    var old = document.getElementById("chatMenu"); if (old) old.remove();
+    var m = chat.msgs.filter(function (x) { return x.id === btn.getAttribute("data-id"); })[0]; if (!m) return;
+    var mine = m.sender_sub === chat.me.sub;
+    var menu = document.createElement("div"); menu.id = "chatMenu"; menu.className = "chat-menu";
+    var items = [];
+    if (mine && m.kind === "text") items.push(["Edit", function () { chat.editing = m; chatDrawCompose(); }]);
+    if (mine || userRole === "owner") items.push(["Delete", function () {
+      if (!window.confirm("Delete this message for everyone?")) return;
+      chatApi("delete", { id: m.id }).then(function (d) { if (d.ok) chatSync(false); else window.alert(d.error || "Could not delete."); });
+    }]);
+    items.forEach(function (it) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = it[0];
+      b.addEventListener("click", function () { menu.remove(); it[1](); }); menu.appendChild(b);
+    });
+    btn.parentNode.appendChild(menu);
+    setTimeout(function () { document.addEventListener("click", function rm() { menu.remove(); document.removeEventListener("click", rm); }); }, 0);
+  }
+
+  function chatTogglePlay(btn) {
+    var wrap = btn.closest(".chat-voice"), id = wrap.getAttribute("data-id"), url = btn.getAttribute("data-url");
+    if (!url) return;
+    if (chat.audio && chat.audioId === id) {
+      if (chat.audio.paused) chat.audio.play(); else chat.audio.pause();
+      return;
+    }
+    if (chat.audio) { try { chat.audio.pause(); } catch (e) {} }
+    Array.prototype.forEach.call(document.querySelectorAll(".chat-play"), function (b) { b.innerHTML = "&#9654;"; });
+    Array.prototype.forEach.call(document.querySelectorAll(".chat-wave-fill"), function (f) { f.style.width = "0"; });
+    var a = new Audio(url); chat.audio = a; chat.audioId = id;
+    a.addEventListener("play", function () { btn.innerHTML = "&#10074;&#10074;"; });
+    a.addEventListener("pause", function () { btn.innerHTML = "&#9654;"; });
+    a.addEventListener("ended", function () { btn.innerHTML = "&#9654;"; var f = wrap.querySelector(".chat-wave-fill"); if (f) f.style.width = "0"; chat.audio = null; chat.audioId = null; });
+    a.addEventListener("timeupdate", function () { var f = wrap.querySelector(".chat-wave-fill"); if (f && a.duration) f.style.width = Math.min(100, a.currentTime / a.duration * 100) + "%"; });
+    a.play().catch(function () { window.alert("Could not play this voice note."); });
+  }
+
+  /* ----- composer ----- */
+
+  function chatDrawCompose() {
+    var box = document.getElementById("chatCompose"); if (!box) return;
+    if (chat.rec) { chatDrawRecording(); return; }
+    var ed = chat.editing;
+    box.innerHTML =
+      (ed ? '<div class="chat-editing">Editing message <button type="button" class="chat-link" id="chatEditCancel">Cancel</button></div>' : "") +
+      '<div class="chat-compose-row">' +
+      (ed ? "" : '<button type="button" class="chat-icon" id="chatAttach" aria-label="Attach a file or photo">+</button><input type="file" id="chatFile" style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv">') +
+      '<textarea id="chatInput" rows="1" placeholder="Type a message"></textarea>' +
+      '<button type="button" class="chat-icon main" id="chatAction" aria-label="Send"></button></div>';
+    var input = document.getElementById("chatInput"), action = document.getElementById("chatAction");
+    if (ed) input.value = ed.body || "";
+    var refresh = function () {
+      var has = input.value.trim().length > 0;
+      action.dataset.mode = has || ed ? "send" : "mic";
+      action.innerHTML = has || ed ? "&#10148;" : "&#127908;";
+      action.setAttribute("aria-label", has || ed ? "Send" : "Record a voice note");
+      input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 120) + "px";
+    };
+    refresh();
+    input.addEventListener("input", function () {
+      refresh();
+      var now = Date.now();
+      if (input.value.trim() && now - chat.lastTypingPost > 3000) { chat.lastTypingPost = now; chatApi("typing", { conversation_id: chat.active }); }
+    });
+    input.addEventListener("keydown", function (e) {
+      var touch = window.matchMedia && window.matchMedia("(pointer:coarse)").matches;
+      if (e.key === "Enter" && !e.shiftKey && !touch) { e.preventDefault(); chatSend(); }
+    });
+    action.addEventListener("click", function () { if (action.dataset.mode === "send") chatSend(); else chatStartRecording(); });
+    var cancel = document.getElementById("chatEditCancel"); if (cancel) cancel.addEventListener("click", function () { chat.editing = null; chatDrawCompose(); });
+    var attach = document.getElementById("chatAttach"), file = document.getElementById("chatFile");
+    if (attach) { attach.addEventListener("click", function () { file.click(); }); file.addEventListener("change", function () { if (file.files[0]) chatSendFile(file.files[0], input.value.trim()); file.value = ""; }); }
+    if (!ed) setTimeout(function () { var t = window.matchMedia && window.matchMedia("(pointer:coarse)").matches; if (!t) input.focus(); }, 0);
+  }
+
+  function chatSend() {
+    var input = document.getElementById("chatInput"); if (!input) return;
+    var body = input.value.trim(); if (!body) return;
+    var id = chat.active, action = document.getElementById("chatAction"); if (action) action.disabled = true;
+    var p = chat.editing ? chatApi("edit", { id: chat.editing.id, body: body }) : chatApi("send", { conversation_id: id, body: body });
+    p.then(function (d) {
+      if (action) action.disabled = false;
+      if (!d.ok) { window.alert(d.error || "Could not send."); return; }
+      chat.editing = null; input.value = "";
+      if (d.message) chatMerge([d.message]);
+      chatDrawCompose(); chatDrawMessages(true); chatSync(false);
+    });
+  }
+
+  function chatUpload(blob, filename, mime) {
+    mime = String(mime || blob.type || "application/octet-stream").split(";")[0];
+    return chatApi("upload_url", { conversation_id: chat.active, filename: filename, mime: mime, size: blob.size }).then(function (u) {
+      if (!u.ok) throw new Error(u.error || "Upload failed.");
+      var fd = new FormData(); fd.append("cacheControl", "3600"); fd.append("", new Blob([blob], { type: mime }), filename);
+      return fetch(u.signedUrl, { method: "PUT", headers: { "apikey": SUPABASE_ANON_KEY }, body: fd }).then(function (r) {
+        if (!r.ok) throw new Error("The upload was rejected (" + r.status + ").");
+        return { path: u.path, mime: mime };
+      });
+    });
+  }
+
+  function chatSendFile(file, caption) {
+    if (file.size > 12 * 1024 * 1024) { window.alert("Files can be up to 12 MB."); return; }
+    var input = document.getElementById("chatInput"); var action = document.getElementById("chatAction");
+    if (action) action.disabled = true;
+    var sub = document.getElementById("chatSub"); if (sub) { sub.textContent = "Sending file…"; sub.classList.add("typing"); }
+    chatUpload(file, file.name, file.type).then(function (up) {
+      return chatApi("send", { conversation_id: chat.active, body: caption, file_path: up.path, file_name: file.name, mime: up.mime, size_bytes: file.size });
+    }).then(function (d) {
+      if (!d.ok) throw new Error(d.error || "Could not send.");
+      if (input) input.value = "";
+      chatMerge([d.message]); chatDrawCompose(); chatDrawMessages(true); chatSync(false);
+    }).catch(function (e) { window.alert(e.message || "Could not send the file."); chatDrawCompose(); chatDrawTyping(); });
+  }
+
+  /* ----- voice notes ----- */
+
+  function chatStartRecording() {
+    if (!navigator.mediaDevices || !window.MediaRecorder) { window.alert("Voice notes are not supported in this browser."); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+      var type = types.filter(function (t) { return MediaRecorder.isTypeSupported(t); })[0] || "";
+      var rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      var r = { rec: rec, stream: stream, chunks: [], started: Date.now(), timer: null, cancelled: false, mime: (rec.mimeType || type || "audio/webm").split(";")[0] };
+      rec.addEventListener("dataavailable", function (e) { if (e.data && e.data.size) r.chunks.push(e.data); });
+      rec.addEventListener("stop", function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        clearInterval(r.timer);
+        if (r.cancelled) return;
+        var secs = Math.round((Date.now() - r.started) / 1000);
+        var blob = new Blob(r.chunks, { type: r.mime });
+        if (secs < 1 || blob.size < 500) { chat.rec = null; chatDrawCompose(); return; }
+        var ext = r.mime.indexOf("mp4") !== -1 ? "m4a" : r.mime.indexOf("ogg") !== -1 ? "ogg" : "webm";
+        var box = document.getElementById("chatCompose"); if (box) box.innerHTML = '<div class="chat-recording"><span>Sending voice note…</span></div>';
+        chatUpload(blob, "voice-note." + ext, r.mime).then(function (up) {
+          return chatApi("send", { conversation_id: chat.active, body: "", file_path: up.path, file_name: "Voice note", mime: up.mime, size_bytes: blob.size, duration_s: secs });
+        }).then(function (d) {
+          chat.rec = null;
+          if (!d.ok) throw new Error(d.error || "Could not send.");
+          chatMerge([d.message]); chatDrawCompose(); chatDrawMessages(true); chatSync(false);
+        }).catch(function (e) { chat.rec = null; window.alert(e.message || "Could not send the voice note."); chatDrawCompose(); });
+      });
+      chat.rec = r; rec.start(250); chatDrawRecording();
+      r.timer = setInterval(function () { var el = document.getElementById("chatRecTime"); if (el) el.textContent = chatFmtDur((Date.now() - r.started) / 1000); if (Date.now() - r.started > 10 * 60 * 1000) chatStopRecording(); }, 500);
+    }).catch(function () { window.alert("Allow microphone access in your browser to send voice notes."); });
+  }
+  function chatDrawRecording() {
+    var box = document.getElementById("chatCompose"); if (!box) return;
+    box.innerHTML = '<div class="chat-recording"><span class="chat-rec-dot"></span><span id="chatRecTime">0:00</span><span class="chat-rec-hint">Recording…</span>' +
+      '<button type="button" class="btn" id="chatRecCancel">Cancel</button><button type="button" class="btn primary" id="chatRecSend">Send</button></div>';
+    document.getElementById("chatRecCancel").addEventListener("click", function () { chatCancelRecording(false); });
+    document.getElementById("chatRecSend").addEventListener("click", chatStopRecording);
+  }
+  function chatStopRecording() { if (chat.rec && chat.rec.rec.state !== "inactive") chat.rec.rec.stop(); }
+  function chatCancelRecording(silent) {
+    var r = chat.rec; if (!r) return;
+    r.cancelled = true; clearInterval(r.timer);
+    try { if (r.rec.state !== "inactive") r.rec.stop(); } catch (e) {}
+    try { r.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    chat.rec = null; if (!silent) chatDrawCompose();
+  }
+
+  /* ----- new chat + tags ----- */
+
+  function chatShowNewChat() {
+    var ov = document.getElementById("chatOverlay"); ov.style.display = "";
+    var others = Object.keys(chat.members).map(function (s) { return chat.members[s]; }).filter(function (m) { return m.sub !== chat.me.sub; });
+    ov.innerHTML = '<div class="chat-panel"><div class="chat-panel-head"><b>Start a private chat</b><button type="button" class="chat-link" id="chatOvClose">Close</button></div>' +
+      (others.length ? others.map(function (m) {
+        return '<button type="button" class="chat-item" data-sub="' + escapeHtml(m.sub) + '">' + chatAvatar(m.name, m.sub) + '<span class="chat-item-body"><span class="chat-item-top"><span class="chat-item-name">' + escapeHtml(m.name) + '</span>' + chatTagPill(m) + '</span></span></button>';
+      }).join("") : '<div class="empty">No one else is on the team yet. Add people on the Team page.</div>') + '</div>';
+    document.getElementById("chatOvClose").addEventListener("click", function () { ov.style.display = "none"; });
+    Array.prototype.forEach.call(ov.querySelectorAll(".chat-item"), function (b) {
+      b.addEventListener("click", function () {
+        chatApi("open_dm", { target_sub: b.getAttribute("data-sub") }).then(function (d) {
+          if (!d.ok) { window.alert(d.error || "Could not open the chat."); return; }
+          ov.style.display = "none";
+          chatApi("sync").then(function (s) { if (s.ok) { chat.convs = s.conversations; chatDrawList(); chatOpen(d.id, false); } });
+        });
+      });
+    });
+  }
+
+  function chatShowTags() {
+    var ov = document.getElementById("chatOverlay"); ov.style.display = "";
+    var list = Object.keys(chat.members).map(function (s) { return chat.members[s]; });
+    ov.innerHTML = '<div class="chat-panel"><div class="chat-panel-head"><b>Member tags</b><button type="button" class="chat-link" id="chatOvClose">Close</button></div>' +
+      '<div class="chat-hint">A tag (for example Manager, Designer, Intern) is shown next to a person’s name everywhere in chat.</div>' +
+      list.map(function (m) {
+        return '<div class="chat-tag-row" data-sub="' + escapeHtml(m.sub) + '"><div class="chat-tag-who">' + chatAvatar(m.name, m.sub) + '<span>' + escapeHtml(m.name) + '</span></div>' +
+          '<input type="text" maxlength="24" placeholder="No tag" value="' + escapeHtml(m.tag || "") + '">' +
+          '<select>' + TAG_COLORS.map(function (c) { return '<option value="' + c + '"' + ((m.color || "#9a9aa4") === c ? " selected" : "") + ' style="color:' + c + '">● ' + c + '</option>'; }).join("") + '</select>' +
+          '<button type="button" class="btn primary">Save</button><span class="save-status"></span></div>';
+      }).join("") + '</div>';
+    document.getElementById("chatOvClose").addEventListener("click", function () { ov.style.display = "none"; });
+    Array.prototype.forEach.call(ov.querySelectorAll(".chat-tag-row"), function (row) {
+      var st = row.querySelector(".save-status");
+      row.querySelector("button").addEventListener("click", function () {
+        st.textContent = "Saving…"; st.className = "save-status";
+        chatApi("set_tag", { target_sub: row.getAttribute("data-sub"), tag: row.querySelector("input").value, color: row.querySelector("select").value }).then(function (d) {
+          if (d.ok) { st.textContent = "Saved"; st.className = "save-status ok"; chatApi("members").then(function (r) { if (r.ok) { chatSetMembers(r.members); chatDrawList(); chatDrawMessages(false); chatDrawMe(); } }); }
+          else { st.textContent = d.error || "Could not save."; st.className = "save-status err"; }
+        });
+      });
+    });
+  }
+
   /* ---------------- Settings ---------------- */
 
   function renderSettingsSection() {
@@ -1795,7 +2398,13 @@
       authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "announcement" }) }),
       authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "sale_popup_frequency" }) }),
       authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "paystack_fee_passthrough" }) }),
+      authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "installments_enabled" }) }),
+      authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "installments_count" }) }),
+      authedFetch("/admin-get-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "installments_interval_days" }) }),
     ]).then(function (results) {
+      settingsValues.installments_enabled = (results[3].data && results[3].data.value) === "true" ? "true" : "false";
+      settingsValues.installments_count = (results[4].data && results[4].data.value) || "3";
+      settingsValues.installments_interval_days = (results[5].data && results[5].data.value) || "1";
       settingsValues.paystack_fee_passthrough = (results[2].data && results[2].data.value) === "true" ? "true" : "false";
       settingsValues.announcement = (results[0].data && results[0].data.value) || "";
       settingsValues.sale_popup_frequency = (results[1].data && results[1].data.value) || "once_per_session";
@@ -1819,10 +2428,32 @@
       '<option value="true"' + (settingsValues.paystack_fee_passthrough === "true" ? " selected" : "") + '>Customer pays the fee (added at checkout)</option></select>' +
       '<div style="font-size:12px;color:var(--silver-dim,#8a8f98);margin-top:6px;line-height:1.5;">Paystack charges 1.5% + ₦100 (no ₦100 under ₦2,500, max ₦2,000). When on, online card/transfer payments add this so you receive the full listed price. Not applied to subscriptions or manual transfers. Reports and project amounts always show the listed price.</div>' +
       '<div class="inline-actions"><button type="button" class="btn primary" id="s_savePassFees">Save</button><span class="save-status" id="s_passFeesStatus"></span></div></div>' +
+      '<div class="field" style="margin-top:24px;"><label>Pay in installments (all services)</label><select id="s_instEnabled">' +
+      '<option value="false"' + (settingsValues.installments_enabled !== "true" ? " selected" : "") + '>Off (customers pay in full)</option>' +
+      '<option value="true"' + (settingsValues.installments_enabled === "true" ? " selected" : "") + '>On (customers can split the payment)</option></select>' +
+      '<div class="two-col" style="margin-top:10px;"><div><label>Number of payments (2-12)</label><input id="s_instCount" type="number" min="2" max="12" value="' + escapeHtml(settingsValues.installments_count) + '"></div><div><label>Days between payments (1-30)</label><input id="s_instDays" type="number" min="1" max="30" value="' + escapeHtml(settingsValues.installments_interval_days) + '"></div></div>' +
+      '<div style="font-size:12px;color:var(--silver-dim,#8a8f98);margin-top:6px;line-height:1.5;">The customer ticks the option at checkout, pays the first part by card, and the same card is charged automatically for the rest (retried daily up to 3 times if a charge fails). Each service can follow this, or be forced On/Off in the Catalog. Not for subscriptions. The Paystack fee on every charge is paid by you, not added to the customer.</div>' +
+      '<div class="inline-actions"><button type="button" class="btn primary" id="s_saveInst">Save</button><span class="save-status" id="s_instStatus"></span></div></div>' +
       '</div>';
 
     document.getElementById("s_saveAnnouncement").addEventListener("click", function () { saveSetting("announcement", document.getElementById("s_announcement").value, "s_announcementStatus"); });
     document.getElementById("s_savePassFees").addEventListener("click", function () { saveSetting("paystack_fee_passthrough", document.getElementById("s_passFees").value, "s_passFeesStatus"); });
+    document.getElementById("s_saveInst").addEventListener("click", function () {
+      var st = document.getElementById("s_instStatus");
+      st.textContent = "Saving…"; st.className = "save-status";
+      var items = [["installments_enabled", document.getElementById("s_instEnabled").value], ["installments_count", document.getElementById("s_instCount").value], ["installments_interval_days", document.getElementById("s_instDays").value]];
+      var chain = Promise.resolve({ ok: true });
+      items.forEach(function (it) {
+        chain = chain.then(function (prev) {
+          if (!prev.ok) return prev;
+          return authedFetch("/admin-save-setting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: it[0], value: it[1] }) }).then(function (r) { return r.data || { ok: false, error: "Could not save." }; });
+        });
+      });
+      chain.then(function (res) {
+        if (res.ok) { st.textContent = "Saved"; st.className = "save-status ok"; }
+        else { st.textContent = res.error || "Could not save."; st.className = "save-status err"; }
+      });
+    });
     document.getElementById("s_savePopup").addEventListener("click", function () { saveSetting("sale_popup_frequency", document.getElementById("s_popupFreq").value, "s_popupStatus"); });
     if (!canEdit("settings")) {
       Array.prototype.forEach.call(document.querySelectorAll("#pageBody input, #pageBody select, #pageBody textarea, #pageBody button"), function (el) { el.disabled = true; });
