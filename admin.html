@@ -6,6 +6,12 @@
 <title>Admin — SCARLS SYSTEMS</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="assets/scarls-logo.png" type="image/png">
+<link rel="manifest" href="admin.webmanifest">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SCARLS Admin">
+<link rel="apple-touch-icon" href="assets/scarls-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -382,6 +388,38 @@
     .chat-tag-row{ grid-template-columns:1fr 1fr; }
     .chat-tag-who{ grid-column:1 / -1; }
   }
+  .chat-push{ margin-bottom:10px; padding:10px 14px; background:var(--panel); border:1px solid var(--line); border-radius:10px; font-size:13px; color:var(--dim); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .chat-push .btn{ padding:6px 12px; font-size:13px; }
+  .chat-link{ background:none; border:0; color:var(--accent); cursor:pointer; font-size:12px; padding:0; }
+  .chat-bell{ margin-left:auto; background:var(--panel-2); border:1px solid var(--line); color:var(--dim); border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .chat-kind{ font-size:10px; color:var(--dim); border:1px solid var(--line); border-radius:6px; padding:0 5px; margin-left:6px; }
+  .chat-unread.muted{ background:var(--dimmer); }
+  .chat-pinbar{ display:flex; gap:8px; align-items:center; padding:8px 14px; background:var(--panel-2); border-bottom:1px solid var(--line); cursor:pointer; font-size:13px; }
+  .chat-pin-txt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--dim); }
+  .chat-pin-n{ font-size:11px; color:var(--dim); }
+  .chat-pin-row{ display:flex; gap:8px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .chat-pin-body{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  .chat-pinned-flag{ font-size:11px; color:var(--gold); margin-bottom:2px; }
+  .chat-quote{ border-left:3px solid var(--accent); background:rgba(255,255,255,.06); border-radius:6px; padding:4px 8px; margin:2px 0 6px; font-size:12px; cursor:pointer; display:flex; flex-direction:column; }
+  .chat-quote span{ color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chat-reacts{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .chat-react{ background:rgba(255,255,255,.08); border:1px solid transparent; color:var(--white); border-radius:12px; padding:1px 8px; font-size:12px; cursor:pointer; }
+  .chat-react.mine{ border-color:var(--accent); background:rgba(77,124,255,.2); }
+  .chat-menu{ position:fixed; min-width:190px; }
+  .chat-menu .chat-menu-emojis button{ display:inline-block; width:auto; padding:2px 5px; }
+  .chat-menu-emojis{ display:flex; gap:2px; padding:6px; border-bottom:1px solid var(--line); }
+  .chat-menu-emojis button{ background:none; border:0; font-size:20px; cursor:pointer; padding:2px 5px; border-radius:6px; }
+  .chat-menu-emojis button:hover{ background:var(--panel-2); }
+  .chat-mention{ color:var(--blue); font-weight:600; }
+  .chat-mention.me{ background:rgba(255,212,121,.18); color:var(--gold); border-radius:4px; padding:0 2px; }
+  .chat-row.mentions-me .chat-bubble{ box-shadow:0 0 0 1px rgba(255,212,121,.45); }
+  .chat-row.flash .chat-bubble{ box-shadow:0 0 0 2px var(--accent); }
+  .chat-replying{ display:flex; gap:8px; align-items:center; justify-content:space-between; border-left:3px solid var(--accent); background:var(--panel-2); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:12px; }
+  .chat-replying div{ display:flex; flex-direction:column; min-width:0; }
+  .chat-replying span{ color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chat-mentionbox{ background:var(--panel); border-top:1px solid var(--line); max-height:220px; overflow:auto; }
+  .chat-mention-item{ display:flex; align-items:center; gap:8px; width:100%; background:none; border:0; color:var(--white); padding:8px 14px; cursor:pointer; text-align:left; font-size:13px; }
+  .chat-mention-item.on,.chat-mention-item:hover{ background:var(--panel-2); }
 </style>
 </head>
 <body>
@@ -540,13 +578,16 @@
       if (userRole === "intern") {
         try { var me = await authedFetch("/admin-me"); mySections = (me.data && me.data.sections) || []; } catch (e) { mySections = []; }
       }
+      authUserEmail = String(user.email || "");
       authUserName = (user.name && user.name.indexOf("@") === -1) ? user.name : String(user.email || "").split("@")[0];
       document.getElementById("whoEmail").textContent = (user.email || "") + (userRole === "intern" ? (mySections.indexOf("revenue") !== -1 && mySections.indexOf("settings") !== -1 ? " · Manager" : " · Intern") : "");
       document.getElementById("login").style.display = "none";
       document.getElementById("shell").style.display = "flex";
       renderNav();
       chatStartBadgePoll();
-      goTo("dashboard");
+      chatRegisterSw();
+      var hm = /^#chat=([0-9a-f-]{36})$/.exec(location.hash || "");
+      if (hm) { chat.pendingOpen = hm[1]; goTo("chat"); } else goTo("dashboard");
     } else {
       var lb = document.getElementById("loginBtn");
       lb.disabled = false; lb.textContent = "Sign in";
@@ -916,6 +957,7 @@
     var isSub = p.pricingModel === "subscription";
 
     document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><button type="button" class="btn" id="d_teamChat" style="width:100%;">&#128172; Team chat for this project</button></div>' +
       '<div id="d_briefBox"></div>' +
       '<div class="field"><label>Status</label><select id="d_status">' + statusOptions + '</select></div>' +
       '<div class="field"><label>Assigned to</label><input id="d_assignedTo" type="text" value="' + escapeHtml(p.assignedTo || "") + '" placeholder="Team member name"></div>' +
@@ -932,6 +974,8 @@
           '<div class="sub" style="margin-top:6px;">' + (p.archivedAt ? "Hidden from the main list and from interns." : "Hides it from the main list and from interns. Nothing is deleted; the client\u2019s page keeps working.") + '</div></div>'
         : "");
 
+    var tcb = document.getElementById("d_teamChat");
+    if (tcb) tcb.addEventListener("click", function () { closeDrawer(); chatOpenProject(p.projectId, (p.businessName || p.fullName) + " \u00b7 " + p.serviceName); });
     document.getElementById("drawerStatus").textContent = "";
     loadBriefBox(p);
 
@@ -1892,18 +1936,20 @@
 
   /* ---------------- Team chat ---------------- */
 
-  var authUserName = "";
+  var authUserName = "", authUserEmail = "";
   var TAG_COLORS = ["#ffd479", "#7fb2ff", "#c98bff", "#7ee0a8", "#ff8b8b", "#ffa86b", "#9a9aa4"];
+  var CHAT_EMOJIS = ["👍", "❤️", "😂", "😮", "🙏", "✅"];
   var chat = {
-    ready: false, me: null, members: {}, convs: [], active: null, msgs: [], cursor: null, hasMore: false,
-    typing: [], reads: [], timer: null, badgeTimer: null, busy: false, editing: null, unreadTotal: 0,
+    ready: false, me: null, members: {}, convs: [], active: null, activeConv: null, msgs: [], cursor: null, hasMore: false,
+    typing: [], reads: [], pins: [], timer: null, badgeTimer: null, busy: false, editing: null, replyTo: null, unreadTotal: 0,
     lastTypingPost: 0, rec: null, audio: null, audioId: null, membersAt: 0, token: 0,
+    pendingOpen: null, pendingConv: null, mention: null, pushOn: false,
   };
 
   function chatApi(action, extra) {
     return authedFetch("/admin-chat", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({ action: action, name: authUserName }, extra || {})),
+      body: JSON.stringify(Object.assign({ action: action, name: authUserName, email: authUserEmail }, extra || {})),
     }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
       .catch(function () { return { ok: false, error: "Could not reach the server." }; });
   }
@@ -1938,21 +1984,41 @@
     return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === t.getFullYear() ? undefined : "numeric" });
   }
   function chatConvName(c) {
-    return c.kind === "group" ? "Team" : chatMember(c.other_sub).name;
+    return c.kind === "group" ? "Team" : c.kind === "project" ? (c.title || "Project") : chatMember(c.other_sub).name;
+  }
+  function chatConvSeed(c) { return c.kind === "group" ? "team" : c.kind === "project" ? c.id : c.other_sub; }
+  function chatSnippet(m) {
+    if (!m) return "";
+    if (m.deleted) return "Deleted message";
+    if (m.kind === "voice") return "Voice message";
+    if (m.kind === "image") return m.body ? "Photo: " + m.body : "Photo";
+    if (m.kind === "file") return "File";
+    return m.body || "";
   }
   function chatPreview(c) {
     if (!c.last) return c.kind === "group" ? "Say hello to the team" : "No messages yet";
-    var who = c.last.sender_sub === chat.me.sub ? "You: " : (c.kind === "group" ? chatMember(c.last.sender_sub).name.split(" ")[0] + ": " : "");
+    var who = c.last.sender_sub === chat.me.sub ? "You: " : (c.kind !== "dm" ? chatMember(c.last.sender_sub).name.split(" ")[0] + ": " : "");
     if (c.last.deleted) return who + "Message deleted";
     if (c.last.kind === "voice") return who + "Voice message";
     if (c.last.kind === "image") return who + "Photo";
     if (c.last.kind === "file") return who + "File";
     return who + (c.last.body || "");
   }
-  function chatLinkify(text) {
-    return escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, function (u) {
+  function chatRegEsc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  function chatRich(text) {
+    var html = escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, function (u) {
       return '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + u + '</a>';
-    }).replace(/\n/g, "<br>");
+    });
+    if (html.indexOf("@") !== -1) {
+      var names = Object.keys(chat.members).map(function (s) { return chat.members[s]; }).filter(function (m) { return m.name; })
+        .sort(function (a, b) { return b.name.length - a.name.length; });
+      names.forEach(function (m) {
+        var re = new RegExp("@" + chatRegEsc(escapeHtml(m.name)) + "(?![\\p{L}\\p{N}_])", "giu");
+        html = html.replace(re, function (t) { return '<span class="chat-mention' + (m.sub === chat.me.sub ? " me" : "") + '">' + t + '</span>'; });
+      });
+      html = html.replace(/@(all|everyone)(?![\p{L}\p{N}_])/giu, function (t) { return '<span class="chat-mention me">' + t + '</span>'; });
+    }
+    return html.replace(/\n/g, "<br>");
   }
   function chatFmtDur(s) {
     s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
@@ -1960,6 +2026,7 @@
   function chatFmtSize(n) {
     n = Number(n) || 0; return n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
   }
+  function chatCurConv() { return chat.convs.filter(function (c) { return c.id === chat.active; })[0] || chat.activeConv; }
 
   function stopChat() {
     chat.token++;
@@ -1968,9 +2035,95 @@
     chatCancelRecording(true);
   }
 
+  /* ----- push notifications ----- */
+
+  function chatPushSupported() { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+  function chatIsIos() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+  function chatIsStandalone() { return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true; }
+  function chatB64uToArr(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+    var bin = atob(s), out = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out;
+  }
+  function chatRegisterSw() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("admin-sw.js").then(function () { chatPushSync(); }).catch(function () {});
+    navigator.serviceWorker.addEventListener("message", function (e) {
+      var d = e.data || {};
+      if (d.type === "chat-open" && d.convId) chatGoToConv(d.convId);
+      else if (d.type === "chat-ping" && currentSection === "chat") chatSync(false);
+    });
+  }
+  function chatPushSync() {
+    if (!chatPushSupported() || Notification.permission !== "granted") { chat.pushOn = false; chatDrawPushBar(); return Promise.resolve(); }
+    return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      chat.pushOn = !!sub;
+      if (sub) chatApi("push_subscribe", { subscription: sub.toJSON(), ua: navigator.userAgent });
+      chatDrawPushBar();
+    }).catch(function () { chatDrawPushBar(); });
+  }
+  function chatPushEnable() {
+    if (!chatPushSupported()) return;
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") { chatDrawPushBar(); return; }
+      return chatApi("push_key").then(function (k) {
+        if (!k.ok || !k.key) throw new Error("Notifications are not set up on the server yet.");
+        return navigator.serviceWorker.ready.then(function (reg) {
+          return reg.pushManager.getSubscription().then(function (existing) {
+            return existing || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chatB64uToArr(k.key) });
+          });
+        });
+      }).then(function (sub) {
+        return chatApi("push_subscribe", { subscription: sub.toJSON(), ua: navigator.userAgent });
+      }).then(function (r) {
+        if (!r.ok) throw new Error(r.error || "Could not save the subscription.");
+        chat.pushOn = true; chatDrawPushBar();
+      });
+    }).catch(function (e) { window.alert((e && e.message) || "Could not turn on notifications."); chatDrawPushBar(); });
+  }
+  function chatPushDisable() {
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      if (!sub) return;
+      var ep = sub.endpoint;
+      return sub.unsubscribe().then(function () { return chatApi("push_unsubscribe", { endpoint: ep }); });
+    }).then(function () { chat.pushOn = false; chatDrawPushBar(); }).catch(function () {});
+  }
+  function chatDrawPushBar() {
+    var el = document.getElementById("chatPushBar"); if (!el) return;
+    var html = "";
+    if (!chatPushSupported()) {
+      if (chatIsIos() && !chatIsStandalone()) html = 'To get chat notifications on iPhone: tap <b>Share</b>, then <b>Add to Home Screen</b>, open SCARLS from your home screen, and turn notifications on here.';
+    } else if (Notification.permission === "denied") {
+      html = 'Notifications are blocked for this site. Allow them in your browser’s site settings to get a ping when someone messages you.';
+    } else if (chat.pushOn) {
+      html = 'Notifications are on for this device. <button type="button" class="chat-link" id="chatPushOff">Turn off</button>';
+    } else {
+      html = 'Get a ping on this device when someone messages you. <button type="button" class="btn primary" id="chatPushOn">Turn on notifications</button>';
+    }
+    el.style.display = html ? "" : "none";
+    el.innerHTML = html;
+    var on = document.getElementById("chatPushOn"); if (on) on.addEventListener("click", chatPushEnable);
+    var off = document.getElementById("chatPushOff"); if (off) off.addEventListener("click", chatPushDisable);
+  }
+
+  function chatGoToConv(id) {
+    if (currentSection !== "chat") { chat.pendingOpen = id; goTo("chat"); return; }
+    if (chat.convs.some(function (c) { return c.id === id; })) chatOpen(id, false);
+    else chatApi("sync").then(function (s) { if (s.ok) { chat.convs = s.conversations; chatDrawList(); chatOpen(id, false); } });
+  }
+  function chatOpenProject(pid, title) {
+    chatApi("open_project", { project_id: pid }).then(function (d) {
+      if (!d.ok) { window.alert(d.error || "Could not open the project chat."); return; }
+      chat.pendingConv = { id: d.id, kind: "project", title: title || "Project", project_id: pid, unread: 0, muted: false, last: null };
+      chat.pendingOpen = d.id; goTo("chat");
+    });
+  }
+
+  /* ----- layout ----- */
+
   function renderChatSection() {
-    document.getElementById("pageSub").textContent = "Talk to your team. Messages are private to the people in each chat.";
+    document.getElementById("pageSub").textContent = "Talk to your team. Private chats are visible only to the people in them.";
     document.getElementById("pageBody").innerHTML =
+      '<div class="chat-push" id="chatPushBar" style="display:none"></div>' +
       '<div class="chat-wrap" id="chatWrap">' +
         '<div class="chat-side" id="chatSide">' +
           '<div class="chat-side-head"><div id="chatMe" class="chat-me"></div>' +
@@ -1983,14 +2136,17 @@
       '</div>';
     document.getElementById("chatNewBtn").addEventListener("click", chatShowNewChat);
     var tb = document.getElementById("chatTagsBtn"); if (tb) tb.addEventListener("click", chatShowTags);
+    chatDrawPushBar(); chatPushSync();
     var myToken = ++chat.token;
     chatApi("bootstrap").then(function (d) {
       if (myToken !== chat.token) return;
       if (!d.ok) { document.getElementById("chatList").innerHTML = '<div class="empty">' + escapeHtml(d.error || "Chat could not load.") + '</div>'; return; }
       chat.ready = true; chat.me = d.me; chatSetMembers(d.members); chat.convs = d.conversations;
+      var want = chat.pendingOpen; chat.pendingOpen = null;
+      if (want && !chat.convs.some(function (c) { return c.id === want; }) && chat.pendingConv && chat.pendingConv.id === want) chat.convs.push(chat.pendingConv);
       chatDrawMe(); chatDrawList(); chatUpdateBadge();
-      var keep = chat.active && chat.convs.filter(function (c) { return c.id === chat.active; })[0];
-      chatOpen(keep ? keep.id : chat.convs[0].id, true);
+      var target = chat.convs.filter(function (c) { return c.id === (want || chat.active); })[0] || chat.convs[0];
+      chatOpen(target.id, true);
     });
   }
 
@@ -2011,14 +2167,14 @@
   function chatDrawList() {
     var box = document.getElementById("chatList"); if (!box) return;
     box.innerHTML = chat.convs.map(function (c) {
-      var name = chatConvName(c), sub = c.kind === "group" ? "team" : c.other_sub;
-      var m = c.kind === "group" ? null : chatMember(c.other_sub);
+      var name = chatConvName(c), m = c.kind === "dm" ? chatMember(c.other_sub) : null;
       return '<button type="button" class="chat-item' + (c.id === chat.active ? " on" : "") + '" data-id="' + c.id + '">' +
-        chatAvatar(name, sub) +
+        chatAvatar(name, chatConvSeed(c)) +
         '<span class="chat-item-body"><span class="chat-item-top"><span class="chat-item-name">' + escapeHtml(name) + '</span>' + (m ? chatTagPill(m) : "") +
-        '<span class="chat-item-time">' + (c.last ? chatTime(c.last.created_at) : "") + '</span></span>' +
+        (c.kind === "project" ? '<span class="chat-kind">Project</span>' : "") +
+        '<span class="chat-item-time">' + (c.muted ? "&#128277; " : "") + (c.last ? chatTime(c.last.created_at) : "") + '</span></span>' +
         '<span class="chat-item-prev">' + escapeHtml(chatPreview(c)) + '</span></span>' +
-        (c.unread ? '<span class="chat-unread">' + (c.unread > 99 ? "99+" : c.unread) + '</span>' : "") +
+        (c.unread ? '<span class="chat-unread' + (c.muted ? " muted" : "") + '">' + (c.unread > 99 ? "99+" : c.unread) + '</span>' : "") +
         '</button>';
     }).join("");
     Array.prototype.forEach.call(box.querySelectorAll(".chat-item"), function (b) {
@@ -2027,7 +2183,7 @@
   }
 
   function chatUpdateBadge() {
-    var total = chat.convs.reduce(function (a, c) { return a + (c.unread || 0); }, 0);
+    var total = chat.convs.reduce(function (a, c) { return a + (c.muted ? 0 : (c.unread || 0)); }, 0);
     chat.unreadTotal = total;
     var btn = document.querySelector('.nav-item[data-section="chat"]');
     if (btn) {
@@ -2053,23 +2209,38 @@
 
   function chatOpen(id, silent) {
     var conv = chat.convs.filter(function (c) { return c.id === id; })[0]; if (!conv) return;
-    chat.active = id; chat.msgs = []; chat.cursor = null; chat.hasMore = false; chat.typing = []; chat.reads = []; chat.editing = null;
+    chat.active = id; chat.activeConv = conv; chat.msgs = []; chat.cursor = null; chat.hasMore = false; chat.typing = []; chat.reads = []; chat.pins = [];
+    chat.editing = null; chat.replyTo = null; chat.mention = null;
     if (chat.audio) { try { chat.audio.pause(); } catch (e) {} chat.audio = null; chat.audioId = null; }
     chatCancelRecording(true);
     chatDrawList();
-    var name = chatConvName(conv), m = conv.kind === "group" ? null : chatMember(conv.other_sub);
+    var name = chatConvName(conv), m = conv.kind === "dm" ? chatMember(conv.other_sub) : null;
     document.getElementById("chatWrap").classList.add("in-conv");
     document.getElementById("chatMain").innerHTML =
-      '<div class="chat-head"><button type="button" class="chat-back" id="chatBack" aria-label="Back">&larr;</button>' + chatAvatar(name, conv.kind === "group" ? "team" : conv.other_sub) +
-      '<div class="chat-head-txt"><div class="chat-head-name">' + escapeHtml(name) + (m ? " " + chatTagPill(m) : "") + '</div><div class="chat-head-sub" id="chatSub">' + (conv.kind === "group" ? "Everyone on the team" : "Private chat") + '</div></div></div>' +
+      '<div class="chat-head"><button type="button" class="chat-back" id="chatBack" aria-label="Back">&larr;</button>' + chatAvatar(name, chatConvSeed(conv)) +
+      '<div class="chat-head-txt"><div class="chat-head-name">' + escapeHtml(name) + (m ? " " + chatTagPill(m) : "") + '</div><div class="chat-head-sub" id="chatSub"></div></div>' +
+      '<button type="button" class="chat-bell" id="chatMuteBtn"></button></div>' +
+      '<div class="chat-pinbar" id="chatPinBar" style="display:none"></div>' +
       '<div class="chat-msgs" id="chatMsgs"><div class="empty">Loading…</div></div>' +
+      '<div class="chat-mentionbox" id="chatMentionBox" style="display:none"></div>' +
       '<div class="chat-compose" id="chatCompose"></div>';
     document.getElementById("chatBack").addEventListener("click", function () { document.getElementById("chatWrap").classList.remove("in-conv"); });
+    document.getElementById("chatMuteBtn").addEventListener("click", function () {
+      var c = chatCurConv(); if (!c) return;
+      var next = !c.muted; c.muted = next;
+      chatApi("mute", { conversation_id: c.id, muted: next }).then(function () { chatDrawMute(); chatDrawList(); chatUpdateBadge(); });
+    });
     document.getElementById("chatMsgs").addEventListener("scroll", function () {
       var el = this; if (el.scrollTop < 40 && chat.hasMore && !chat.busy) chatLoadOlder();
     });
-    chatDrawCompose();
+    chatDrawMute(); chatDrawTyping(); chatDrawCompose();
     chatSync(true);
+  }
+
+  function chatDrawMute() {
+    var b = document.getElementById("chatMuteBtn"), c = chatCurConv(); if (!b || !c) return;
+    b.innerHTML = c.muted ? "&#128277; Muted" : "&#128276; Mute";
+    b.title = c.muted ? "Unmute this chat" : "Mute this chat (you'll still be notified when someone mentions you)";
   }
 
   function chatSync(first) {
@@ -2080,13 +2251,15 @@
     chatApi("sync", { active: active, after: first ? null : chat.cursor, read: visible }).then(function (d) {
       if (token !== chat.token || active !== chat.active) return;
       if (d.ok) {
-        chat.convs = d.conversations; chat.typing = d.typing || []; chat.reads = d.reads || [];
+        chat.convs = d.conversations; chat.typing = d.typing || []; chat.reads = d.reads || []; chat.pins = d.pins || [];
+        if (!chat.convs.some(function (c) { return c.id === active; }) && chat.activeConv) chat.convs.push(chat.activeConv);
+        else chat.activeConv = chat.convs.filter(function (c) { return c.id === active; })[0] || chat.activeConv;
         var unknown = false;
         (d.messages || []).forEach(function (m) { if (!chat.members[m.sender_sub]) unknown = true; });
         var changed = chatMerge(d.messages || []);
         if (first) { chat.hasMore = !!d.hasMore; }
         chat.cursor = new Date(new Date(d.now).getTime() - 2500).toISOString();
-        chatDrawList(); chatUpdateBadge(); chatDrawTyping();
+        chatDrawList(); chatUpdateBadge(); chatDrawTyping(); chatDrawPins(); chatDrawMute();
         if (first || changed) chatDrawMessages(first || chatNearBottom());
         if (unknown || Date.now() - chat.membersAt > 60000) chatApi("members").then(function (r) { if (r.ok) { chatSetMembers(r.members); chatDrawList(); chatDrawMessages(false); } });
       }
@@ -2102,7 +2275,9 @@
       if (i === -1) { chat.msgs.push(m); changed = true; }
       else {
         var o = chat.msgs[i];
-        if (o.edited_at !== m.edited_at || o.deleted !== m.deleted) { m.url = m.url || o.url; chat.msgs[i] = m; changed = true; }
+        if (o.edited_at !== m.edited_at || o.deleted !== m.deleted || o.pinned !== m.pinned || JSON.stringify(o.reactions) !== JSON.stringify(m.reactions)) {
+          m.url = m.url || o.url; chat.msgs[i] = m; changed = true;
+        }
       }
     });
     if (changed) chat.msgs.sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
@@ -2128,21 +2303,64 @@
 
   function chatDrawTyping() {
     var el = document.getElementById("chatSub"); if (!el) return;
-    var conv = chat.convs.filter(function (c) { return c.id === chat.active; })[0];
+    var conv = chatCurConv();
     if (chat.typing.length) {
       var names = chat.typing.map(function (s) { return chatMember(s).name.split(" ")[0]; });
       el.textContent = names.slice(0, 2).join(" and ") + (names.length > 1 ? " are typing…" : " is typing…");
       el.classList.add("typing");
     } else {
-      el.textContent = conv && conv.kind === "group" ? "Everyone on the team" : "Private chat";
+      el.textContent = !conv ? "" : conv.kind === "group" ? "Everyone on the team" : conv.kind === "project" ? "Project chat · people with Projects access" : "Private chat";
       el.classList.remove("typing");
     }
   }
 
+  /* ----- pins ----- */
+
+  function chatDrawPins() {
+    var bar = document.getElementById("chatPinBar"); if (!bar) return;
+    if (!chat.pins.length) { bar.style.display = "none"; bar.innerHTML = ""; return; }
+    var top = chat.pins[0];
+    bar.style.display = "";
+    bar.innerHTML = '<span class="chat-pin-ic">&#128204;</span><span class="chat-pin-txt"><b>' + escapeHtml(chatMember(top.sender_sub).name.split(" ")[0]) + ':</b> ' + escapeHtml(chatSnippet(top)).slice(0, 140) + '</span>' +
+      '<span class="chat-pin-n">' + (chat.pins.length > 1 ? chat.pins.length + " pinned" : "Pinned") + '</span>';
+    bar.onclick = chatShowPins;
+  }
+  function chatJump(id) {
+    var el = document.querySelector('.chat-row[data-mid="' + id + '"]');
+    if (!el) { window.alert("That message is further up. Scroll up to load earlier messages."); return; }
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.classList.add("flash"); setTimeout(function () { el.classList.remove("flash"); }, 1600);
+  }
+  function chatShowPins() {
+    var ov = document.getElementById("chatOverlay"); ov.style.display = "";
+    var conv = chatCurConv();
+    var canUnpin = conv && (conv.kind !== "group" || userRole === "owner");
+    ov.innerHTML = '<div class="chat-panel"><div class="chat-panel-head"><b>Pinned messages</b><button type="button" class="chat-link" id="chatOvClose">Close</button></div>' +
+      chat.pins.map(function (p) {
+        return '<div class="chat-pin-row" data-id="' + p.id + '"><div class="chat-pin-body"><b>' + escapeHtml(chatMember(p.sender_sub).name) + '</b> <small>' + escapeHtml(chatDayLabel(p.created_at)) + ' ' + chatTime(p.created_at) + '</small><div>' + escapeHtml(chatSnippet(p)).slice(0, 300) + '</div></div>' +
+          '<button type="button" class="btn" data-act="jump">Go to</button>' + (canUnpin ? '<button type="button" class="btn" data-act="unpin">Unpin</button>' : "") + '</div>';
+      }).join("") + '</div>';
+    document.getElementById("chatOvClose").addEventListener("click", function () { ov.style.display = "none"; });
+    Array.prototype.forEach.call(ov.querySelectorAll(".chat-pin-row"), function (row) {
+      var id = row.getAttribute("data-id");
+      row.querySelector('[data-act="jump"]').addEventListener("click", function () { ov.style.display = "none"; chatJump(id); });
+      var un = row.querySelector('[data-act="unpin"]');
+      if (un) un.addEventListener("click", function () {
+        chatApi("pin", { message_id: id, pinned: false }).then(function (d) { if (d.ok) { ov.style.display = "none"; chatSync(false); } else window.alert(d.error || "Could not unpin."); });
+      });
+    });
+  }
+
+  /* ----- messages ----- */
+
   function chatMsgHtml(m, prev, conv) {
     var mine = m.sender_sub === chat.me.sub, sender = chatMember(m.sender_sub);
     var day = !prev || chatDayLabel(prev.created_at) !== chatDayLabel(m.created_at) ? '<div class="chat-day"><span>' + escapeHtml(chatDayLabel(m.created_at)) + '</span></div>' : "";
-    var showName = !mine && conv.kind === "group" && (!prev || prev.sender_sub !== m.sender_sub || day);
+    var showName = !mine && conv.kind !== "dm" && (!prev || prev.sender_sub !== m.sender_sub || day);
+    var quote = "";
+    if (m.reply && !m.deleted) {
+      quote = '<div class="chat-quote" data-jump="' + m.reply.id + '"><b>' + escapeHtml(chatMember(m.reply.sender_sub).name) + '</b><span>' + escapeHtml(chatSnippet(m.reply)).slice(0, 100) + '</span></div>';
+    }
     var inner;
     if (m.deleted) inner = '<span class="chat-deleted">This message was deleted</span>';
     else if (m.kind === "voice") {
@@ -2150,29 +2368,37 @@
         '<div class="chat-wave"><div class="chat-wave-fill"></div></div><span class="chat-dur">' + chatFmtDur(m.duration_s) + '</span></div>';
     } else if (m.kind === "image") {
       inner = (m.url ? '<a href="' + escapeHtml(m.url) + '" target="_blank" rel="noopener noreferrer"><img class="chat-img" src="' + escapeHtml(m.url) + '" alt="' + escapeHtml(m.file_name || "Photo") + '" loading="lazy"></a>' : '<span class="chat-deleted">Photo unavailable</span>') +
-        (m.body ? '<div class="chat-text">' + chatLinkify(m.body) + '</div>' : "");
+        (m.body ? '<div class="chat-text">' + chatRich(m.body) + '</div>' : "");
     } else if (m.kind === "file") {
       inner = '<a class="chat-file" href="' + escapeHtml(m.url || "#") + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(m.file_name || "file") + '"><span class="chat-file-ic">&#128196;</span><span><b>' + escapeHtml(m.file_name || "File") + '</b><br><small>' + chatFmtSize(m.size_bytes) + '</small></span></a>' +
-        (m.body ? '<div class="chat-text">' + chatLinkify(m.body) + '</div>' : "");
-    } else inner = '<div class="chat-text">' + chatLinkify(m.body || "") + '</div>';
-    var canEditMsg = mine && !m.deleted && m.kind === "text";
-    var canDel = !m.deleted && (mine || userRole === "owner");
-    var menu = (canEditMsg || canDel) ? '<button type="button" class="chat-more" data-id="' + m.id + '" aria-label="Message options">&#8942;</button>' : "";
+        (m.body ? '<div class="chat-text">' + chatRich(m.body) + '</div>' : "");
+    } else inner = '<div class="chat-text">' + chatRich(m.body || "") + '</div>';
+    var menu = !m.deleted ? '<button type="button" class="chat-more" data-id="' + m.id + '" aria-label="Message options">&#8942;</button>' : "";
     var seen = "";
     if (mine && conv.kind === "dm" && !m.deleted) {
       var last = null; for (var i = chat.msgs.length - 1; i >= 0; i--) if (chat.msgs[i].sender_sub === chat.me.sub && !chat.msgs[i].deleted) { last = chat.msgs[i]; break; }
       var rd = chat.reads[0];
       if (last && last.id === m.id) seen = rd && new Date(rd.last_read_at) >= new Date(m.created_at) ? " &middot; Seen" : "";
     }
-    return day + '<div class="chat-row ' + (mine ? "mine" : "theirs") + '" data-mid="' + m.id + '"><div class="chat-bubble">' +
+    var reacts = "";
+    if (m.reactions && m.reactions.length) {
+      reacts = '<div class="chat-reacts">' + m.reactions.map(function (r) {
+        var me = r.subs.indexOf(chat.me.sub) !== -1;
+        var who = r.subs.map(function (s) { return chatMember(s).name; }).join(", ");
+        return '<button type="button" class="chat-react' + (me ? " mine" : "") + '" data-mid="' + m.id + '" data-emoji="' + r.emoji + '" title="' + escapeHtml(who) + '">' + r.emoji + ' ' + r.subs.length + '</button>';
+      }).join("") + '</div>';
+    }
+    var mentionsMe = (m.mentions || []).indexOf(chat.me.sub) !== -1;
+    return day + '<div class="chat-row ' + (mine ? "mine" : "theirs") + (mentionsMe ? " mentions-me" : "") + '" data-mid="' + m.id + '"><div class="chat-bubble">' +
       (showName ? '<div class="chat-sender" style="color:' + (sender.color || "#7fb2ff") + '">' + escapeHtml(sender.name) + ' ' + chatTagPill(sender) + '</div>' : "") +
-      inner + '<div class="chat-meta">' + (m.edited_at && !m.deleted ? "edited &middot; " : "") + chatTime(m.created_at) + seen + '</div>' + menu + '</div></div>';
+      (m.pinned ? '<div class="chat-pinned-flag">&#128204; Pinned</div>' : "") +
+      quote + inner + '<div class="chat-meta">' + (m.edited_at && !m.deleted ? "edited &middot; " : "") + chatTime(m.created_at) + seen + '</div>' + reacts + menu + '</div></div>';
   }
 
   function chatDrawMessages(stick) {
     var box = document.getElementById("chatMsgs"); if (!box) return;
-    var conv = chat.convs.filter(function (c) { return c.id === chat.active; })[0]; if (!conv) return;
-    var top = box.scrollTop, h = box.scrollHeight;
+    var conv = chatCurConv(); if (!conv) return;
+    var top = box.scrollTop;
     var html = chat.hasMore ? '<div class="chat-older"><button type="button" class="chat-link" id="chatOlder">Load earlier messages</button></div>' : "";
     html += chat.msgs.length ? chat.msgs.map(function (m, i) { return chatMsgHtml(m, chat.msgs[i - 1], conv); }).join("") : '<div class="chat-empty">No messages yet. Say hello.</div>';
     box.innerHTML = html;
@@ -2180,25 +2406,50 @@
     var older = document.getElementById("chatOlder"); if (older) older.addEventListener("click", chatLoadOlder);
     Array.prototype.forEach.call(box.querySelectorAll(".chat-play"), function (b) { b.addEventListener("click", function () { chatTogglePlay(b); }); });
     Array.prototype.forEach.call(box.querySelectorAll(".chat-more"), function (b) { b.addEventListener("click", function (e) { e.stopPropagation(); chatMsgMenu(b); }); });
+    Array.prototype.forEach.call(box.querySelectorAll(".chat-react"), function (b) {
+      b.addEventListener("click", function () { chatReact(b.getAttribute("data-mid"), b.getAttribute("data-emoji")); });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll(".chat-quote"), function (q) {
+      q.addEventListener("click", function () { chatJump(q.getAttribute("data-jump")); });
+    });
     if (chat.audioId) { var cur = box.querySelector('.chat-voice[data-id="' + chat.audioId + '"] .chat-play'); if (cur && chat.audio && !chat.audio.paused) cur.innerHTML = "&#10074;&#10074;"; }
+  }
+
+  function chatReact(mid, emoji) {
+    chatApi("react", { message_id: mid, emoji: emoji }).then(function (d) { if (d.ok) chatSync(false); else window.alert(d.error || "Could not react."); });
   }
 
   function chatMsgMenu(btn) {
     var old = document.getElementById("chatMenu"); if (old) old.remove();
     var m = chat.msgs.filter(function (x) { return x.id === btn.getAttribute("data-id"); })[0]; if (!m) return;
-    var mine = m.sender_sub === chat.me.sub;
+    var conv = chatCurConv(), mine = m.sender_sub === chat.me.sub;
     var menu = document.createElement("div"); menu.id = "chatMenu"; menu.className = "chat-menu";
-    var items = [];
-    if (mine && m.kind === "text") items.push(["Edit", function () { chat.editing = m; chatDrawCompose(); }]);
+    var emojiRow = document.createElement("div"); emojiRow.className = "chat-menu-emojis";
+    CHAT_EMOJIS.forEach(function (em) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = em;
+      b.addEventListener("click", function () { menu.remove(); chatReact(m.id, em); }); emojiRow.appendChild(b);
+    });
+    menu.appendChild(emojiRow);
+    var items = [["Reply", function () { chat.replyTo = m; chat.editing = null; chatDrawCompose(); }]];
+    if (conv && (conv.kind !== "group" || userRole === "owner")) {
+      items.push([m.pinned ? "Unpin" : "Pin", function () {
+        chatApi("pin", { message_id: m.id, pinned: !m.pinned }).then(function (d) { if (d.ok) chatSync(false); else window.alert(d.error || "Could not pin."); });
+      }]);
+    }
+    if (mine && m.kind === "text") items.push(["Edit", function () { chat.editing = m; chat.replyTo = null; chatDrawCompose(); }]);
     if (mine || userRole === "owner") items.push(["Delete", function () {
       if (!window.confirm("Delete this message for everyone?")) return;
       chatApi("delete", { id: m.id }).then(function (d) { if (d.ok) chatSync(false); else window.alert(d.error || "Could not delete."); });
     }]);
     items.forEach(function (it) {
-      var b = document.createElement("button"); b.type = "button"; b.textContent = it[0];
+      var b = document.createElement("button"); b.type = "button"; b.className = "chat-menu-item"; b.textContent = it[0];
       b.addEventListener("click", function () { menu.remove(); it[1](); }); menu.appendChild(b);
     });
-    btn.parentNode.appendChild(menu);
+    menu.style.visibility = "hidden"; document.body.appendChild(menu);
+    var r = btn.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+    var top = r.bottom + 4; if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    var left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+    menu.style.top = top + "px"; menu.style.left = left + "px"; menu.style.visibility = "";
     setTimeout(function () { document.addEventListener("click", function rm() { menu.remove(); document.removeEventListener("click", rm); }); }, 0);
   }
 
@@ -2222,12 +2473,48 @@
 
   /* ----- composer ----- */
 
+  function chatMentionHide() { chat.mention = null; var b = document.getElementById("chatMentionBox"); if (b) { b.style.display = "none"; b.innerHTML = ""; } }
+  function chatMentionCheck(input) {
+    var conv = chatCurConv();
+    if (!conv || conv.kind === "dm") { chatMentionHide(); return; }
+    var before = input.value.slice(0, input.selectionStart || 0);
+    var mt = /(^|\s)@([^\s@]{0,30})$/.exec(before);
+    if (!mt) { chatMentionHide(); return; }
+    var q = mt[2].toLowerCase(), start = before.length - mt[2].length - 1;
+    var items = Object.keys(chat.members).map(function (s) { return chat.members[s]; })
+      .filter(function (m) { return m.sub !== chat.me.sub && (conv.kind !== "project" || m.projects) && m.name.toLowerCase().indexOf(q) !== -1; })
+      .slice(0, 6).map(function (m) { return { name: m.name, member: m }; });
+    if ("all".indexOf(q) === 0 && !(items.length === 0 && q.length > 3)) items.push({ name: "all", member: null });
+    if (!items.length) { chatMentionHide(); return; }
+    chat.mention = { items: items, idx: 0, start: start, end: before.length };
+    chatMentionDraw();
+  }
+  function chatMentionDraw() {
+    var box = document.getElementById("chatMentionBox"), mn = chat.mention; if (!box || !mn) return;
+    box.style.display = "";
+    box.innerHTML = mn.items.map(function (it, i) {
+      return '<button type="button" class="chat-mention-item' + (i === mn.idx ? " on" : "") + '" data-i="' + i + '">' +
+        (it.member ? chatAvatar(it.name, it.member.sub) + '<span>' + escapeHtml(it.name) + '</span>' + chatTagPill(it.member) : '<span class="chat-av">@</span><span>all <small>notify everyone</small></span>') + '</button>';
+    }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll(".chat-mention-item"), function (b) {
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); chatMentionPick(Number(b.getAttribute("data-i"))); });
+    });
+  }
+  function chatMentionPick(i) {
+    var mn = chat.mention, input = document.getElementById("chatInput"); if (!mn || !input) return;
+    var it = mn.items[i], ins = "@" + it.name + " ";
+    input.value = input.value.slice(0, mn.start) + ins + input.value.slice(mn.end);
+    var pos = mn.start + ins.length; input.setSelectionRange(pos, pos);
+    chatMentionHide(); input.focus(); input.dispatchEvent(new Event("input"));
+  }
+
   function chatDrawCompose() {
     var box = document.getElementById("chatCompose"); if (!box) return;
     if (chat.rec) { chatDrawRecording(); return; }
-    var ed = chat.editing;
+    var ed = chat.editing, rp = chat.replyTo;
     box.innerHTML =
       (ed ? '<div class="chat-editing">Editing message <button type="button" class="chat-link" id="chatEditCancel">Cancel</button></div>' : "") +
+      (rp ? '<div class="chat-replying"><div><b>Replying to ' + escapeHtml(chatMember(rp.sender_sub).name) + '</b><span>' + escapeHtml(chatSnippet(rp)).slice(0, 100) + '</span></div><button type="button" class="chat-link" id="chatReplyCancel">Cancel</button></div>' : "") +
       '<div class="chat-compose-row">' +
       (ed ? "" : '<button type="button" class="chat-icon" id="chatAttach" aria-label="Attach a file or photo">+</button><input type="file" id="chatFile" style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv">') +
       '<textarea id="chatInput" rows="1" placeholder="Type a message"></textarea>' +
@@ -2243,30 +2530,41 @@
     };
     refresh();
     input.addEventListener("input", function () {
-      refresh();
+      refresh(); chatMentionCheck(input);
       var now = Date.now();
       if (input.value.trim() && now - chat.lastTypingPost > 3000) { chat.lastTypingPost = now; chatApi("typing", { conversation_id: chat.active }); }
     });
     input.addEventListener("keydown", function (e) {
+      var mn = chat.mention;
+      if (mn) {
+        if (e.key === "ArrowDown") { e.preventDefault(); mn.idx = (mn.idx + 1) % mn.items.length; chatMentionDraw(); return; }
+        if (e.key === "ArrowUp") { e.preventDefault(); mn.idx = (mn.idx - 1 + mn.items.length) % mn.items.length; chatMentionDraw(); return; }
+        if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); chatMentionPick(mn.idx); return; }
+        if (e.key === "Escape") { e.preventDefault(); chatMentionHide(); return; }
+      }
       var touch = window.matchMedia && window.matchMedia("(pointer:coarse)").matches;
       if (e.key === "Enter" && !e.shiftKey && !touch) { e.preventDefault(); chatSend(); }
     });
+    input.addEventListener("blur", function () { setTimeout(chatMentionHide, 150); });
     action.addEventListener("click", function () { if (action.dataset.mode === "send") chatSend(); else chatStartRecording(); });
     var cancel = document.getElementById("chatEditCancel"); if (cancel) cancel.addEventListener("click", function () { chat.editing = null; chatDrawCompose(); });
+    var rc = document.getElementById("chatReplyCancel"); if (rc) rc.addEventListener("click", function () { chat.replyTo = null; chatDrawCompose(); });
     var attach = document.getElementById("chatAttach"), file = document.getElementById("chatFile");
     if (attach) { attach.addEventListener("click", function () { file.click(); }); file.addEventListener("change", function () { if (file.files[0]) chatSendFile(file.files[0], input.value.trim()); file.value = ""; }); }
-    if (!ed) setTimeout(function () { var t = window.matchMedia && window.matchMedia("(pointer:coarse)").matches; if (!t) input.focus(); }, 0);
+    var coarse = window.matchMedia && window.matchMedia("(pointer:coarse)").matches;
+    if (!ed && !coarse) setTimeout(function () { input.focus(); }, 0);
   }
 
   function chatSend() {
     var input = document.getElementById("chatInput"); if (!input) return;
     var body = input.value.trim(); if (!body) return;
     var id = chat.active, action = document.getElementById("chatAction"); if (action) action.disabled = true;
-    var p = chat.editing ? chatApi("edit", { id: chat.editing.id, body: body }) : chatApi("send", { conversation_id: id, body: body });
+    var p = chat.editing ? chatApi("edit", { id: chat.editing.id, body: body })
+      : chatApi("send", { conversation_id: id, body: body, reply_to: chat.replyTo ? chat.replyTo.id : undefined });
     p.then(function (d) {
       if (action) action.disabled = false;
       if (!d.ok) { window.alert(d.error || "Could not send."); return; }
-      chat.editing = null; input.value = "";
+      chat.editing = null; chat.replyTo = null; input.value = ""; chatMentionHide();
       if (d.message) chatMerge([d.message]);
       chatDrawCompose(); chatDrawMessages(true); chatSync(false);
     });
@@ -2287,13 +2585,15 @@
   function chatSendFile(file, caption) {
     if (file.size > 12 * 1024 * 1024) { window.alert("Files can be up to 12 MB."); return; }
     var input = document.getElementById("chatInput"); var action = document.getElementById("chatAction");
+    var replyId = chat.replyTo ? chat.replyTo.id : undefined;
     if (action) action.disabled = true;
     var sub = document.getElementById("chatSub"); if (sub) { sub.textContent = "Sending file…"; sub.classList.add("typing"); }
     chatUpload(file, file.name, file.type).then(function (up) {
-      return chatApi("send", { conversation_id: chat.active, body: caption, file_path: up.path, file_name: file.name, mime: up.mime, size_bytes: file.size });
+      return chatApi("send", { conversation_id: chat.active, body: caption, file_path: up.path, file_name: file.name, mime: up.mime, size_bytes: file.size, reply_to: replyId });
     }).then(function (d) {
       if (!d.ok) throw new Error(d.error || "Could not send.");
       if (input) input.value = "";
+      chat.replyTo = null;
       chatMerge([d.message]); chatDrawCompose(); chatDrawMessages(true); chatSync(false);
     }).catch(function (e) { window.alert(e.message || "Could not send the file."); chatDrawCompose(); chatDrawTyping(); });
   }
@@ -2316,12 +2616,14 @@
         var blob = new Blob(r.chunks, { type: r.mime });
         if (secs < 1 || blob.size < 500) { chat.rec = null; chatDrawCompose(); return; }
         var ext = r.mime.indexOf("mp4") !== -1 ? "m4a" : r.mime.indexOf("ogg") !== -1 ? "ogg" : "webm";
+        var replyId = chat.replyTo ? chat.replyTo.id : undefined;
         var box = document.getElementById("chatCompose"); if (box) box.innerHTML = '<div class="chat-recording"><span>Sending voice note…</span></div>';
         chatUpload(blob, "voice-note." + ext, r.mime).then(function (up) {
-          return chatApi("send", { conversation_id: chat.active, body: "", file_path: up.path, file_name: "Voice note", mime: up.mime, size_bytes: blob.size, duration_s: secs });
+          return chatApi("send", { conversation_id: chat.active, body: "", file_path: up.path, file_name: "Voice note", mime: up.mime, size_bytes: blob.size, duration_s: secs, reply_to: replyId });
         }).then(function (d) {
           chat.rec = null;
           if (!d.ok) throw new Error(d.error || "Could not send.");
+          chat.replyTo = null;
           chatMerge([d.message]); chatDrawCompose(); chatDrawMessages(true); chatSync(false);
         }).catch(function (e) { chat.rec = null; window.alert(e.message || "Could not send the voice note."); chatDrawCompose(); });
       });
@@ -2353,7 +2655,8 @@
     ov.innerHTML = '<div class="chat-panel"><div class="chat-panel-head"><b>Start a private chat</b><button type="button" class="chat-link" id="chatOvClose">Close</button></div>' +
       (others.length ? others.map(function (m) {
         return '<button type="button" class="chat-item" data-sub="' + escapeHtml(m.sub) + '">' + chatAvatar(m.name, m.sub) + '<span class="chat-item-body"><span class="chat-item-top"><span class="chat-item-name">' + escapeHtml(m.name) + '</span>' + chatTagPill(m) + '</span></span></button>';
-      }).join("") : '<div class="empty">No one else is on the team yet. Add people on the Team page.</div>') + '</div>';
+      }).join("") : '<div class="empty">No one else is on the team yet. Add people on the Team page.</div>') +
+      '<div class="chat-hint">Tip: to talk about a client’s job, open the project and tap <b>Team chat</b>.</div></div>';
     document.getElementById("chatOvClose").addEventListener("click", function () { ov.style.display = "none"; });
     Array.prototype.forEach.call(ov.querySelectorAll(".chat-item"), function (b) {
       b.addEventListener("click", function () {
