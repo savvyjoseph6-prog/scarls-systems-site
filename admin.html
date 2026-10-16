@@ -996,7 +996,7 @@
         status: document.getElementById("d_status").value,
         assignedTo: document.getElementById("d_assignedTo").value.trim(),
         dueDate: document.getElementById("d_dueDate").value,
-        deliveryLink: document.getElementById("d_deliveryLink").value.trim(),
+        deliveryLink: (function (v) { v = v.trim(); return v && !/^https?:\/\//i.test(v) ? "https://" + v : v; })(document.getElementById("d_deliveryLink").value),
         notes: document.getElementById("d_notes").value.trim(),
       };
       saveProject(payload);
