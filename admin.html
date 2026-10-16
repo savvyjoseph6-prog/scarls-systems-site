@@ -963,6 +963,10 @@
       '<div class="field"><label>Assigned to</label><input id="d_assignedTo" type="text" value="' + escapeHtml(p.assignedTo || "") + '" placeholder="Team member name"></div>' +
       '<div class="field"><label>Due date</label><input id="d_dueDate" type="date" value="' + escapeHtml(p.dueDate ? String(p.dueDate).slice(0, 10) : "") + '"></div>' +
       '<div class="field"><label>Delivered site link</label><input id="d_deliveryLink" type="text" value="' + escapeHtml(p.deliveryLink || "") + '" placeholder="https://..."></div>' +
+      '<div class="field"><label>Client review link <span class="sub" style="font-weight:400;">(masked, safe to share while in review)</span></label>' +
+      (p.previewLink
+        ? '<div style="display:flex;gap:8px;"><input id="d_previewLink" type="text" readonly value="' + escapeHtml(p.previewLink) + '" style="flex:1;"><button type="button" class="btn" id="d_previewCopy">Copy</button></div>'
+        : '<input type="text" readonly disabled value="" placeholder="Appears after you save a Delivered site link">') + '</div>' +
       '<div class="field"><label>Notes</label><textarea id="d_notes" placeholder="Internal notes">' + escapeHtml(p.notes || "") + '</textarea></div>' +
       (isSub && userRole === "owner"
         ? '<div class="field"><label>Subscription</label><button type="button" class="btn' + (p.subscriptionStatus === "cancelled" ? "" : " danger") + '" id="d_subToggle" style="width:100%;">' +
@@ -974,6 +978,13 @@
           '<div class="sub" style="margin-top:6px;">' + (p.archivedAt ? "Hidden from the main list and from interns." : "Hides it from the main list and from interns. Nothing is deleted; the client\u2019s page keeps working.") + '</div></div>'
         : "");
 
+    var pcb = document.getElementById("d_previewCopy");
+    if (pcb) pcb.addEventListener("click", function () {
+      var v = document.getElementById("d_previewLink").value;
+      var done = function () { pcb.textContent = "Copied"; setTimeout(function () { pcb.textContent = "Copy"; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done, function () { document.getElementById("d_previewLink").select(); document.execCommand("copy"); done(); });
+      else { document.getElementById("d_previewLink").select(); document.execCommand("copy"); done(); }
+    });
     var tcb = document.getElementById("d_teamChat");
     if (tcb) tcb.addEventListener("click", function () { closeDrawer(); chatOpenProject(p.projectId, (p.businessName || p.fullName) + " \u00b7 " + p.serviceName); });
     document.getElementById("drawerStatus").textContent = "";
