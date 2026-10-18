@@ -202,6 +202,9 @@
   /* ---------- Revenue ---------- */
   .rev-table tbody tr{ cursor:default; }
   .rev-table tbody tr:hover{ background:none; }
+  .ads-note{ font-size:12px; color:var(--dimmer); font-weight:400; }
+  .ads-note a{ color:var(--accent); }
+  .ads-link{ background:var(--panel-2); color:var(--white); border:1px solid var(--line); border-radius:7px; padding:7px 9px; font:inherit; font-size:13px; }
   .rev-grid{ display:grid; grid-template-columns:1.6fr 1fr; gap:16px; margin-bottom:28px; }
   @media(max-width:900px){ .rev-grid{ grid-template-columns:1fr; } }
   .rev-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
@@ -530,6 +533,7 @@
     { id: "tickets", label: "Tickets", wired: true, staff: true },
     { id: "manualpay", staff: true, label: "Manual Payments", wired: true },
     { id: "revenue", label: "Revenue", staff: true, wired: true },
+    { id: "ads", label: "Ads", wired: true },
     { id: "team", label: "Team", wired: true },
     { id: "settings", label: "Settings", staff: true, wired: true },
   ];
@@ -712,6 +716,7 @@
     else if (sectionId === "team") renderTeamSection();
     else if (sectionId === "settings") renderSettingsSection();
     else if (sectionId === "chat") renderChatSection();
+    else if (sectionId === "ads") renderAdsSection();
     else renderPlaceholder(section.label);
   }
 
@@ -958,6 +963,7 @@
 
     document.getElementById("drawerBody").innerHTML =
       '<div class="field"><button type="button" class="btn" id="d_teamChat" style="width:100%;">&#128172; Team chat for this project</button></div>' +
+      '<div id="d_adsBox"></div>' +
       '<div id="d_briefBox"></div>' +
       '<div class="field"><label>Status</label><select id="d_status">' + statusOptions + '</select></div>' +
       '<div class="field"><label>Assigned to</label><input id="d_assignedTo" type="text" value="' + escapeHtml(p.assignedTo || "") + '" placeholder="Team member name"></div>' +
@@ -989,6 +995,7 @@
     if (tcb) tcb.addEventListener("click", function () { closeDrawer(); chatOpenProject(p.projectId, (p.businessName || p.fullName) + " \u00b7 " + p.serviceName); });
     document.getElementById("drawerStatus").textContent = "";
     loadBriefBox(p);
+    adsDrawerBox(p.projectId);
 
     document.getElementById("drawerSave").onclick = function () {
       var payload = {
@@ -1943,6 +1950,148 @@
         : '<div class="empty">No transactions yet.</div>');
 
     document.getElementById("pageBody").innerHTML = html;
+  }
+
+  /* ---------------- Meta Ads (owner only) ---------------- */
+
+  var ads = { days: 30, data: null, loading: false, at: 0 };
+
+  function adsApi(action, extra) {
+    return authedFetch("/admin-meta-ads", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ action: action }, extra || {})),
+    }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
+      .catch(function () { return { ok: false, error: "Could not reach the server." }; });
+  }
+  function adsMoney(n, cur) {
+    n = Number(n) || 0;
+    try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur || "NGN", maximumFractionDigits: 0 }).format(n); }
+    catch (e) { return (cur || "") + " " + Math.round(n).toLocaleString(); }
+  }
+  function adsNum(n) { return (Number(n) || 0).toLocaleString(); }
+  function adsAgo(v) {
+    if (!v) return "never";
+    var m = Math.round((Date.now() - new Date(v).getTime()) / 60000);
+    if (isNaN(m)) return "never";
+    if (m < 1) return "just now";
+    if (m < 60) return m + " min ago";
+    if (m < 1440) return Math.round(m / 60) + " h ago";
+    return Math.round(m / 1440) + " d ago";
+  }
+  function adsLoad() {
+    return adsApi("overview", { days: ads.days }).then(function (d) {
+      if (d && d.ok) { ads.data = d; ads.at = Date.now(); }
+      return d;
+    });
+  }
+
+  function renderAdsSection() {
+    document.getElementById("pageSub").textContent = "Read-only numbers from your Meta ad account, refreshed hourly. Only you can see this.";
+    document.getElementById("pageActions").innerHTML = '<button type="button" class="btn" id="adsSync">Sync now</button>';
+    document.getElementById("adsSync").addEventListener("click", function () {
+      var b = this; b.disabled = true; b.textContent = "Syncing…";
+      adsApi("sync").then(function (r) {
+        b.disabled = false; b.textContent = "Sync now";
+        if (r && r.ok === false) alert(r.error || "Sync failed.");
+        if (currentSection === "ads") renderAdsSection();
+      });
+    });
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    adsLoad().then(function (d) {
+      if (currentSection !== "ads") return;
+      if (!d || !d.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((d && d.error) || "Could not load ads.") + '</div>'; return; }
+      drawAds(d);
+    });
+  }
+
+  function drawAds(d) {
+    var cur = d.currency, t = d.totals;
+    var cpr = t.results ? adsMoney(t.spend / t.results, cur) : "—";
+    var html = "";
+    if (!d.tokenSet) html += '<div class="rev-alert"><div class="rev-h">META_ADS_TOKEN is not set</div>Add it in Supabase → Edge Functions → Secrets, then press Sync now.</div>';
+    else if (d.lastSync && d.lastSync.ok === false) html += '<div class="rev-alert"><div class="rev-h">Last sync failed (' + escapeHtml(adsAgo(d.lastSync.at)) + ')</div>' + escapeHtml(d.lastSync.error || "") + '</div>';
+
+    html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">' +
+      '<button type="button" class="btn ads-days' + (d.days === 7 ? " primary" : "") + '" data-d="7">Last 7 days</button>' +
+      '<button type="button" class="btn ads-days' + (d.days === 30 ? " primary" : "") + '" data-d="30">Last 30 days</button>' +
+      '<span class="ads-note" style="margin-left:auto;">Synced ' + escapeHtml(adsAgo(d.lastSync && d.lastSync.at)) + '</span></div>';
+
+    html += '<div class="stats-row">' +
+      revStat(adsMoney(t.spend, cur), "Spend") +
+      revStat(adsNum(t.impressions), "Impressions") +
+      revStat(adsNum(t.clicks), "Clicks") +
+      revStat(adsNum(t.results), "Results", "Cost per result " + cpr) +
+      '</div>';
+
+    var max = Math.max.apply(null, [1].concat(d.daily.map(function (x) { return x.spend; })));
+    var bars = d.daily.map(function (x) {
+      var lbl = new Date(x.day + "T00:00:00Z").toLocaleDateString(undefined, { day: "numeric", timeZone: "UTC" });
+      return '<div class="rev-bar' + (x.spend ? "" : " zero") + '" title="' + escapeHtml(x.day + ": " + adsMoney(x.spend, cur) + " · " + x.results + " results") + '"><i style="height:' + Math.round((x.spend / max) * 100) + '%"></i><span>' + escapeHtml(lbl) + '</span></div>';
+    }).join("");
+    html += '<div class="rev-card" style="margin-bottom:28px;"><h3>Daily spend</h3>' + (d.daily.length ? '<div class="rev-bars">' + bars + '</div>' : '<div class="ads-note">No spend in this period.</div>') + '</div>';
+
+    html += '<div class="rev-h">Campaigns</div>';
+    if (!d.campaigns.length) html += '<div class="empty">No campaigns found yet.</div>';
+    else {
+      html += '<div class="table-wrap rev-table"><table><thead><tr><th>Campaign</th><th>Status</th><th>Spend</th><th>Reach</th><th>Clicks</th><th>Results</th><th>Client project</th></tr></thead><tbody>' +
+        d.campaigns.map(function (c) {
+          var opts = '<option value="">— Not linked —</option>' + d.projects.map(function (p) {
+            var sel = c.projectId === p.id || (!c.projectId && c.suggestedProjectId === p.id);
+            return '<option value="' + escapeHtml(p.id) + '"' + (sel ? " selected" : "") + '>' + escapeHtml(p.label) + '</option>';
+          }).join("");
+          var sug = !c.projectId && c.suggestedProjectId;
+          return '<tr><td class="name">' + escapeHtml(c.name) + '<div class="ads-note" style="font-weight:400;">' + escapeHtml(String(c.objective || "").replace(/^OUTCOME_/, "").toLowerCase()) + '</div></td>' +
+            '<td><span class="pill">' + escapeHtml(String(c.status || "—").toLowerCase().replace(/_/g, " ")) + '</span></td>' +
+            '<td class="amount">' + escapeHtml(adsMoney(c.spend, cur)) + '</td><td class="amount">' + adsNum(c.reach) + '</td><td class="amount">' + adsNum(c.clicks) + '</td><td class="amount">' + adsNum(c.results) + '</td>' +
+            '<td><select class="ads-link" data-c="' + escapeHtml(c.id) + '" style="max-width:220px;">' + opts + '</select>' +
+            (sug ? '<div class="ads-note">Suggested match — <a href="#" class="ads-accept" data-c="' + escapeHtml(c.id) + '">confirm</a></div>' : '') + '</td></tr>';
+        }).join("") + '</tbody></table></div>';
+    }
+    html += '<div class="ads-note" style="margin-top:14px;">Results are counted by each campaign’s objective (leads, purchases, link clicks, conversations). Reach is de-duplicated over the selected period.</div>';
+    document.getElementById("pageBody").innerHTML = html;
+
+    Array.prototype.forEach.call(document.querySelectorAll(".ads-days"), function (b) {
+      b.addEventListener("click", function () { ads.days = Number(b.getAttribute("data-d")); renderAdsSection(); });
+    });
+    function link(cid, pid, sel) {
+      if (sel) sel.disabled = true;
+      adsApi("link", { campaign_id: cid, project_id: pid || null }).then(function (r) {
+        if (!r.ok) alert(r.error || "Could not link.");
+        if (currentSection === "ads") renderAdsSection();
+      });
+    }
+    Array.prototype.forEach.call(document.querySelectorAll(".ads-link"), function (s) {
+      s.addEventListener("change", function () { link(s.getAttribute("data-c"), s.value, s); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".ads-accept"), function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        var s = document.querySelector('.ads-link[data-c="' + a.getAttribute("data-c") + '"]');
+        link(a.getAttribute("data-c"), s ? s.value : "", s);
+      });
+    });
+  }
+
+  function adsDrawerBox(projectId) {
+    var box = document.getElementById("d_adsBox");
+    if (!box || userRole !== "owner") return;
+    var paint = function (d) {
+      var b = document.getElementById("d_adsBox");
+      if (!b || !d || !d.ok) return;
+      var mine = d.campaigns.filter(function (c) { return c.projectId === projectId; });
+      if (!mine.length) { b.innerHTML = ""; return; }
+      var sum = { spend: 0, clicks: 0, results: 0, reach: 0 };
+      mine.forEach(function (c) { sum.spend += c.spend; sum.clicks += c.clicks; sum.results += c.results; sum.reach += Number(c.reach) || 0; });
+      b.innerHTML = '<div class="field"><label>Facebook ads · last ' + d.days + ' days</label>' +
+        '<div class="rev-card" style="padding:12px;">' +
+        '<div class="rev-src"><span>Spend</span><span class="amount">' + escapeHtml(adsMoney(sum.spend, d.currency)) + '</span></div>' +
+        '<div class="rev-src"><span>Reach</span><span class="amount">' + adsNum(sum.reach) + '</span></div>' +
+        '<div class="rev-src"><span>Clicks</span><span class="amount">' + adsNum(sum.clicks) + '</span></div>' +
+        '<div class="rev-src"><span>Results</span><span class="amount">' + adsNum(sum.results) + '</span></div>' +
+        '<div class="ads-note" style="margin-top:6px;">' + mine.map(function (c) { return escapeHtml(c.name); }).join(" · ") + '</div></div></div>';
+    };
+    if (ads.data && Date.now() - ads.at < 120000) paint(ads.data);
+    else adsLoad().then(paint);
   }
 
   /* ---------------- Team chat ---------------- */
