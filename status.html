@@ -141,6 +141,23 @@
   .thread-form .btn{ padding:12px 20px; font-size:14px; }
   .thread-form .btn[disabled]{ opacity:.5; cursor:default; }
 
+
+  /* ---------- Your ads (only shown when the team linked an ad campaign) ---------- */
+  .ads-card{ border:1px solid var(--line-soft); border-radius:12px; padding:16px; margin-top:18px; }
+  .ads-card h3{ font-family:var(--font-display); color:var(--white); font-size:16px; margin:0 0 4px; }
+  .ads-card .ad-item + .ad-item{ border-top:1px solid var(--line-soft); margin-top:16px; padding-top:16px; }
+  .ad-name{ color:var(--off-white); font-size:14px; margin:0 0 10px; }
+  .ad-stages{ display:flex; gap:6px; margin-bottom:12px; }
+  .ad-stage{ flex:1; text-align:center; font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase;
+    padding:7px 4px; border-radius:100px; border:1px solid var(--line); color:var(--silver-dim); }
+  .ad-stage.done{ background:var(--accent-grad); border-color:transparent; color:#fff; }
+  .ad-note{ font-size:13px; color:var(--silver); line-height:1.55; margin:0 0 12px; white-space:pre-wrap; }
+  .ad-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .ad-stat{ background:var(--graphite-1); border:1px solid var(--line-soft); border-radius:8px; padding:10px 8px; text-align:center; }
+  .ad-stat b{ display:block; color:var(--white); font-size:18px; font-weight:600; }
+  .ad-stat span{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--silver-dim); }
+  .ad-since{ font-size:12px; color:var(--silver-dim); margin:10px 0 0; }
+
   @media (max-width:520px){
     .card{ padding:22px 16px; }
     .step span{ font-size:8px; }
@@ -159,6 +176,7 @@
       <div class="steps" id="steps"></div>
 
       <div id="panel"></div>
+      <div id="adsBox"></div>
 
       <div class="detail">
         <div class="detail-row"><b>Status</b><span id="statusLabel">—</span></div>
@@ -362,6 +380,45 @@
     }
 
     if (THREAD_STAGES.indexOf(s) >= 0) appendThread();
+    loadAds();
+  }
+
+
+  /* ---------- Your ads (read-only; no money is ever shown here) ---------- */
+  var AD_STAGES = [['in_review', 'In review'], ['running', 'Running'], ['delivered', 'Delivered']];
+
+  function loadAds() {
+    var box = $('adsBox');
+    if (!box || !token) return;
+    fetch(FN + '/portal-ads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ token: token })
+    }).then(function (res) { return res.json(); })
+      .then(function (data) {
+        var ads = data && data.ok && data.ads ? data.ads : [];
+        if (!ads.length) { box.innerHTML = ''; return; }
+        box.innerHTML = '<div class="ads-card"><h3>Your ads</h3>' + ads.map(adHtml).join('') + '</div>';
+      })
+      .catch(function () { /* the ads section is optional; stay quiet */ });
+  }
+
+  function adHtml(a) {
+    var idx = 0;
+    AD_STAGES.forEach(function (s, i) { if (s[0] === a.stage) idx = i; });
+    var html = '<div class="ad-item"><p class="ad-name">' + escapeHtml(a.name) + '</p><div class="ad-stages">' +
+      AD_STAGES.map(function (s, i) { return '<div class="ad-stage' + (i <= idx ? ' done' : '') + '">' + escapeHtml(s[1]) + '</div>'; }).join('') + '</div>';
+    if (a.note) html += '<p class="ad-note">' + escapeHtml(a.note) + '</p>';
+    if (a.impressions > 0) {
+      html += '<div class="ad-stats">' +
+        '<div class="ad-stat"><b>' + Number(a.reach).toLocaleString() + '</b><span>People reached</span></div>' +
+        '<div class="ad-stat"><b>' + Number(a.clicks).toLocaleString() + '</b><span>Clicks</span></div>' +
+        '<div class="ad-stat"><b>' + Number(a.results).toLocaleString() + '</b><span>' + escapeHtml(a.resultLabel || 'Results') + '</span></div></div>';
+      if (a.since) html += '<p class="ad-since">Running since ' + escapeHtml(formatDay(a.since)) + '. Reach covers the last 30 days.</p>';
+    } else if (a.stage === 'in_review') {
+      html += '<p class="ad-note" style="margin:0;">We\'ll show your results here once your ads are live.</p>';
+    }
+    return html + '</div>';
   }
 
   function revisionText() {
