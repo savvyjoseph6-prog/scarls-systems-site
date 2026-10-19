@@ -156,6 +156,10 @@
   .ad-stat{ background:var(--graphite-1); border:1px solid var(--line-soft); border-radius:8px; padding:10px 8px; text-align:center; }
   .ad-stat b{ display:block; color:var(--white); font-size:18px; font-weight:600; }
   .ad-stat span{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--silver-dim); }
+  .ad-verdict{ display:inline-block; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; padding:6px 11px; border-radius:100px; margin-bottom:12px; }
+  .ad-verdict.ahead{ color:#7ee0a8; background:rgba(126,224,168,.08); border:1px solid #22452f; }
+  .ad-verdict.on_target{ color:var(--silver-bright); background:var(--graphite-1); border:1px solid var(--line); }
+  .ad-verdict.optimising{ color:#ffd479; background:rgba(255,212,121,.06); border:1px solid #4a3f22; }
   .ad-since{ font-size:12px; color:var(--silver-dim); margin:10px 0 0; }
 
   @media (max-width:520px){
@@ -408,6 +412,8 @@
     AD_STAGES.forEach(function (s, i) { if (s[0] === a.stage) idx = i; });
     var html = '<div class="ad-item"><p class="ad-name">' + escapeHtml(a.name) + '</p><div class="ad-stages">' +
       AD_STAGES.map(function (s, i) { return '<div class="ad-stage' + (i <= idx ? ' done' : '') + '">' + escapeHtml(s[1]) + '</div>'; }).join('') + '</div>';
+    var VERDICTS = { ahead: 'Delivering better than promised', on_target: 'On target', optimising: 'Still optimising' };
+    if (a.verdict && VERDICTS[a.verdict]) html += '<div class="ad-verdict ' + escapeHtml(a.verdict) + '">' + VERDICTS[a.verdict] + '</div>';
     if (a.note) html += '<p class="ad-note">' + escapeHtml(a.note) + '</p>';
     if (a.impressions > 0) {
       html += '<div class="ad-stats">' +
