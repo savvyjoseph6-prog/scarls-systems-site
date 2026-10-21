@@ -1875,10 +1875,60 @@
     }).catch(function () { var el = document.getElementById("dashRevenue"); if (el) el.remove(); });
   }
 
+  var revRange = { from: "", to: "", preset: "all" };
+  function revLagosToday() { return new Date(Date.now() + 3600000).toISOString().slice(0, 10); }
+  function revPreset(name) {
+    var t = revLagosToday(), y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7));
+    var addDays = function (iso, n) { var d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    if (name === "today") return { from: t, to: t };
+    if (name === "7d") return { from: addDays(t, -6), to: t };
+    if (name === "30d") return { from: addDays(t, -29), to: t };
+    if (name === "month") return { from: t.slice(0, 8) + "01", to: t };
+    if (name === "lastmonth") {
+      var first = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 10), last = new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10);
+      return { from: first, to: last };
+    }
+    if (name === "year") return { from: y + "-01-01", to: t };
+    return { from: "", to: "" };
+  }
+  var REV_PRESETS = [["all", "All time"], ["today", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["month", "This month"], ["lastmonth", "Last month"], ["year", "This year"]];
+  function revRangeActive() { return !!(revRange.from || revRange.to); }
+  function revRangeText() {
+    if (!revRangeActive()) return "";
+    var f = revRange.from ? fmtDay(revRange.from + "T12:00:00Z") : "the start", t = revRange.to ? fmtDay(revRange.to + "T12:00:00Z") : "today";
+    return f + " \u2013 " + t;
+  }
+  function revFilterHtml() {
+    return '<div class="rev-filter" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px;">' +
+      REV_PRESETS.map(function (x) { return '<button type="button" class="btn rev-preset' + (revRange.preset === x[0] ? " primary" : "") + '" data-p="' + x[0] + '">' + x[1] + '</button>'; }).join("") +
+      '<span class="ads-note" style="margin-left:6px;">Custom</span>' +
+      '<input type="date" id="rev_from" class="ads-link" value="' + escapeHtml(revRange.from) + '">' +
+      '<span class="ads-note">to</span>' +
+      '<input type="date" id="rev_to" class="ads-link" value="' + escapeHtml(revRange.to) + '">' +
+      '<button type="button" class="btn" id="rev_apply">Apply</button></div>' +
+      (revRangeActive() ? '<div class="ads-note" style="margin:-8px 0 16px;">Showing ' + escapeHtml(revRangeText()) + '. The Today, This month and 12-month trend figures stay fixed.</div>' : '');
+  }
+  function wireRevFilter() {
+    Array.prototype.forEach.call(document.querySelectorAll(".rev-preset"), function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-p"), r = revPreset(k);
+        revRange = { from: r.from, to: r.to, preset: k };
+        renderRevenueSection();
+      });
+    });
+    var ap = document.getElementById("rev_apply");
+    if (ap) ap.addEventListener("click", function () {
+      var f = document.getElementById("rev_from").value, t = document.getElementById("rev_to").value;
+      if (f && t && f > t) { alert("The start date is after the end date."); return; }
+      revRange = { from: f, to: t, preset: (f || t) ? "custom" : "all" };
+      renderRevenueSection();
+    });
+  }
+
   function renderRevenueSection() {
     document.getElementById("pageSub").textContent = "Read-only. Paystack orders, renewals and verified manual payments.";
     document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
-    authedFetch("/admin-revenue-stats").then(function (r) {
+    authedFetch("/admin-revenue-stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: revRange.from, to: revRange.to }) }).then(function (r) {
       if (!r.data || !r.data.ok) {
         document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load revenue.") + '</div>';
         return;
@@ -1898,16 +1948,101 @@
       '<div class="rev-src" style="color:var(--dimmer);font-size:12px;">Counts only completed checkouts. Unfinished checkouts that reserved a code are excluded.</div></div>';
   }
 
+  /* ---------------- Profit (owner only, shown on the Revenue screen) ---------------- */
+
+  function profitApi(action, extra) {
+    return authedFetch("/admin-profit", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ action: action }, extra || {})),
+    }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
+      .catch(function () { return { ok: false, error: "Could not reach the server." }; });
+  }
+
+  function loadProfit(rev) {
+    var box = document.getElementById("profitBox");
+    if (!box || userRole !== "owner") return;
+    profitApi("overview", { from: revRange.from, to: revRange.to }).then(function (p) {
+      box = document.getElementById("profitBox");
+      if (!box) return;
+      if (!p || !p.ok) { box.innerHTML = '<div class="empty">' + escapeHtml((p && p.error) || "Could not load profit.") + '</div>'; return; }
+      drawProfit(box, rev, p);
+    });
+  }
+
+  function drawProfit(box, rev, p) {
+    var m = function (n) { return naira(n); };
+    var income = rev.totals.allTime;
+    var profit = income - p.adSpendTotal - p.expensesTotal - p.heldBudget;
+    var html = '<div class="rev-h">Profit</div><div class="stats-row">' +
+      revStat(m(income), "Income", revRangeActive() ? "in range" : "all-time revenue") +
+      revStat(m(p.adSpendTotal), "Meta ad spend", revRangeActive() ? "in range" : "all campaigns") +
+      revStat(m(p.expensesTotal), "Other expenses", revRangeActive() ? "in range" : "entered below") +
+      revStat(m(p.heldBudget), "Held for client ads", p.heldApplies ? "unspent, until Delivered" : "not counted: range ends before today") +
+      revStat(m(profit), "Profit", profit < 0 ? "loss so far" : "so far") +
+      '</div>';
+
+    // Month by month (revenue trend is the last 12 months; show the latest 6).
+    var months = revRangeActive()
+      ? rev.monthlyTrend.filter(function (x) { return (!revRange.from || x.month >= revRange.from.slice(0, 7)) && (!revRange.to || x.month <= revRange.to.slice(0, 7)); }).reverse()
+      : rev.monthlyTrend.slice(-6).reverse();
+    html += '<div class="table-wrap rev-table" style="margin-bottom:18px;"><table><thead><tr><th>Month</th><th>Income</th><th>Ad spend</th><th>Expenses</th><th>Profit</th></tr></thead><tbody>' +
+      months.map(function (x) {
+        var ad = p.adSpendByMonth[x.month] || 0, ex = p.expensesByMonth[x.month] || 0, pr = x.total - ad - ex;
+        var label = new Date(x.month + "-01T00:00:00Z").toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+        return '<tr><td class="name">' + escapeHtml(label) + '</td><td class="amount">' + m(x.total) + '</td><td class="amount">' + m(ad) + '</td><td class="amount">' + m(ex) + '</td><td class="amount"' + (pr < 0 ? ' style="color:var(--red)"' : ' style="color:#7ee0a8"') + '>' + m(pr) + '</td></tr>';
+      }).join("") + '</tbody></table></div>' +
+      '<div class="ads-note" style="margin-bottom:18px;">Profit = income − Meta ad spend − other expenses − ad budget clients paid for that is still unspent. That unspent budget joins your profit once the campaign is marked Delivered. Monthly rows leave the held budget out and always cover whole months. If a client paid for ads through checkout or a manual payment, that money is already in Income.</div>';
+
+    html += '<div class="rev-h">Expenses</div>' +
+      '<form id="expForm" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' +
+      '<input id="exp_date" type="date" value="' + new Date().toISOString().slice(0, 10) + '" class="ads-link">' +
+      '<input id="exp_label" type="text" placeholder="What was it for? (e.g. Domain renewal)" maxlength="120" class="ads-link" style="flex:2 1 220px;">' +
+      '<input id="exp_cat" type="text" placeholder="Category" maxlength="40" class="ads-link" style="flex:1 1 110px;">' +
+      '<input id="exp_amt" type="number" min="0" step="any" placeholder="Amount" class="ads-link" style="flex:1 1 110px;">' +
+      '<button type="submit" class="btn primary">Add</button></form><div id="expMsg" class="ads-note" style="margin-bottom:8px;"></div>' +
+      (p.expenses.length
+        ? '<div class="table-wrap rev-table" style="margin-bottom:28px;"><table><thead><tr><th>Date</th><th>For</th><th>Category</th><th>Amount</th><th></th></tr></thead><tbody>' +
+          p.expenses.map(function (e) {
+            return '<tr><td>' + escapeHtml(fmtDay(e.spent_on)) + '</td><td class="name">' + escapeHtml(e.label) + '</td><td>' + escapeHtml(e.category || "—") + '</td><td class="amount">' + m(e.amount) + '</td><td><button type="button" class="btn exp-del" data-id="' + escapeHtml(e.id) + '">Delete</button></td></tr>';
+          }).join("") + '</tbody></table></div>'
+        : '<div class="empty">No expenses added yet.</div>');
+    box.innerHTML = html;
+
+    document.getElementById("expForm").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var msg = document.getElementById("expMsg");
+      msg.textContent = "Saving…";
+      profitApi("add_expense", {
+        spent_on: document.getElementById("exp_date").value, label: document.getElementById("exp_label").value,
+        category: document.getElementById("exp_cat").value, amount: document.getElementById("exp_amt").value,
+      }).then(function (r) {
+        if (!r.ok) { msg.textContent = r.error || "Could not save."; return; }
+        loadProfit(rev);
+      });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll(".exp-del"), function (b) {
+      b.addEventListener("click", function () {
+        if (!confirm("Delete this expense?")) return;
+        profitApi("delete_expense", { id: b.getAttribute("data-id") }).then(function (r) {
+          if (!r.ok) { alert(r.error || "Could not delete."); return; }
+          loadProfit(rev);
+        });
+      });
+    });
+  }
+
   function drawRevenue(d) {
     var t = d.totals, s = d.subscriptions;
-    var html = '<div class="stats-row">' +
-      revStat(naira(t.allTime), "All-time revenue") +
+    var html = revFilterHtml() + '<div class="stats-row">' +
+      revStat(naira(t.allTime), revRangeActive() ? "Revenue in range" : "All-time revenue", revRangeActive() ? revRangeText() : "") +
       revStat(naira(t.thisMonth), "This month") +
       revStat(naira(t.today), "Today") +
       revStat(String(s.activeCount), "Active subscriptions", "MRR " + naira(s.mrr)) +
       revStat(naira(t.pendingManual), "Pending manual payments") +
       revStat(naira(t.feesAllTime), "Paystack fees paid by customers", "This month " + naira(t.feesThisMonth) + " \u00b7 " + (t.feePayments || 0) + " payment" + (t.feePayments === 1 ? "" : "s")) +
       '</div>';
+
+    html += '<div id="profitBox"></div>';
 
     if (d.failedRenewals && d.failedRenewals.length) {
       html += '<div class="rev-alert"><div class="rev-h">' + d.failedRenewals.length + ' failed renewal' + (d.failedRenewals.length === 1 ? "" : "s") + ' need attention</div>' +
@@ -1952,6 +2087,8 @@
         : '<div class="empty">No transactions yet.</div>');
 
     document.getElementById("pageBody").innerHTML = html;
+    wireRevFilter();
+    loadProfit(d);
   }
 
   /* ---------------- Meta Ads (owner only) ---------------- */
