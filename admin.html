@@ -1977,8 +1977,8 @@
       revStat(m(income), "Income", revRangeActive() ? "in range" : "all-time revenue") +
       revStat(m(p.adSpendTotal), "Meta ad spend", revRangeActive() ? "in range" : "all campaigns") +
       revStat(m(p.expensesTotal), "Other expenses", revRangeActive() ? "in range" : "entered below") +
-      revStat(m(p.heldBudget), "Held for client ads", p.heldApplies ? "unspent, until Delivered" : "not counted: range ends before today") +
-      revStat(m(profit), "Profit", profit < 0 ? "loss so far" : "so far") +
+      revStat(m(p.heldBudget), "Held for client ads", p.heldApplies ? "unspent, until Delivered" : "only counted for all time") +
+      revStat(m(profit), "Profit", profit < 0 ? "loss in this period" : (p.heldApplies ? "so far" : "in this period")) +
       '</div>';
 
     // Month by month (revenue trend is the last 12 months; show the latest 6).
