@@ -534,6 +534,7 @@
     { id: "manualpay", staff: true, label: "Manual Payments", wired: true },
     { id: "revenue", label: "Revenue", staff: true, wired: true },
     { id: "ads", label: "Ads", staff: true, wired: true },
+    { id: "payments", label: "Payments", staff: true, wired: true },
     { id: "team", label: "Team", wired: true },
     { id: "settings", label: "Settings", staff: true, wired: true },
   ];
@@ -717,6 +718,7 @@
     else if (sectionId === "settings") renderSettingsSection();
     else if (sectionId === "chat") renderChatSection();
     else if (sectionId === "ads") renderAdsSection();
+    else if (sectionId === "payments") renderPaymentsSection();
     else renderPlaceholder(section.label);
   }
 
@@ -1657,11 +1659,14 @@
     ["revenue", "Revenue", "", "viewonly"],
     ["ads", "Ads", "Link campaigns, set stages & promised cost per result"],
     ["adsmoney", "Ad payments & fees", "Enter what clients paid and your fees"],
+    ["payments", "Team payments", "Create salary, bonus & commission payments and submit them"],
+    ["payapprove", "Approve & pay team payments", "Approve, reject, mark paid and adjust commissions", "editonly"],
+    ["paybank", "Team bank details", "Change & verify bank details (view shows full numbers)"],
     ["settings", "Settings", "Banner, sale popup & Paystack fee switch"]
   ];
   // One-click access presets for the Team page.
   var PRESETS = {
-    manager: { projects: "edit", assessments: "edit", tickets: "edit", manualpay: "edit", discounts: "edit", sales: "edit", catalog: "edit", revenue: "view", ads: "edit", adsmoney: "view", settings: "edit" },
+    manager: { projects: "edit", assessments: "edit", tickets: "edit", manualpay: "edit", discounts: "edit", sales: "edit", catalog: "edit", revenue: "view", ads: "edit", adsmoney: "view", payments: "edit", payapprove: "edit", paybank: "view", settings: "edit" },
     clear: {}
   };
   var DEFAULT_ACCESS = ["projects", "assessments", "tickets"];
@@ -1674,9 +1679,10 @@
     var rows = TEAM_AREAS.map(function (a) {
       var lvl = selected.indexOf(a[0] + ":edit") !== -1 ? "edit" : (selected.indexOf(a[0]) !== -1 ? "view" : "none");
       if (a[3] === "viewonly" && lvl === "edit") lvl = "view";
+      if (a[3] === "editonly" && lvl === "view") lvl = "none";
       return '<div class="field" style="margin-bottom:10px;"><label>' + a[1] + '</label><select class="t_area" data-area="' + a[0] + '">' +
         '<option value="none"' + (lvl === "none" ? " selected" : "") + '>No access</option>' +
-        '<option value="view"' + (lvl === "view" ? " selected" : "") + '>View only</option>' +
+        (a[3] === "editonly" ? "" : '<option value="view"' + (lvl === "view" ? " selected" : "") + '>View only</option>') +
         (a[3] === "viewonly" ? "" : '<option value="edit"' + (lvl === "edit" ? " selected" : "") + '>Can edit \u2014 ' + a[2] + '</option>') +
         '</select></div>';
     }).join("");
@@ -2308,6 +2314,386 @@
     };
     if (ads.data && Date.now() - ads.at < 120000) paint(ads.data);
     else adsLoad().then(paint);
+  }
+
+  /* ---------------- Team payments ---------------- */
+
+  var pay = { data: null, tab: "payments", f: { profile: "", kind: "", status: "", from: "", to: "" }, comm: null, audit: null };
+  var PAY_STATUS = { draft: "Draft", pending_approval: "Pending approval", approved: "Approved", processing: "Processing", paid: "Paid", rejected: "Rejected", failed: "Failed" };
+  var PAY_KIND = { salary: "Salary", commission: "Commission", bonus: "Bonus", other: "Other" };
+  var PAY_TABS = [["payments", "Payments"], ["people", "People"], ["commissions", "Commissions"], ["reports", "Reports"], ["activity", "Activity"]];
+
+  function payApi(action, extra) {
+    return authedFetch("/admin-payments", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ action: action }, extra || {})),
+    }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
+      .catch(function () { return { ok: false, error: "Could not reach the server." }; });
+  }
+  function payP(k) { return !!(pay.data && pay.data.perms && pay.data.perms[k]); }
+  function payMonthLabel(p) {
+    if (!p) return "";
+    var parts = String(p).split("-");
+    return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(parts[1]) - 1] + " " + parts[0];
+  }
+  function payStatusPill(r) {
+    var cls = r.status === "paid" ? "st-ok" : (r.status === "failed" || r.status === "rejected" ? "st-failed" : (r.status === "approved" ? "delivered" : (r.status === "pending_approval" ? "review" : "")));
+    var html = '<span class="pill ' + cls + '">' + escapeHtml(PAY_STATUS[r.status] || r.status) + '</span>';
+    if (r.flag === "overdue") html += ' <span class="pill st-failed">Overdue</span>';
+    else if (r.flag === "upcoming") html += ' <span class="pill in_progress">Due soon</span>';
+    return html;
+  }
+  function payCsv(name, rows) {
+    var csv = rows.map(function (r) {
+      return r.map(function (c) {
+        var s = String(c == null ? "" : c);
+        if (/^[=+\-@]/.test(s)) s = "'" + s;
+        return '"' + s.replace(/"/g, '""') + '"';
+      }).join(",");
+    }).join("\r\n");
+    var blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function payThisMonth() { var d = new Date(Date.now() + 3600000); return d.toISOString().slice(0, 7); }
+
+  function renderPaymentsSection() {
+    document.getElementById("pageSub").textContent = "Salaries and commissions: create, approve, then mark paid with the bank reference. Everything is logged.";
+    paintPayActions();
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
+    payLoad();
+  }
+  function paintPayActions() {
+    var a = [];
+    if (payP("edit")) a.push('<button type="button" class="btn" id="payGen">Create this month’s salaries</button><button type="button" class="btn primary" id="payAdd">+ Payment</button>');
+    document.getElementById("pageActions").innerHTML = a.join("");
+    var g = document.getElementById("payGen"), n = document.getElementById("payAdd");
+    if (g) g.addEventListener("click", function () {
+      var per = prompt("Create draft salaries for which month? (YYYY-MM)", payThisMonth());
+      if (!per) return;
+      payApi("generate_salaries", { period: per.trim() }).then(function (r) {
+        if (!r.ok) return alert(r.error || "Could not create salaries.");
+        alert(r.created + " salary draft(s) created" + (r.skipped ? ", " + r.skipped + " already existed." : "."));
+        payLoad();
+      });
+    });
+    if (n) n.addEventListener("click", function () { payOpenRecord(); });
+  }
+  function payLoad() {
+    var f = pay.f;
+    return payApi("overview", { profile_id: f.profile, kind: f.kind, status: f.status, from: f.from, to: f.to }).then(function (d) {
+      if (currentSection !== "payments") return;
+      if (!d || !d.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((d && d.error) || "Could not load payments.") + '</div>'; return; }
+      pay.data = d; paintPayActions(); drawPayments();
+    });
+  }
+  function payTabs() {
+    var tabs = PAY_TABS.filter(function (t) { return t[0] !== "activity" || payP("approve") || payP("owner"); });
+    return '<div class="inline-actions" style="margin:0 0 16px;">' + tabs.map(function (t) {
+      return '<button type="button" class="btn pay-tab' + (pay.tab === t[0] ? " primary" : "") + '" data-t="' + t[0] + '">' + t[1] + '</button>';
+    }).join("") + '</div>';
+  }
+  function drawPayments() {
+    var d = pay.data, html = payTabs();
+    if (pay.tab === "payments") html += payTabPayments(d);
+    else if (pay.tab === "people") html += payTabPeople(d);
+    else if (pay.tab === "commissions") html += '<div id="payComm"><div class="empty">Loading…</div></div>';
+    else if (pay.tab === "reports") html += payTabReports(d);
+    else if (pay.tab === "activity") html += '<div id="payAudit"><div class="empty">Loading…</div></div>';
+    document.getElementById("pageBody").innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll(".pay-tab"), function (b) {
+      b.addEventListener("click", function () { pay.tab = b.getAttribute("data-t"); drawPayments(); });
+    });
+    if (pay.tab === "payments") wirePayments(d);
+    else if (pay.tab === "people") wirePeople(d);
+    else if (pay.tab === "commissions") payLoadComm();
+    else if (pay.tab === "reports") wireReports(d);
+    else if (pay.tab === "activity") payLoadAudit();
+  }
+
+  /* ----- payments tab ----- */
+  function payTabPayments(d) {
+    var s = d.summary, f = pay.f;
+    var pend = (s.byStatus.pending_approval || { count: 0 }).count;
+    var html = '<div class="stats-row">' +
+      revStat(naira(s.outstandingTotal), "Outstanding", "not paid yet") +
+      revStat(naira(s.overdueTotal), "Overdue", s.overdueCount + " payment" + (s.overdueCount === 1 ? "" : "s")) +
+      revStat(String(pend), "Waiting for approval") +
+      revStat(naira(s.paidTotal), "Paid", "in this view") + '</div>';
+    html += '<div class="two-col" style="margin-bottom:10px;">' +
+      '<div class="field"><label>Person</label><select id="pf_profile"><option value="">Everyone</option>' + d.profiles.map(function (p) { return '<option value="' + p.id + '"' + (f.profile === p.id ? " selected" : "") + '>' + escapeHtml(p.personName) + '</option>'; }).join("") + '</select></div>' +
+      '<div class="field"><label>Type</label><select id="pf_kind"><option value="">All</option>' + Object.keys(PAY_KIND).map(function (k) { return '<option value="' + k + '"' + (f.kind === k ? " selected" : "") + '>' + PAY_KIND[k] + '</option>'; }).join("") + '</select></div>' +
+      '<div class="field"><label>Status</label><select id="pf_status"><option value="">All</option>' +
+      Object.keys(PAY_STATUS).map(function (k) { return '<option value="' + k + '"' + (f.status === k ? " selected" : "") + '>' + PAY_STATUS[k] + '</option>'; }).join("") +
+      '<option value="overdue"' + (f.status === "overdue" ? " selected" : "") + '>Overdue</option><option value="upcoming"' + (f.status === "upcoming" ? " selected" : "") + '>Due in 7 days</option></select></div>' +
+      '<div class="field"><label>Due from – to</label><div class="two-col"><input type="date" id="pf_from" value="' + escapeHtml(f.from) + '"><input type="date" id="pf_to" value="' + escapeHtml(f.to) + '"></div></div></div>';
+    if (!d.records.length) return html + '<div class="empty">No payments match. ' + (payP("edit") ? 'Use “+ Payment” or “Create this month’s salaries”.' : '') + '</div>';
+    html += '<div class="table-wrap"><table><thead><tr><th>Person</th><th>For</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>' +
+      d.records.map(function (r) {
+        var acts = [];
+        if ((r.status === "draft" || r.status === "failed") && payP("edit")) acts.push('<button class="btn pay-act" data-a="submit" data-id="' + r.id + '">Submit</button>');
+        if (r.status === "draft" && payP("edit")) acts.push('<button class="btn pay-act" data-a="edit" data-id="' + r.id + '">Edit</button><button class="btn danger pay-act" data-a="delete" data-id="' + r.id + '">Delete</button>');
+        if (r.status === "pending_approval" && r.canApproveThis) acts.push('<button class="btn primary pay-act" data-a="approve" data-id="' + r.id + '">Approve</button>');
+        if (r.status === "pending_approval" && payP("approve") && !r.canApproveThis) acts.push('<span class="ads-note">Needs another approver</span>');
+        if ((r.status === "pending_approval" || r.status === "approved") && payP("approve")) acts.push('<button class="btn danger pay-act" data-a="reject" data-id="' + r.id + '">Reject</button>');
+        if (r.status === "approved" && payP("approve")) acts.push('<button class="btn primary pay-act" data-a="paid" data-id="' + r.id + '">Mark paid</button><button class="btn pay-act" data-a="failed" data-id="' + r.id + '">Failed</button>');
+        var trail = [];
+        if (r.createdBy) trail.push("Created by " + r.createdBy);
+        if (r.approvedBy) trail.push("Approved by " + r.approvedBy + (r.approvedAt ? " " + fmtDay(r.approvedAt) : ""));
+        if (r.paidBy) trail.push("Paid by " + r.paidBy + (r.paidAt ? " " + fmtDay(r.paidAt) : "") + (r.paymentRef ? " · ref " + r.paymentRef : ""));
+        if (r.paidTo) trail.push("To " + r.paidTo);
+        if (r.rejectReason) trail.push("Rejected: " + r.rejectReason);
+        if (r.failureNote) trail.push("Failed: " + r.failureNote);
+        return '<tr style="cursor:default"><td>' + escapeHtml(r.personName) + '<div class="ads-note">' + escapeHtml(PAY_KIND[r.kind] || r.kind) + '</div></td>' +
+          '<td>' + escapeHtml(payMonthLabel(r.period)) + (r.description ? '<div class="ads-note">' + escapeHtml(r.description) + '</div>' : '') + '</td>' +
+          '<td>' + naira(r.amount) + '</td><td>' + escapeHtml(fmtDay(r.dueDate + "T12:00:00")) + '</td><td>' + payStatusPill(r) + '<div class="ads-note">' + escapeHtml(trail.join(" · ")) + '</div></td>' +
+          '<td><div class="inline-actions" style="margin:0;flex-wrap:wrap;">' + acts.join("") + '</div></td></tr>';
+      }).join("") + '</tbody></table></div>';
+    return html;
+  }
+  function wirePayments(d) {
+    ["profile", "kind", "status", "from", "to"].forEach(function (k) {
+      var el = document.getElementById("pf_" + k);
+      if (el) el.addEventListener("change", function () { pay.f[k] = el.value; payLoad(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".pay-act"), function (b) {
+      b.addEventListener("click", function () {
+        var a = b.getAttribute("data-a"), id = b.getAttribute("data-id");
+        var rec = d.records.filter(function (x) { return x.id === id; })[0];
+        var done = function (r) { b.disabled = false; if (!r.ok) alert(r.error || "That didn't work."); else if (r.problems && r.problems.length) alert(r.problems.join("\n")); payLoad(); };
+        if (a === "edit") return payOpenRecord(rec);
+        b.disabled = true;
+        if (a === "submit") payApi("submit", { id: id }).then(done);
+        else if (a === "delete") { if (!confirm("Delete this draft?")) { b.disabled = false; return; } payApi("delete_record", { id: id }).then(done); }
+        else if (a === "approve") { if (!confirm("Approve " + naira(rec.amount) + " for " + rec.personName + "?")) { b.disabled = false; return; } payApi("approve", { id: id }).then(done); }
+        else if (a === "reject") { var why = prompt("Why are you rejecting it?"); if (!why) { b.disabled = false; return; } payApi("reject", { id: id, reason: why }).then(done); }
+        else if (a === "paid") { var ref = prompt("After you've sent " + naira(rec.amount) + " to " + rec.personName + ", enter the bank transfer reference / receipt number:"); if (!ref) { b.disabled = false; return; } payApi("mark_paid", { id: id, payment_ref: ref }).then(done); }
+        else if (a === "failed") { var note = prompt("What went wrong? (optional)") ; if (note === null) { b.disabled = false; return; } payApi("mark_failed", { id: id, note: note }).then(done); }
+      });
+    });
+  }
+  function payOpenRecord(rec) {
+    var d = pay.data, editing = !!rec;
+    document.getElementById("drawerTitle").textContent = editing ? "Edit draft payment" : "New payment";
+    document.getElementById("drawerSub").textContent = editing ? rec.personName : "Created as a draft; submit it when ready for approval";
+    var profs = d.profiles.filter(function (p) { return p.active; });
+    document.getElementById("drawerBody").innerHTML = editing ?
+      '<div class="field"><label>Amount (₦)</label><input id="pr_amount" type="number" min="0" step="any" value="' + rec.amount + '"' + (rec.commissionId ? " disabled" : "") + '></div>' +
+      (rec.commissionId ? '<div class="ads-note" style="margin-bottom:10px;">Commission amounts change only through an authorised adjustment on the Commissions tab.</div>' : '') +
+      '<div class="field"><label>Due date</label><input id="pr_due" type="date" value="' + escapeHtml(rec.dueDate) + '"></div>' +
+      '<div class="field"><label>Note</label><input id="pr_desc" value="' + escapeHtml(rec.description) + '"></div>' :
+      '<div class="field"><label>Person</label><select id="pr_profile">' + profs.map(function (p) { return '<option value="' + p.id + '">' + escapeHtml(p.personName) + '</option>'; }).join("") + '</select></div>' +
+      '<div class="two-col"><div class="field"><label>Type</label><select id="pr_kind"><option value="salary">Salary</option><option value="bonus">Bonus</option><option value="other">Other</option></select></div>' +
+      '<div class="field"><label>For month</label><input id="pr_period" type="month" value="' + payThisMonth() + '"></div></div>' +
+      '<div class="field"><label>Amount (₦) <span class="ads-note">(blank = their monthly salary)</span></label><input id="pr_amount" type="number" min="0" step="any"></div>' +
+      '<div class="field"><label>Due date <span class="ads-note">(blank = their pay day)</span></label><input id="pr_due" type="date"></div>' +
+      '<div class="field"><label>Note</label><input id="pr_desc" placeholder="optional"></div>';
+    setDrawerFooter("save", editing ? "Save" : "Create draft");
+    var st = document.getElementById("drawerStatus"); st.textContent = "";
+    document.getElementById("drawerSave").onclick = function () {
+      var btn = this; btn.disabled = true; st.textContent = "Saving…"; st.className = "save-status";
+      var p = editing ?
+        payApi("update_record", { id: rec.id, amount: rec.commissionId ? undefined : document.getElementById("pr_amount").value, due_date: document.getElementById("pr_due").value, description: document.getElementById("pr_desc").value }) :
+        payApi("create_record", { profile_id: document.getElementById("pr_profile").value, kind: document.getElementById("pr_kind").value, period: document.getElementById("pr_period").value, amount: document.getElementById("pr_amount").value, due_date: document.getElementById("pr_due").value, description: document.getElementById("pr_desc").value });
+      p.then(function (r) {
+        btn.disabled = false;
+        if (r.ok) { closeDrawer(); payLoad(); } else { st.textContent = r.error || "Could not save."; st.className = "save-status err"; }
+      });
+    };
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+
+  /* ----- people tab ----- */
+  function payTabPeople(d) {
+    var html = payP("edit") ? '<div class="inline-actions" style="margin:0 0 12px;"><button type="button" class="btn primary" id="payAddPerson">+ Person</button></div>' : "";
+    if (!d.profiles.length) return html + '<div class="empty">No one yet. Add each person you pay, with their salary and bank details.</div>';
+    return html + '<div class="table-wrap"><table><thead><tr><th>Person</th><th>Salary</th><th>Pay day</th><th>Bank</th><th>Commission</th></tr></thead><tbody>' +
+      d.profiles.map(function (p) {
+        var bank = p.hasBank ? escapeHtml(p.bankName) + " " + escapeHtml(p.accountMasked) + (p.bankVerified ? ' <span class="pill st-ok">Verified</span>' : ' <span class="pill st-failed">Not verified</span>') : '<span class="pill st-failed">Missing</span>';
+        return '<tr data-pid="' + p.id + '"><td>' + escapeHtml(p.personName) + (p.active ? "" : ' <span class="pill">Inactive</span>') + '<div class="ads-note">' + escapeHtml(p.roleLabel || "") + '</div></td>' +
+          '<td>' + (p.monthlySalary ? naira(p.monthlySalary) : "—") + '</td><td>' + p.salaryDay + '</td><td>' + bank + '</td><td>' + (p.commissionEnabled ? "On" : "Off") + '</td></tr>';
+      }).join("") + '</tbody></table></div>';
+  }
+  function wirePeople(d) {
+    var a = document.getElementById("payAddPerson");
+    if (a) a.addEventListener("click", function () { payOpenPerson(null); });
+    Array.prototype.forEach.call(document.querySelectorAll("tr[data-pid]"), function (tr) {
+      tr.addEventListener("click", function () { payOpenPerson(d.profiles.filter(function (p) { return p.id === tr.getAttribute("data-pid"); })[0]); });
+    });
+  }
+  function payOpenPerson(p) {
+    var d = pay.data, P = d.perms, isNew = !p; p = p || { personName: "", email: "", roleLabel: "", monthlySalary: "", salaryDay: 28, commissionEnabled: false, active: true, notes: "", bankName: "", accountName: "", accountNumber: "", bankCode: "" };
+    document.getElementById("drawerTitle").textContent = isNew ? "Add person" : p.personName;
+    document.getElementById("drawerSub").textContent = isNew ? "Someone you pay" : (p.roleLabel || "");
+    var canBankEdit = P.bankEdit;
+    var linkOpts = '<option value="">Not linked</option>' + (d.team || []).map(function (t) { return '<option value="' + escapeHtml(t.sub) + '"' + (p.teamSub === t.sub ? " selected" : "") + '>' + escapeHtml(t.email || t.sub) + '</option>'; }).join("");
+    var bankBlock;
+    if (P.bank) {
+      bankBlock = '<div class="rev-h" style="margin:16px 0 8px;">Bank details</div>' +
+        '<div class="field"><label>Bank name</label><input id="pp_bank" value="' + escapeHtml(p.bankName) + '"' + (canBankEdit ? "" : " disabled") + '></div>' +
+        '<div class="two-col"><div class="field"><label>Account number</label><input id="pp_acct" inputmode="numeric" maxlength="10" value="' + escapeHtml(p.accountNumber || "") + '"' + (canBankEdit ? "" : " disabled") + '></div>' +
+        '<div class="field"><label>Account name</label><input id="pp_acctname" value="' + escapeHtml(p.accountName) + '"' + (canBankEdit ? "" : " disabled") + '></div></div>' +
+        (isNew ? "" : '<div class="ads-note" style="margin-bottom:8px;">' + (p.bankVerified ? "Verified" + (p.bankVerifiedAt ? " " + escapeHtml(fmtDay(p.bankVerifiedAt)) : "") + ". Changing any bank detail resets this." : "Not verified yet. Confirm the name matches the bank account, then verify. Payments can't be approved until then.") + '</div>' +
+          (canBankEdit && !p.bankVerified && p.hasBank ? '<button type="button" class="btn" id="pp_verify">Verify bank details</button>' : ""));
+    } else {
+      bankBlock = '<div class="ads-note" style="margin-top:14px;">Bank: ' + (p.hasBank ? escapeHtml(p.bankName) + " " + escapeHtml(p.accountMasked) : "none yet") + ' · you don’t have access to full bank details.</div>';
+    }
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Name</label><input id="pp_name" value="' + escapeHtml(p.personName) + '"></div>' +
+      '<div class="two-col"><div class="field"><label>Role</label><input id="pp_role" value="' + escapeHtml(p.roleLabel || "") + '" placeholder="e.g. Manager"></div>' +
+      '<div class="field"><label>Email <span class="ads-note">(for payment notices)</span></label><input id="pp_email" type="email" value="' + escapeHtml(p.email || "") + '"></div></div>' +
+      '<div class="two-col"><div class="field"><label>Monthly salary (₦)</label><input id="pp_sal" type="number" min="0" step="any" value="' + (p.monthlySalary || "") + '"></div>' +
+      '<div class="field"><label>Pay day (1–28)</label><input id="pp_day" type="number" min="1" max="28" value="' + p.salaryDay + '"></div></div>' +
+      '<div class="field"><label>Linked login</label><select id="pp_link">' + linkOpts + '</select></div>' +
+      '<label class="check-row"><input type="checkbox" id="pp_comm"' + (p.commissionEnabled ? " checked" : "") + '> Earns commission</label>' +
+      '<label class="check-row"><input type="checkbox" id="pp_active"' + (p.active ? " checked" : "") + '> Active</label>' +
+      '<div class="field"><label>Notes</label><input id="pp_notes" value="' + escapeHtml(p.notes || "") + '"></div>' + bankBlock;
+    setDrawerFooter(P.edit ? "save" : "none", "Save");
+    var st = document.getElementById("drawerStatus"); st.textContent = "";
+    var v = document.getElementById("pp_verify");
+    if (v) v.addEventListener("click", function () {
+      v.disabled = true;
+      payApi("verify_bank", { id: p.id }).then(function (r) { if (r.ok) { closeDrawer(); payLoad(); } else { v.disabled = false; st.textContent = r.error || "Could not verify."; st.className = "save-status err"; } });
+    });
+    if (!P.edit) { lockDrawerInputs(); }
+    document.getElementById("drawerSave").onclick = function () {
+      var btn = this; btn.disabled = true; st.textContent = "Saving…"; st.className = "save-status";
+      var body = { id: p.id, person_name: document.getElementById("pp_name").value, role_label: document.getElementById("pp_role").value, email: document.getElementById("pp_email").value,
+        monthly_salary: document.getElementById("pp_sal").value, salary_day: document.getElementById("pp_day").value, team_sub: document.getElementById("pp_link").value,
+        commission_enabled: document.getElementById("pp_comm").checked, active: document.getElementById("pp_active").checked, notes: document.getElementById("pp_notes").value };
+      if (P.bank) { body.bank_name = document.getElementById("pp_bank").value; body.account_number = document.getElementById("pp_acct").value; body.account_name = document.getElementById("pp_acctname").value; body.bank_code = p.bankCode || ""; }
+      payApi("save_profile", body).then(function (r) {
+        btn.disabled = false;
+        if (r.ok) { closeDrawer(); payLoad(); } else { st.textContent = r.error || "Could not save."; st.className = "save-status err"; }
+      });
+    };
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+
+  /* ----- commissions tab ----- */
+  function payTierText(t) { return escapeHtml(t.label) + ": from " + naira(t.min) + " → " + t.rate + "%"; }
+  function payLoadComm() {
+    payApi("commissions").then(function (r) {
+      var box = document.getElementById("payComm"); if (!box || pay.tab !== "commissions") return;
+      if (!r.ok) { box.innerHTML = '<div class="empty">' + escapeHtml(r.error || "Could not load commissions.") + '</div>'; return; }
+      var d = pay.data, P = d.perms;
+      var html = '<div class="rev-card" style="padding:14px;margin-bottom:16px;"><div class="rev-h">Commission phases</div>' +
+        d.tiers.map(function (t) { return '<div class="rev-src"><span>' + escapeHtml(t.label) + ' · sales from ' + naira(t.min) + '</span><span class="amount">' + t.rate + '%</span></div>'; }).join("") +
+        '<div class="ads-note" style="margin-top:6px;">The rate of the highest phase a person’s monthly sales reach applies to all their sales that month.</div>' +
+        (P.owner ? '<button type="button" class="btn" id="payTiers" style="margin-top:8px;">Edit phases</button>' : "") + '</div>';
+      var people = d.profiles.filter(function (p) { return p.active && p.commissionEnabled; });
+      if (P.edit) {
+        html += '<div class="rev-card" style="padding:14px;margin-bottom:16px;"><div class="rev-h">Calculate a commission</div>' +
+          (people.length ? '<div class="two-col"><div class="field"><label>Person</label><select id="pc_profile">' + people.map(function (p) { return '<option value="' + p.id + '">' + escapeHtml(p.personName) + '</option>'; }).join("") + '</select></div>' +
+            '<div class="field"><label>Month</label><input id="pc_period" type="month" value="' + payThisMonth() + '"></div></div>' +
+            '<div class="field"><label>Total sales for the month (₦)</label><input id="pc_sales" type="number" min="0" step="any"></div>' +
+            '<div class="field"><label>Note</label><input id="pc_note" placeholder="optional"></div>' +
+            '<div class="ads-note" id="pc_preview" style="margin-bottom:8px;"></div><button type="button" class="btn primary" id="pc_go">Create commission draft</button><span class="save-status" id="pc_st" style="margin-left:10px;"></span>'
+            : '<div class="ads-note">Turn on “Earns commission” for someone on the People tab first.</div>') + '</div>';
+      }
+      html += r.commissions.length ? '<div class="table-wrap"><table><thead><tr><th>Person</th><th>Month</th><th>Sales</th><th>Phase</th><th>Calculated</th><th>Adjustment</th><th>Final</th><th></th></tr></thead><tbody>' +
+        r.commissions.map(function (c) {
+          return '<tr style="cursor:default"><td>' + escapeHtml(c.personName) + '<div class="ads-note">' + escapeHtml(c.createdBy || "") + '</div></td><td>' + escapeHtml(payMonthLabel(c.period)) + '</td><td>' + naira(c.salesAmount) + '</td>' +
+            '<td>' + escapeHtml(c.tierLabel) + ' · ' + c.ratePct + '%</td><td>' + naira(c.calculated) + '</td>' +
+            '<td>' + (c.adjustment ? (c.adjustment > 0 ? "+" : "−") + naira(Math.abs(c.adjustment)) + '<div class="ads-note">' + escapeHtml(c.adjustmentReason) + (c.adjustedBy ? " · " + escapeHtml(c.adjustedBy) : "") + '</div>' : "—") + '</td>' +
+            '<td>' + naira(c.final) + '<div class="ads-note">' + escapeHtml(PAY_STATUS[c.recordStatus] || "") + '</div></td>' +
+            '<td>' + (P.approve && (c.recordStatus === "draft" || c.recordStatus === "pending_approval") ? '<button class="btn pc-adj" data-id="' + c.id + '">Adjust</button>' : "") + '</td></tr>';
+        }).join("") + '</tbody></table></div>' : '<div class="empty">No commissions yet.</div>';
+      box.innerHTML = html;
+      var t = document.getElementById("payTiers"); if (t) t.addEventListener("click", function () { payOpenTiers(d.tiers); });
+      var sales = document.getElementById("pc_sales");
+      if (sales) {
+        var prev = function () {
+          var v = Number(sales.value) || 0, tier = d.tiers[0];
+          d.tiers.forEach(function (x) { if (v >= x.min) tier = x; });
+          document.getElementById("pc_preview").textContent = v > 0 && tier ? tier.label + " (" + tier.rate + "%) → commission " + naira(Math.round(v * tier.rate) / 100) : "";
+        };
+        sales.addEventListener("input", prev);
+        document.getElementById("pc_go").addEventListener("click", function () {
+          var b = this, s = document.getElementById("pc_st"); b.disabled = true; s.textContent = "Saving…"; s.className = "save-status";
+          payApi("calc_commission", { profile_id: document.getElementById("pc_profile").value, period: document.getElementById("pc_period").value, sales_amount: sales.value, note: document.getElementById("pc_note").value }).then(function (x) {
+            b.disabled = false;
+            if (x.ok) { pay.tab = "payments"; payLoad(); } else { s.textContent = x.error || "Could not create."; s.className = "save-status err"; }
+          });
+        });
+      }
+      Array.prototype.forEach.call(document.querySelectorAll(".pc-adj"), function (b) {
+        b.addEventListener("click", function () {
+          var adj = prompt("Adjustment in ₦ (use a minus to deduct):", "0"); if (adj === null) return;
+          var why = prompt("Reason for the adjustment:"); if (!why) return;
+          payApi("adjust_commission", { id: b.getAttribute("data-id"), adjustment: adj, reason: why }).then(function (x) { if (!x.ok) alert(x.error || "Could not adjust."); payLoadComm(); });
+        });
+      });
+    });
+  }
+  function payOpenTiers(tiers) {
+    document.getElementById("drawerTitle").textContent = "Commission phases";
+    document.getElementById("drawerSub").textContent = "Applies to commissions calculated from now on. Past ones keep the rules they were calculated with.";
+    var rows = tiers.slice();
+    var paint = function () {
+      document.getElementById("drawerBody").innerHTML = rows.map(function (t, i) {
+        return '<div class="two-col" style="margin-bottom:8px;"><div class="field"><label>' + escapeHtml(t.label) + ' – sales from (₦)</label><input class="pt_min" data-i="' + i + '" type="number" min="0" value="' + t.min + '"' + (i === 0 ? " disabled" : "") + '></div>' +
+          '<div class="field"><label>Rate (%)</label><input class="pt_rate" data-i="' + i + '" type="number" min="0" max="100" step="any" value="' + t.rate + '"></div></div>';
+      }).join("");
+    };
+    paint();
+    setDrawerFooter("save", "Save phases");
+    var st = document.getElementById("drawerStatus"); st.textContent = "";
+    document.getElementById("drawerSave").onclick = function () {
+      var btn = this;
+      var out = rows.map(function (t, i) {
+        return { label: t.label, min: i === 0 ? 0 : Number(document.querySelector('.pt_min[data-i="' + i + '"]').value) || 0, rate: Number(document.querySelector('.pt_rate[data-i="' + i + '"]').value) };
+      });
+      btn.disabled = true; st.textContent = "Saving…"; st.className = "save-status";
+      payApi("save_tiers", { tiers: out }).then(function (r) {
+        btn.disabled = false;
+        if (r.ok) { closeDrawer(); payLoad(); } else { st.textContent = r.error || "Could not save."; st.className = "save-status err"; }
+      });
+    };
+    scrim.classList.add("open"); drawer.classList.add("open");
+  }
+
+  /* ----- reports tab ----- */
+  function payTabReports(d) {
+    var s = d.summary;
+    var months = Object.keys(s.byMonth).sort().reverse();
+    var html = '<div class="inline-actions" style="margin:0 0 14px;"><button type="button" class="btn primary" id="payCsv">Download payments (CSV)</button><button type="button" class="btn" id="payCsvM">Download monthly summary (CSV)</button></div>' +
+      '<div class="ads-note" style="margin-bottom:12px;">Reports follow the filters on the Payments tab (person, type, status, dates). Bank account numbers are never included.</div>';
+    html += months.length ? '<div class="table-wrap" style="margin-bottom:18px;"><table><thead><tr><th>Month</th><th>Payments</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody>' +
+      months.map(function (m) { var x = s.byMonth[m]; return '<tr style="cursor:default"><td>' + escapeHtml(payMonthLabel(m)) + '</td><td>' + x.count + '</td><td>' + naira(x.paid) + '</td><td>' + naira(x.outstanding) + '</td></tr>'; }).join("") + '</tbody></table></div>' : '<div class="empty">Nothing to report for these filters.</div>';
+    var people = Object.keys(s.byPerson).map(function (k) { return s.byPerson[k]; }).sort(function (a, b) { return b.paid - a.paid; });
+    if (people.length) html += '<div class="table-wrap" style="margin-bottom:18px;"><table><thead><tr><th>Person</th><th>Paid</th><th>Outstanding</th></tr></thead><tbody>' +
+      people.map(function (p) { return '<tr style="cursor:default"><td>' + escapeHtml(p.name) + '</td><td>' + naira(p.paid) + '</td><td>' + naira(p.outstanding) + '</td></tr>'; }).join("") + '</tbody></table></div>';
+    var kinds = Object.keys(s.byKind);
+    if (kinds.length) html += '<div class="stats-row">' + kinds.map(function (k) { return revStat(naira(s.byKind[k]), (PAY_KIND[k] || k) + " paid"); }).join("") + '</div>';
+    return html;
+  }
+  function wireReports(d) {
+    var a = document.getElementById("payCsv"), b = document.getElementById("payCsvM");
+    if (a) a.addEventListener("click", function () {
+      var rows = [["Person", "Type", "For month", "Description", "Amount (NGN)", "Due date", "Status", "Created by", "Approved by", "Approved at", "Paid by", "Paid at", "Reference", "Paid to"]];
+      d.records.forEach(function (r) { rows.push([r.personName, PAY_KIND[r.kind] || r.kind, r.period, r.description, r.amount, r.dueDate, PAY_STATUS[r.status] + (r.flag === "overdue" ? " (overdue)" : ""), r.createdBy, r.approvedBy, r.approvedAt, r.paidBy, r.paidAt, r.paymentRef, r.paidTo]); });
+      payCsv("team-payments-" + d.today + ".csv", rows);
+    });
+    if (b) b.addEventListener("click", function () {
+      var rows = [["Month", "Payments", "Paid (NGN)", "Outstanding (NGN)"]];
+      Object.keys(d.summary.byMonth).sort().forEach(function (m) { var x = d.summary.byMonth[m]; rows.push([m, x.count, x.paid, x.outstanding]); });
+      payCsv("team-payments-monthly-" + d.today + ".csv", rows);
+    });
+  }
+
+  /* ----- activity tab ----- */
+  function payLoadAudit() {
+    payApi("audit").then(function (r) {
+      var box = document.getElementById("payAudit"); if (!box || pay.tab !== "activity") return;
+      if (!r.ok) { box.innerHTML = '<div class="empty">' + escapeHtml(r.error || "Could not load activity.") + '</div>'; return; }
+      box.innerHTML = r.entries.length ? '<div class="table-wrap"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead><tbody>' +
+        r.entries.map(function (e) {
+          var det = e.detail ? JSON.stringify(e.detail) : "";
+          return '<tr style="cursor:default"><td>' + escapeHtml(new Date(e.at).toLocaleString()) + '</td><td>' + escapeHtml(e.actor || "") + '</td><td>' + escapeHtml(e.entity + " · " + e.action.replace(/_/g, " ")) + '</td><td class="ads-note">' + escapeHtml(det.slice(0, 200)) + '</td></tr>';
+        }).join("") + '</tbody></table></div>' : '<div class="empty">No activity yet.</div>';
+    });
   }
 
   /* ---------------- Team chat ---------------- */
