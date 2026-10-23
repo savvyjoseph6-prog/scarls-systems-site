@@ -518,6 +518,7 @@
   var currentSection = "dashboard";
   var userRole = "owner";   // "owner" | "intern" (UI only; the server enforces access)
   var noAccess = false;
+  var memberLocked = false; // true until the owner confirms the person filled the team Google Form
   var mySections = [];     // areas an intern was granted (owner = all)
 
   var SECTIONS = [
@@ -582,7 +583,7 @@
       userRole = roleFromToken(await getToken());
       if (!userRole) { showNoAccess(user.email); return; }
       if (userRole === "intern") {
-        try { var me = await authedFetch("/admin-me"); mySections = (me.data && me.data.sections) || []; } catch (e) { mySections = []; }
+        try { var me = await authedFetch("/admin-me"); mySections = (me.data && me.data.sections) || []; memberLocked = !!(me.data && me.data.ok && me.data.confirmed === false); } catch (e) { mySections = []; }
       }
       authUserEmail = String(user.email || "");
       authUserName = (user.name && user.name.indexOf("@") === -1) ? user.name : String(user.email || "").split("@")[0];
@@ -590,7 +591,7 @@
       document.getElementById("login").style.display = "none";
       document.getElementById("shell").style.display = "flex";
       renderNav();
-      chatStartBadgePoll();
+      if (!memberLocked) chatStartBadgePoll();
       chatRegisterSw();
       var hm = /^#chat=([0-9a-f-]{36})$/.exec(location.hash || "");
       if (hm) { chat.pendingOpen = hm[1]; goTo("chat"); } else goTo("dashboard");
@@ -647,6 +648,7 @@
     var s = SECTIONS.filter(function (x) { return x.id === sectionId; })[0];
     if (!s) return false;
     if (userRole === "owner") return true;
+    if (memberLocked) return false;
     if (sectionId === "dashboard" || sectionId === "chat" || sectionId === "mydetails") return true;
     return !!s.staff && mySections.indexOf(sectionId) !== -1;
   }
@@ -692,6 +694,7 @@
   }
 
   function goTo(sectionId) {
+    if (memberLocked) { renderLockedScreen(); return; }
     if (!canSee(sectionId)) sectionId = "dashboard";
     if (currentSection === "chat" && sectionId !== "chat") stopChat();
     currentSection = sectionId;
@@ -1718,6 +1721,107 @@
     return names.length ? names.join(", ") : "None";
   }
 
+  /* ---------------- Team Google Form gate ---------------- */
+
+  function confirmCall(payload) {
+    return authedFetch("/team-confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.data || { ok: false, error: "No response." }; })
+      .catch(function () { return { ok: false, error: "Could not reach the server." }; });
+  }
+
+  // Shrinks a screenshot in the browser so it uploads quickly (max 1400px wide, JPEG).
+  function shrinkImage(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error("Could not read that file.")); };
+      fr.onload = function () {
+        var img = new Image();
+        img.onerror = function () { reject(new Error("That doesn't look like an image.")); };
+        img.onload = function () {
+          var w = img.width, h = img.height, max = 1400;
+          if (w > max) { h = Math.round(h * max / w); w = max; }
+          var c = document.createElement("canvas"); c.width = w; c.height = h;
+          var ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL("image/jpeg", 0.8));
+        };
+        img.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function renderLockedScreen() {
+    document.getElementById("pageTitle").textContent = "Confirm you're on the team";
+    document.getElementById("pageActions").innerHTML = "";
+    document.getElementById("pageSub").textContent = "";
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading\u2026</div>';
+    confirmCall({ action: "status" }).then(function (r) {
+      var body = document.getElementById("pageBody");
+      if (!r.ok) { body.innerHTML = '<div class="empty">' + escapeHtml(r.error || "Could not load.") + '</div>'; return; }
+      if (r.confirmed) {
+        authedFetch("/admin-me").then(function (me) {
+          mySections = (me.data && me.data.sections) || [];
+          memberLocked = false; renderNav(); chatStartBadgePoll(); goTo("dashboard");
+        });
+        return;
+      }
+      var pending = r.proof && r.proof.status === "pending";
+      var formBtn = r.formUrl
+        ? '<a class="btn primary" style="text-decoration:none;" target="_blank" rel="noopener" href="' + escapeHtml(r.formUrl) + '">Open the team form</a>'
+        : '<div class="save-status err">The owner hasn\u2019t added the form link yet. Please ask them for it.</div>';
+      var note = "";
+      if (pending) note = '<div class="save-status ok" style="font-size:14px;margin:0 0 14px;">\u2713 Your proof was received' + (r.proof.submittedAt ? " on " + escapeHtml(fmtDay(r.proof.submittedAt)) : "") + '. You\u2019ll get access as soon as the owner approves it.</div>';
+      else if (r.rejectReason) note = '<div class="save-status err" style="font-size:14px;margin:0 0 14px;">' + escapeHtml(r.rejectReason) + '</div>';
+      body.innerHTML =
+        '<div style="max-width:560px;">' +
+        '<p style="margin:0 0 14px;line-height:1.6;">Before you can use the SCARLS admin, we need to confirm you\u2019re part of the team. Everyone fills in the team Google Form first.</p>' +
+        note +
+        '<div class="field"><label>Step 1 \u00b7 Fill in the team Google Form</label>' + formBtn + '</div>' +
+        '<div class="field"><label>Step 2 \u00b7 Upload a screenshot of the confirmation you see after submitting</label>' +
+        '<input id="lk_file" type="file" accept="image/*"></div>' +
+        '<div class="inline-actions"><button type="button" class="btn primary" id="lk_send">' + (pending ? "Replace my proof" : "Send my proof") + '</button>' +
+        '<button type="button" class="btn" id="lk_check">Check if I\u2019m approved</button></div>' +
+        '<div class="save-status" id="lk_status" style="margin-top:12px;"></div></div>';
+      var st = document.getElementById("lk_status");
+      document.getElementById("lk_check").addEventListener("click", function () { renderLockedScreen(); });
+      document.getElementById("lk_send").addEventListener("click", function () {
+        var f = document.getElementById("lk_file").files[0];
+        if (!f) { st.textContent = "Choose your screenshot first."; st.className = "save-status err"; return; }
+        st.textContent = "Uploading\u2026"; st.className = "save-status";
+        shrinkImage(f).then(function (img) { return confirmCall({ action: "submit", image: img }); }).then(function (res) {
+          if (res.ok) renderLockedScreen();
+          else { st.textContent = res.error || "Could not send."; st.className = "save-status err"; }
+        }).catch(function (e) { st.textContent = e.message || "Could not read that image."; st.className = "save-status err"; });
+      });
+    });
+  }
+
+  var teamFormUrl = "";
+  function teamFormCard() {
+    return '<div class="field" style="max-width:640px;margin:0 0 16px;"><label>Team Google Form link (new members see this on their locked screen)</label>' +
+      '<div class="inline-actions" style="margin:0;"><input id="tf_url" type="url" placeholder="https://forms.gle/..." value="' + escapeHtml(teamFormUrl) + '" style="flex:1;min-width:200px;">' +
+      '<button type="button" class="btn" id="tf_save">Save link</button></div>' +
+      '<div class="save-status" id="tf_status" style="margin-top:6px;"></div></div>';
+  }
+  function wireTeamFormCard() {
+    var b = document.getElementById("tf_save");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var st = document.getElementById("tf_status");
+      st.textContent = "Saving\u2026"; st.className = "save-status";
+      confirmCall({ action: "set_form_url", url: document.getElementById("tf_url").value }).then(function (r) {
+        if (r.ok) { teamFormUrl = r.formUrl || ""; st.textContent = "Saved"; st.className = "save-status ok"; }
+        else { st.textContent = r.error || "Could not save."; st.className = "save-status err"; }
+      });
+    });
+  }
+  function formPill(m) {
+    if (m.confirmed) return '<span class="pill st-ok">Confirmed</span>';
+    if (m.proof && m.proof.status === "pending") return '<span class="pill review">Proof sent \u00b7 review</span>';
+    if (m.rejectReason) return '<span class="pill st-failed">Rejected</span>';
+    return '<span class="pill">Not confirmed</span>';
+  }
+
   function renderTeamSection() {
     document.getElementById("pageSub").textContent = "Choose what each person can open, and whether they can only view it or also make changes. Revenue and Settings can be granted too. Team, archiving and project amounts stay with you.";
     document.getElementById("pageActions").innerHTML = '<button type="button" class="btn primary" id="addInternBtn">+ Add intern</button>';
@@ -1729,23 +1833,26 @@
         return;
       }
       teamMembers = r.data.members || [];
-      drawTeamTable();
+      confirmCall({ action: "status" }).then(function (c) { teamFormUrl = (c && c.formUrl) || ""; drawTeamTable(); });
     }).catch(function () { document.getElementById("pageBody").innerHTML = '<div class="empty">Network error — try again.</div>'; });
   }
 
   function drawTeamTable() {
     if (!teamMembers.length) {
-      document.getElementById("pageBody").innerHTML = '<div class="empty">No interns yet. Tap “+ Add intern” to invite someone.</div>';
+      document.getElementById("pageBody").innerHTML = teamFormCard() + '<div class="empty">No interns yet. Tap “+ Add intern” to invite someone.</div>';
+      wireTeamFormCard();
       return;
     }
-    document.getElementById("pageBody").innerHTML =
-      '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Access</th><th>Status</th><th>Last login</th></tr></thead><tbody>' +
+    document.getElementById("pageBody").innerHTML = teamFormCard() +
+      '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Team form</th><th>Access</th><th>Status</th><th>Last login</th></tr></thead><tbody>' +
       teamMembers.map(function (m, i) {
         return '<tr data-i="' + i + '"><td class="name">' + escapeHtml(m.email) + '</td>' +
+          '<td>' + formPill(m) + '</td>' +
           '<td>' + escapeHtml(areaNames(m.sections)) + '</td>' +
           '<td><span class="pill ' + (m.blocked ? "st-failed" : "st-ok") + '">' + (m.blocked ? "Blocked" : "Active") + '</span></td>' +
           '<td>' + escapeHtml(m.lastLogin ? fmtDay(m.lastLogin) : "Never") + '</td></tr>';
       }).join("") + '</tbody></table></div>';
+    wireTeamFormCard();
     Array.prototype.forEach.call(document.querySelectorAll("#pageBody tbody tr"), function (row) {
       row.addEventListener("click", function () { openMemberDrawer(teamMembers[Number(row.getAttribute("data-i"))]); });
     });
@@ -1807,7 +1914,13 @@
     document.getElementById("drawerTitle").textContent = m.email;
     document.getElementById("drawerSub").textContent = (m.blocked ? "Blocked" : "Active") + " · last login " + (m.lastLogin ? fmtDay(m.lastLogin) : "never");
     document.getElementById("drawerBody").innerHTML =
-      '<div class="field"><label>Access</label>' + areaChecks(m.sections || []) + '</div>' +
+      '<div class="field"><label>Team Google Form</label><div style="margin-bottom:8px;">' + formPill(m) + '</div>' +
+      (m.rejectReason && !m.confirmed ? '<div class="save-status err" style="margin-bottom:8px;">Rejected: ' + escapeHtml(m.rejectReason) + '</div>' : '') +
+      '<div class="inline-actions" style="margin:0;">' +
+      (m.proof ? '<button type="button" class="btn" id="m_proof">View proof</button>' : '') +
+      (m.confirmed ? '<button type="button" class="btn danger" id="m_revoke">Revoke confirmation</button>' : '<button type="button" class="btn primary" id="m_approve">Approve</button><button type="button" class="btn danger" id="m_reject">Reject proof</button>') +
+      '</div><div id="m_proofview" style="margin-top:10px;"></div><div class="save-status" id="m_cstatus" style="margin-top:8px;"></div></div>' +
+      '<div class="field"><label>Access' + (m.confirmed ? '' : ' (starts once they are approved)') + '</label>' + areaChecks(m.sections || []) + '</div>' +
       '<div id="memberResult"></div>' +
       '<div class="inline-actions"><button type="button" class="btn" id="m_invite">Resend invite</button>' +
       '<button type="button" class="btn danger" id="m_remove">Remove access</button></div>' +
@@ -1823,6 +1936,39 @@
         else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
       }).catch(function () { saveBtn.disabled = false; statusEl.textContent = "Network error — try again."; statusEl.className = "save-status err"; });
     };
+    var cst = document.getElementById("m_cstatus");
+    function cdo(payload, okMsg) {
+      cst.textContent = "Working\u2026"; cst.className = "save-status";
+      confirmCall(Object.assign({ sub: m.userId }, payload)).then(function (r) {
+        if (r.ok) { closeDrawer(); renderTeamSection(); }
+        else { cst.textContent = r.error || "Failed."; cst.className = "save-status err"; }
+      });
+    }
+    var bp = document.getElementById("m_proof");
+    if (bp) bp.addEventListener("click", function () {
+      cst.textContent = "Loading\u2026"; cst.className = "save-status";
+      confirmCall({ action: "proof", sub: m.userId }).then(function (r) {
+        if (!r.ok) { cst.textContent = r.error || "Could not load."; cst.className = "save-status err"; return; }
+        cst.textContent = "";
+        document.getElementById("m_proofview").innerHTML = '<a href="' + escapeHtml(r.image) + '" target="_blank" rel="noopener"><img alt="Proof screenshot" style="max-width:100%;border:1px solid var(--line);border-radius:8px;" src="' + escapeHtml(r.image) + '"></a>';
+      });
+    });
+    var ba = document.getElementById("m_approve");
+    if (ba) ba.addEventListener("click", function () {
+      if (!confirm("Confirm that " + m.email + " is on the team? Their access (" + (areaNames(m.sections) || "none yet") + ") opens straight away.")) return;
+      cdo({ action: "approve" });
+    });
+    var br = document.getElementById("m_reject");
+    if (br) br.addEventListener("click", function () {
+      var why = prompt("Tell them why (shown on their screen). Leave blank for the standard message.", "");
+      if (why === null) return;
+      cdo({ action: "reject", reason: why });
+    });
+    var bv = document.getElementById("m_revoke");
+    if (bv) bv.addEventListener("click", function () {
+      if (!confirm("Revoke confirmation for " + m.email + "? They'll be locked out until they're approved again.")) return;
+      cdo({ action: "revoke" });
+    });
     var st = document.getElementById("m_status");
     document.getElementById("m_invite").addEventListener("click", function () {
       st.textContent = "Sending…"; st.className = "save-status";
@@ -2567,7 +2713,7 @@
 
   /* ----- people tab ----- */
   function payTabPeople(d) {
-    var html = payP("edit") ? '<div class="inline-actions" style="margin:0 0 12px;"><button type="button" class="btn primary" id="payAddPerson">+ Person</button></div>' : "";
+    var html = payP("edit") ? '<div class="inline-actions" style="margin:0 0 12px;"><button type="button" class="btn primary" id="payAddPerson">+ Person</button><button type="button" class="btn" id="payAskBank">Email team to add their bank details</button></div>' : "";
     var A = pay.auto;
     if (A && A.owner) {
       html += '<div class="rev-card" style="padding:14px;margin-bottom:16px;"><div class="rev-h">Automatic payouts (Paystack)</div>' +
@@ -2588,6 +2734,21 @@
   function wirePeople(d) {
     var a = document.getElementById("payAddPerson");
     if (a) a.addEventListener("click", function () { payOpenPerson(null); });
+    var ask = document.getElementById("payAskBank");
+    if (ask) ask.addEventListener("click", function () {
+      var call = function (b) { return authedFetch("/payments-notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(function (r) { return r.data || { ok: false, error: "No response." }; }).catch(function () { return { ok: false, error: "Could not reach the server." }; }); };
+      ask.disabled = true;
+      call({ dry_run: true }).then(function (c) {
+        if (!c.ok) { ask.disabled = false; return alert(c.error || "Could not check."); }
+        if (!c.wouldSend) { ask.disabled = false; return alert("Everyone on your team has already submitted their bank details."); }
+        if (!confirm("Email " + c.wouldSend + " team member" + (c.wouldSend === 1 ? "" : "s") + " who haven't added bank details yet?")) { ask.disabled = false; return; }
+        ask.textContent = "Sending\u2026";
+        call({}).then(function (r) {
+          ask.disabled = false; ask.textContent = "Email team to add their bank details";
+          alert(r.ok ? ("Sent to " + r.sent + (r.failed && r.failed.length ? ". Could not email: " + r.failed.join(", ") : ".")) : (r.error || "Could not send."));
+        });
+      });
+    });
     var sv = document.getElementById("pa_save");
     if (sv) sv.addEventListener("click", function () {
       var st = document.getElementById("pa_st"); sv.disabled = true; st.textContent = "Saving\u2026"; st.className = "save-status";
@@ -2652,7 +2813,15 @@
           bankCode = code;
           msg.textContent = "The bank says this account is \u201c" + r.resolvedName + "\u201d" + (r.matches === false ? " \u2014 that does NOT match the name entered." : r.matches ? " \u2014 matches." : ".");
           msg.style.color = r.matches === false ? "var(--red)" : "#7ee0a8";
-          if (r.matches === false || !document.getElementById("pp_acctname").value) { /* leave for the owner to decide */ }
+          var nameBox = document.getElementById("pp_acctname");
+          if (!nameBox.value.trim()) {
+            nameBox.value = r.resolvedName;
+            msg.textContent = "The bank says this account is \u201c" + r.resolvedName + "\u201d. I filled in the account name for you.";
+          } else if (r.matches === false) {
+            var useBtn = document.createElement("button"); useBtn.type = "button"; useBtn.className = "btn"; useBtn.style.marginLeft = "8px"; useBtn.textContent = "Use the bank\u2019s name";
+            useBtn.addEventListener("click", function () { nameBox.value = r.resolvedName; useBtn.remove(); msg.textContent = "Account name updated to match the bank."; msg.style.color = "#7ee0a8"; });
+            msg.appendChild(useBtn);
+          }
         });
       });
     }
