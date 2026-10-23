@@ -535,6 +535,7 @@
     { id: "revenue", label: "Revenue", staff: true, wired: true },
     { id: "ads", label: "Ads", staff: true, wired: true },
     { id: "payments", label: "Payments", staff: true, wired: true },
+    { id: "mydetails", label: "My payment details", staff: true, wired: true },
     { id: "team", label: "Team", wired: true },
     { id: "settings", label: "Settings", staff: true, wired: true },
   ];
@@ -646,7 +647,7 @@
     var s = SECTIONS.filter(function (x) { return x.id === sectionId; })[0];
     if (!s) return false;
     if (userRole === "owner") return true;
-    if (sectionId === "dashboard" || sectionId === "chat") return true;
+    if (sectionId === "dashboard" || sectionId === "chat" || sectionId === "mydetails") return true;
     return !!s.staff && mySections.indexOf(sectionId) !== -1;
   }
   function canEdit(sectionId) {
@@ -719,6 +720,7 @@
     else if (sectionId === "chat") renderChatSection();
     else if (sectionId === "ads") renderAdsSection();
     else if (sectionId === "payments") renderPaymentsSection();
+    else if (sectionId === "mydetails") renderMyDetailsSection();
     else renderPlaceholder(section.label);
   }
 
@@ -2318,13 +2320,20 @@
 
   /* ---------------- Team payments ---------------- */
 
-  var pay = { data: null, tab: "payments", f: { profile: "", kind: "", status: "", from: "", to: "" }, comm: null, audit: null };
+  var pay = { auto: null, banks: null, data: null, tab: "payments", f: { profile: "", kind: "", status: "", from: "", to: "" }, comm: null, audit: null };
   var PAY_STATUS = { draft: "Draft", pending_approval: "Pending approval", approved: "Approved", processing: "Processing", paid: "Paid", rejected: "Rejected", failed: "Failed" };
   var PAY_KIND = { salary: "Salary", commission: "Commission", bonus: "Bonus", other: "Other" };
   var PAY_TABS = [["payments", "Payments"], ["people", "People"], ["commissions", "Commissions"], ["reports", "Reports"], ["activity", "Activity"]];
 
   function payApi(action, extra) {
     return authedFetch("/admin-payments", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ action: action }, extra || {})),
+    }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
+      .catch(function () { return { ok: false, error: "Could not reach the server." }; });
+  }
+  function payoutApi(action, extra) {
+    return authedFetch("/admin-payouts", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(Object.assign({ action: action }, extra || {})),
     }).then(function (r) { return r.data || { ok: false, error: "No response." }; })
@@ -2337,7 +2346,7 @@
     return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(parts[1]) - 1] + " " + parts[0];
   }
   function payStatusPill(r) {
-    var cls = r.status === "paid" ? "st-ok" : (r.status === "failed" || r.status === "rejected" ? "st-failed" : (r.status === "approved" ? "delivered" : (r.status === "pending_approval" ? "review" : "")));
+    var cls = r.status === "paid" ? "st-ok" : (r.status === "failed" || r.status === "rejected" ? "st-failed" : (r.status === "approved" ? "delivered" : (r.status === "pending_approval" ? "review" : (r.status === "processing" ? "in_progress" : ""))));
     var html = '<span class="pill ' + cls + '">' + escapeHtml(PAY_STATUS[r.status] || r.status) + '</span>';
     if (r.flag === "overdue") html += ' <span class="pill st-failed">Overdue</span>';
     else if (r.flag === "upcoming") html += ' <span class="pill in_progress">Due soon</span>';
@@ -2385,7 +2394,9 @@
     return payApi("overview", { profile_id: f.profile, kind: f.kind, status: f.status, from: f.from, to: f.to }).then(function (d) {
       if (currentSection !== "payments") return;
       if (!d || !d.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((d && d.error) || "Could not load payments.") + '</div>'; return; }
-      pay.data = d; paintPayActions(); drawPayments();
+      pay.data = d; paintPayActions();
+      payoutApi("settings").then(function (a) { pay.auto = a && a.ok ? a : null; if (currentSection === "payments") drawPayments(); });
+      drawPayments();
     });
   }
   function payTabs() {
@@ -2437,7 +2448,10 @@
         if (r.status === "pending_approval" && r.canApproveThis) acts.push('<button class="btn primary pay-act" data-a="approve" data-id="' + r.id + '">Approve</button>');
         if (r.status === "pending_approval" && payP("approve") && !r.canApproveThis) acts.push('<span class="ads-note">Needs another approver</span>');
         if ((r.status === "pending_approval" || r.status === "approved") && payP("approve")) acts.push('<button class="btn danger pay-act" data-a="reject" data-id="' + r.id + '">Reject</button>');
-        if (r.status === "approved" && payP("approve")) acts.push('<button class="btn primary pay-act" data-a="paid" data-id="' + r.id + '">Mark paid</button><button class="btn pay-act" data-a="failed" data-id="' + r.id + '">Failed</button>');
+        var autoOn = !!(pay.auto && pay.auto.enabled && payP("owner"));
+        if (r.status === "approved" && autoOn) acts.push('<button class="btn primary pay-act" data-a="autopay" data-id="' + r.id + '">Pay via Paystack</button>');
+        if (r.status === "approved" && payP("approve")) acts.push('<button class="btn' + (autoOn ? "" : " primary") + ' pay-act" data-a="paid" data-id="' + r.id + '">' + (autoOn ? "Mark paid manually" : "Mark paid") + '</button><button class="btn pay-act" data-a="failed" data-id="' + r.id + '">Failed</button>');
+        if (r.status === "processing" && payP("approve")) acts.push('<span class="ads-note">Sending\u2026</span><button class="btn pay-act" data-a="check" data-id="' + r.id + '">Check status</button>');
         var trail = [];
         if (r.createdBy) trail.push("Created by " + r.createdBy);
         if (r.approvedBy) trail.push("Approved by " + r.approvedBy + (r.approvedAt ? " " + fmtDay(r.approvedAt) : ""));
@@ -2469,6 +2483,12 @@
         else if (a === "approve") { if (!confirm("Approve " + naira(rec.amount) + " for " + rec.personName + "?")) { b.disabled = false; return; } payApi("approve", { id: id }).then(done); }
         else if (a === "reject") { var why = prompt("Why are you rejecting it?"); if (!why) { b.disabled = false; return; } payApi("reject", { id: id, reason: why }).then(done); }
         else if (a === "paid") { var ref = prompt("After you've sent " + naira(rec.amount) + " to " + rec.personName + ", enter the bank transfer reference / receipt number:"); if (!ref) { b.disabled = false; return; } payApi("mark_paid", { id: id, payment_ref: ref }).then(done); }
+        else if (a === "autopay") {
+          if (!confirm("Send " + naira(rec.amount) + " to " + rec.personName + " now through Paystack? This moves real money and can't be undone.")) { b.disabled = false; return; }
+          b.textContent = "Sending\u2026";
+          payoutApi("pay_now", { id: id }).then(function (r) { if (r.uncertain) alert(r.message); done(r); });
+        }
+        else if (a === "check") payoutApi("check_transfer", { id: id }).then(function (r) { if (r.ok && r.result === "pending") alert("Paystack says it's still in progress. Check again in a few minutes."); done(r); });
         else if (a === "failed") { var note = prompt("What went wrong? (optional)") ; if (note === null) { b.disabled = false; return; } payApi("mark_failed", { id: id, note: note }).then(done); }
       });
     });
@@ -2478,6 +2498,13 @@
     document.getElementById("drawerTitle").textContent = editing ? "Edit draft payment" : "New payment";
     document.getElementById("drawerSub").textContent = editing ? rec.personName : "Created as a draft; submit it when ready for approval";
     var profs = d.profiles.filter(function (p) { return p.active; });
+    if (!editing && !profs.length) {
+      document.getElementById("drawerBody").innerHTML = '<div class="empty" style="padding:20px 0;">Add the people you pay first (name, salary and bank details), then come back to create payments.</div><button type="button" class="btn primary" id="pr_goPeople">Add a person</button>';
+      setDrawerFooter("none");
+      document.getElementById("pr_goPeople").addEventListener("click", function () { pay.tab = "people"; closeDrawer(); drawPayments(); setTimeout(function () { payOpenPerson(null); }, 50); });
+      scrim.classList.add("open"); drawer.classList.add("open");
+      return;
+    }
     document.getElementById("drawerBody").innerHTML = editing ?
       '<div class="field"><label>Amount (₦)</label><input id="pr_amount" type="number" min="0" step="any" value="' + rec.amount + '"' + (rec.commissionId ? " disabled" : "") + '></div>' +
       (rec.commissionId ? '<div class="ads-note" style="margin-bottom:10px;">Commission amounts change only through an authorised adjustment on the Commissions tab.</div>' : '') +
@@ -2504,9 +2531,52 @@
     scrim.classList.add("open"); drawer.classList.add("open");
   }
 
+  /* ----- my payment details (every team member) ----- */
+  function renderMyDetailsSection() {
+    document.getElementById("pageSub").textContent = "Where your salary and commission should be paid. Only you, the owner and the people allowed to pay the team can see these.";
+    document.getElementById("pageActions").innerHTML = "";
+    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading\u2026</div>';
+    var call = function (body) {
+      return authedFetch("/my-payment-details", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ login_email: authUserEmail }, body)) })
+        .then(function (r) { return r.data || { ok: false, error: "No response." }; }).catch(function () { return { ok: false, error: "Could not reach the server." }; });
+    };
+    call({ action: "get" }).then(function (r) {
+      if (currentSection !== "mydetails") return;
+      if (!r.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml(r.error || "Could not load.") + '</div>'; return; }
+      var d = r.details || { personName: authUserName || "", email: authUserEmail || "", bankName: "", accountNumber: "", accountName: "", verified: false };
+      var status = !r.exists ? "" : (d.verified ? '<span class="pill st-ok">Verified</span>' : '<span class="pill review">Submitted \u00b7 waiting to be verified</span>');
+      document.getElementById("pageBody").innerHTML =
+        '<div class="rev-card" style="padding:16px;max-width:520px;">' + (status ? '<div style="margin-bottom:12px;">' + status + '</div>' : '') +
+        '<div class="field"><label>Full name</label><input id="md_name" value="' + escapeHtml(d.personName) + '"></div>' +
+        '<div class="field"><label>Email <span class="ads-note">(we send payment notices here)</span></label><input id="md_email" type="email" value="' + escapeHtml(d.email) + '"></div>' +
+        '<div class="field"><label>Bank name</label><input id="md_bank" value="' + escapeHtml(d.bankName) + '" placeholder="e.g. GTBank, Access, Opay"></div>' +
+        '<div class="two-col"><div class="field"><label>Account number</label><input id="md_acct" inputmode="numeric" maxlength="10" value="' + escapeHtml(d.accountNumber) + '" placeholder="10 digits"></div>' +
+        '<div class="field"><label>Account name</label><input id="md_acctname" value="' + escapeHtml(d.accountName) + '" placeholder="As your bank shows it"></div></div>' +
+        '<div class="ads-note" style="margin-bottom:12px;">Double-check the account number. Changing any bank detail later means it has to be verified again before you can be paid. Never share your card PIN, OTP or banking password here.</div>' +
+        '<button type="button" class="btn primary" id="md_save">' + (r.exists ? "Update details" : "Submit details") + '</button><span class="save-status" id="md_st" style="margin-left:10px;"></span></div>';
+      document.getElementById("md_save").addEventListener("click", function () {
+        var b = this, st = document.getElementById("md_st"); b.disabled = true; st.textContent = "Saving\u2026"; st.className = "save-status";
+        call({ action: "save", person_name: document.getElementById("md_name").value, email: document.getElementById("md_email").value, bank_name: document.getElementById("md_bank").value, account_number: document.getElementById("md_acct").value, account_name: document.getElementById("md_acctname").value }).then(function (x) {
+          b.disabled = false;
+          if (x.ok) { st.textContent = x.verified ? "Saved" : "Submitted. The owner will verify it."; st.className = "save-status ok"; setTimeout(renderMyDetailsSection, 900); }
+          else { st.textContent = x.error || "Could not save."; st.className = "save-status err"; }
+        });
+      });
+    });
+  }
+
   /* ----- people tab ----- */
   function payTabPeople(d) {
     var html = payP("edit") ? '<div class="inline-actions" style="margin:0 0 12px;"><button type="button" class="btn primary" id="payAddPerson">+ Person</button></div>' : "";
+    var A = pay.auto;
+    if (A && A.owner) {
+      html += '<div class="rev-card" style="padding:14px;margin-bottom:16px;"><div class="rev-h">Automatic payouts (Paystack)</div>' +
+        '<label class="check-row"><input type="checkbox" id="pa_on"' + (A.enabled ? " checked" : "") + '> Allow \u201cPay via Paystack\u201d on approved payments</label>' +
+        '<div class="two-col"><div class="field"><label>Max per payment (\u20a6)</label><input id="pa_max" type="number" min="0" value="' + A.maxSingle + '"></div>' +
+        '<div class="field"><label>Max per day (\u20a6)</label><input id="pa_day" type="number" min="0" value="' + A.dailyLimit + '"></div></div>' +
+        '<div class="ads-note" style="margin-bottom:8px;">Only you can send. Money comes from your Paystack balance, so keep it topped up. Paystack must have transfers enabled and the OTP requirement for transfers turned off.' + (A.secretSet ? "" : " <b>PAYSTACK_SECRET_KEY is not set.</b>") + '</div>' +
+        '<button type="button" class="btn" id="pa_save">Save payout settings</button><span class="save-status" id="pa_st" style="margin-left:10px;"></span></div>';
+    }
     if (!d.profiles.length) return html + '<div class="empty">No one yet. Add each person you pay, with their salary and bank details.</div>';
     return html + '<div class="table-wrap"><table><thead><tr><th>Person</th><th>Salary</th><th>Pay day</th><th>Bank</th><th>Commission</th></tr></thead><tbody>' +
       d.profiles.map(function (p) {
@@ -2518,6 +2588,15 @@
   function wirePeople(d) {
     var a = document.getElementById("payAddPerson");
     if (a) a.addEventListener("click", function () { payOpenPerson(null); });
+    var sv = document.getElementById("pa_save");
+    if (sv) sv.addEventListener("click", function () {
+      var st = document.getElementById("pa_st"); sv.disabled = true; st.textContent = "Saving\u2026"; st.className = "save-status";
+      payoutApi("save_settings", { enabled: document.getElementById("pa_on").checked, maxSingle: document.getElementById("pa_max").value, dailyLimit: document.getElementById("pa_day").value }).then(function (r) {
+        sv.disabled = false;
+        if (r.ok) { st.textContent = "Saved"; st.className = "save-status ok"; payoutApi("settings").then(function (x) { if (x.ok) pay.auto = x; }); }
+        else { st.textContent = r.error || "Could not save."; st.className = "save-status err"; }
+      });
+    });
     Array.prototype.forEach.call(document.querySelectorAll("tr[data-pid]"), function (tr) {
       tr.addEventListener("click", function () { payOpenPerson(d.profiles.filter(function (p) { return p.id === tr.getAttribute("data-pid"); })[0]); });
     });
@@ -2531,9 +2610,10 @@
     var bankBlock;
     if (P.bank) {
       bankBlock = '<div class="rev-h" style="margin:16px 0 8px;">Bank details</div>' +
-        '<div class="field"><label>Bank name</label><input id="pp_bank" value="' + escapeHtml(p.bankName) + '"' + (canBankEdit ? "" : " disabled") + '></div>' +
+        '<div class="field"><label>Bank name</label><input id="pp_bank" list="pp_banklist" value="' + escapeHtml(p.bankName) + '"' + (canBankEdit ? "" : " disabled") + ' autocomplete="off"><datalist id="pp_banklist"></datalist></div>' +
         '<div class="two-col"><div class="field"><label>Account number</label><input id="pp_acct" inputmode="numeric" maxlength="10" value="' + escapeHtml(p.accountNumber || "") + '"' + (canBankEdit ? "" : " disabled") + '></div>' +
         '<div class="field"><label>Account name</label><input id="pp_acctname" value="' + escapeHtml(p.accountName) + '"' + (canBankEdit ? "" : " disabled") + '></div></div>' +
+        (canBankEdit ? '<button type="button" class="btn" id="pp_check" style="margin-bottom:8px;">Check with bank</button><div class="ads-note" id="pp_checkmsg" style="margin-bottom:8px;"></div>' : '') +
         (isNew ? "" : '<div class="ads-note" style="margin-bottom:8px;">' + (p.bankVerified ? "Verified" + (p.bankVerifiedAt ? " " + escapeHtml(fmtDay(p.bankVerifiedAt)) : "") + ". Changing any bank detail resets this." : "Not verified yet. Confirm the name matches the bank account, then verify. Payments can't be approved until then.") + '</div>' +
           (canBankEdit && !p.bankVerified && p.hasBank ? '<button type="button" class="btn" id="pp_verify">Verify bank details</button>' : ""));
     } else {
@@ -2551,6 +2631,31 @@
       '<div class="field"><label>Notes</label><input id="pp_notes" value="' + escapeHtml(p.notes || "") + '"></div>' + bankBlock;
     setDrawerFooter(P.edit ? "save" : "none", "Save");
     var st = document.getElementById("drawerStatus"); st.textContent = "";
+    var bankCode = p.bankCode || "";
+    var codeFor = function (name) {
+      var n = String(name || "").trim().toLowerCase(); if (!n || !pay.banks) return "";
+      var ex = pay.banks.filter(function (b) { return b.name.toLowerCase() === n; })[0]; if (ex) return ex.code;
+      var part = pay.banks.filter(function (b) { return b.name.toLowerCase().indexOf(n) !== -1 || n.indexOf(b.name.toLowerCase()) !== -1; });
+      return part.length === 1 ? part[0].code : "";
+    };
+    if (canBankEdit) {
+      var fillBanks = function () { var dl = document.getElementById("pp_banklist"); if (dl && pay.banks) dl.innerHTML = pay.banks.map(function (b) { return '<option value="' + escapeHtml(b.name) + '"></option>'; }).join(""); };
+      if (pay.banks) fillBanks(); else payoutApi("banks").then(function (r) { if (r.ok) { pay.banks = r.banks; fillBanks(); } });
+      var ck = document.getElementById("pp_check");
+      if (ck) ck.addEventListener("click", function () {
+        var msg = document.getElementById("pp_checkmsg"); var code = codeFor(document.getElementById("pp_bank").value);
+        if (!code) { msg.textContent = "Pick the bank from the suggestions in the Bank name box, then check again."; msg.style.color = "var(--red)"; return; }
+        ck.disabled = true; msg.textContent = "Checking\u2026"; msg.style.color = "";
+        payoutApi("check_bank", { bank_code: code, account_number: document.getElementById("pp_acct").value, account_name: document.getElementById("pp_acctname").value }).then(function (r) {
+          ck.disabled = false;
+          if (!r.ok) { msg.textContent = r.error || "Could not check."; msg.style.color = "var(--red)"; return; }
+          bankCode = code;
+          msg.textContent = "The bank says this account is \u201c" + r.resolvedName + "\u201d" + (r.matches === false ? " \u2014 that does NOT match the name entered." : r.matches ? " \u2014 matches." : ".");
+          msg.style.color = r.matches === false ? "var(--red)" : "#7ee0a8";
+          if (r.matches === false || !document.getElementById("pp_acctname").value) { /* leave for the owner to decide */ }
+        });
+      });
+    }
     var v = document.getElementById("pp_verify");
     if (v) v.addEventListener("click", function () {
       v.disabled = true;
@@ -2562,7 +2667,7 @@
       var body = { id: p.id, person_name: document.getElementById("pp_name").value, role_label: document.getElementById("pp_role").value, email: document.getElementById("pp_email").value,
         monthly_salary: document.getElementById("pp_sal").value, salary_day: document.getElementById("pp_day").value, team_sub: document.getElementById("pp_link").value,
         commission_enabled: document.getElementById("pp_comm").checked, active: document.getElementById("pp_active").checked, notes: document.getElementById("pp_notes").value };
-      if (P.bank) { body.bank_name = document.getElementById("pp_bank").value; body.account_number = document.getElementById("pp_acct").value; body.account_name = document.getElementById("pp_acctname").value; body.bank_code = p.bankCode || ""; }
+      if (P.bank) { body.bank_name = document.getElementById("pp_bank").value; body.account_number = document.getElementById("pp_acct").value; body.account_name = document.getElementById("pp_acctname").value; body.bank_code = codeFor(body.bank_name) || (String(body.bank_name).trim() === String(p.bankName || "") ? (p.bankCode || "") : ""); }
       payApi("save_profile", body).then(function (r) {
         btn.disabled = false;
         if (r.ok) { closeDrawer(); payLoad(); } else { st.textContent = r.error || "Could not save."; st.className = "save-status err"; }
