@@ -2745,7 +2745,7 @@
         ask.textContent = "Sending\u2026";
         call({}).then(function (r) {
           ask.disabled = false; ask.textContent = "Email team to add their bank details";
-          alert(r.ok ? ("Sent to " + r.sent + (r.failed && r.failed.length ? ". Could not email: " + r.failed.join(", ") : ".")) : (r.error || "Could not send."));
+          alert(r.ok ? ("Sent to " + r.sent + (r.failed && r.failed.length ? ". Could not email " + r.failed.length + (r.firstError ? " (reason: " + r.firstError + ")" : "") + "." : ".")) : (r.error || "Could not send."));
         });
       });
     });
