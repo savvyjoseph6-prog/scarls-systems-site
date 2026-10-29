@@ -525,7 +525,6 @@
     { id: "dashboard", label: "Dashboard", wired: true, staff: true },
     { id: "projects", label: "Projects", wired: true, staff: true },
     { id: "chat", label: "Chat", wired: true, staff: true },
-    { id: "assessments", label: "Assessments", wired: true, staff: true },
     { id: "budget", label: "Budget Requests", wired: true },
     { id: "aiquotes", label: "AI Quotes", wired: true },
     { id: "catalog", staff: true, label: "Catalog", wired: true },
@@ -541,7 +540,7 @@
     { id: "settings", label: "Settings", staff: true, wired: true },
   ];
 
-  var allAssessments = [], allBudgetRequests = [], allAiQuotes = [];
+  var allBudgetRequests = [], allAiQuotes = [];
   var catalogData = { categories: [], services: [] }, catalogLoaded = false, catalogCatFilter = "all";
   var allDiscounts = [], discountsLoaded = false;
   var allSales = [], salesLoaded = false;
@@ -709,7 +708,6 @@
 
     if (sectionId === "dashboard") renderDashboard();
     else if (sectionId === "projects") renderProjectsSection();
-    else if (sectionId === "assessments") renderAssessmentsSection();
     else if (sectionId === "budget") renderBudgetSection();
     else if (sectionId === "aiquotes") renderAiQuotesSection();
     else if (sectionId === "catalog") renderCatalogSection();
@@ -1064,64 +1062,6 @@
         statusEl.textContent = "Network error — try again.";
         statusEl.className = "save-status err";
       });
-  }
-
-  /* ---------------- Assessments ---------------- */
-
-  var CONFIDENCE_LABELS = { qualified: "Qualified", needs_more_information: "Needs more info", human_review_required: "Needs review" };
-  var DECISION_LABELS = { "": "No decision yet", approved: "Approved", changes_required: "Changes required", modified: "Modified", rejected: "Rejected" };
-
-  function renderAssessmentsSection() {
-    document.getElementById("pageBody").innerHTML = '<div class="empty">Loading…</div>';
-    authedFetch("/admin-list-assessments").then(function (r) {
-      if (!r.data || !r.data.ok) { document.getElementById("pageBody").innerHTML = '<div class="empty">' + escapeHtml((r.data && r.data.error) || "Could not load.") + '</div>'; return; }
-      allAssessments = r.data.assessments || [];
-      document.getElementById("pageSub").textContent = allAssessments.length + (allAssessments.length === 1 ? " assessment" : " assessments");
-      drawAssessmentsTable();
-    });
-  }
-  function drawAssessmentsTable() {
-    if (!allAssessments.length) { document.getElementById("pageBody").innerHTML = '<div class="empty">No completed assessments yet.</div>'; return; }
-    document.getElementById("pageBody").innerHTML =
-      '<div class="table-wrap"><table><thead><tr><th>Client</th><th>Recommended</th><th>Confidence</th><th>Decision</th></tr></thead><tbody>' +
-      allAssessments.map(function (a, i) {
-        return '<tr data-i="' + i + '"><td class="name">' + escapeHtml(a.fullName) + (a.businessName ? '<div class="sub">' + escapeHtml(a.businessName) + '</div>' : '') + '</td>' +
-          '<td>' + escapeHtml((a.recommendedServices || []).join(", ") || "—") + '</td>' +
-          '<td><span class="pill ' + escapeHtml(a.confidenceState) + '">' + escapeHtml(CONFIDENCE_LABELS[a.confidenceState] || a.confidenceState) + '</span></td>' +
-          '<td>' + escapeHtml(DECISION_LABELS[a.adminDecision || ""] || a.adminDecision) + '</td></tr>';
-      }).join("") + '</tbody></table></div>';
-    Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
-      row.addEventListener("click", function () { openAssessmentDrawer(allAssessments[Number(row.getAttribute("data-i"))]); });
-    });
-  }
-  function openAssessmentDrawer(a) {
-    document.getElementById("drawerTitle").textContent = a.fullName + (a.businessName ? " · " + a.businessName : "");
-    document.getElementById("drawerSub").textContent = a.email + (a.whatsapp ? " · " + a.whatsapp : "");
-    var options = ["", "approved", "changes_required", "modified", "rejected"].map(function (d) {
-      return '<option value="' + d + '"' + (d === a.adminDecision ? " selected" : "") + '>' + escapeHtml(DECISION_LABELS[d]) + '</option>';
-    }).join("");
-    document.getElementById("drawerBody").innerHTML =
-      (a.escalationReason ? '<div class="field"><label>Why it was escalated</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(a.escalationReason) + '</div></div>' : "") +
-      (a.mainProblem ? '<div class="field"><label>Main problem</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(a.mainProblem) + '</div></div>' : "") +
-      '<div class="field"><label>Budget · Timeline</label><div style="font-size:13.5px;color:var(--dim);">' + escapeHtml(a.clientBudget || "—") + ' · ' + escapeHtml(a.timeline || "—") + '</div></div>' +
-      '<div class="field"><label>Decision</label><select id="d_decision">' + options + '</select></div>' +
-      '<div class="field"><label>Internal notes</label><textarea id="d_notes">' + escapeHtml(a.adminNotes || "") + '</textarea></div>' +
-      '<div class="field"><label>Message to client (optional)</label><textarea id="d_customerMessage" placeholder="Leave blank for the default message"></textarea></div>';
-    setDrawerFooter(canEdit("assessments") ? "save" : "none", "Save decision"); if (!canEdit("assessments")) lockDrawerInputs();
-    document.getElementById("drawerStatus").textContent = "";
-    document.getElementById("drawerSave").onclick = function () {
-      var decision = document.getElementById("d_decision").value;
-      if (!decision) { document.getElementById("drawerStatus").textContent = "Choose a decision first."; document.getElementById("drawerStatus").className = "save-status err"; return; }
-      var payload = { token: a.token, decision: decision, notes: document.getElementById("d_notes").value.trim(), customerMessage: document.getElementById("d_customerMessage").value.trim() };
-      var statusEl = document.getElementById("drawerStatus"), btn = document.getElementById("drawerSave");
-      btn.disabled = true; statusEl.textContent = "Saving…"; statusEl.className = "save-status";
-      authedFetch("/admin-assessment-decision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(function (r) {
-        btn.disabled = false;
-        if (r.data && r.data.ok) { statusEl.textContent = r.data.warning || "Saved"; statusEl.className = r.data.warning ? "save-status err" : "save-status ok"; a.adminDecision = decision; a.adminNotes = payload.notes; setTimeout(function () { closeDrawer(); drawAssessmentsTable(); }, 500); }
-        else { statusEl.textContent = (r.data && r.data.error) || "Could not save."; statusEl.className = "save-status err"; }
-      });
-    };
-    scrim.classList.add("open"); drawer.classList.add("open");
   }
 
   /* ---------------- Budget Requests ---------------- */
@@ -1655,7 +1595,6 @@
   var teamMembers = [];
   var TEAM_AREAS = [
     ["projects", "Projects", "Start work: change status, assign, notes"],
-    ["assessments", "Assessments", "Approve / decline"],
     ["tickets", "Tickets", "Reply & update"],
     ["manualpay", "Manual payments", "Approve / reject payments"],
     ["discounts", "Discounts", "Create, edit & delete codes"],
@@ -1671,10 +1610,10 @@
   ];
   // One-click access presets for the Team page.
   var PRESETS = {
-    manager: { projects: "edit", assessments: "edit", tickets: "edit", manualpay: "edit", discounts: "edit", sales: "edit", catalog: "edit", revenue: "view", ads: "edit", adsmoney: "view", payments: "edit", payapprove: "edit", paybank: "view", settings: "edit" },
+    manager: { projects: "edit", tickets: "edit", manualpay: "edit", discounts: "edit", sales: "edit", catalog: "edit", revenue: "view", ads: "edit", adsmoney: "view", payments: "edit", payapprove: "edit", paybank: "view", settings: "edit" },
     clear: {}
   };
-  var DEFAULT_ACCESS = ["projects", "assessments", "tickets"];
+  var DEFAULT_ACCESS = ["projects", "tickets"];
 
   function teamCall(payload) {
     return authedFetch("/admin-team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });

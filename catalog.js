@@ -396,8 +396,7 @@
         // Admin has marked this service as needing a SCARLS consultation
         // before checkout — skip straight-to-Paystack entirely, even if
         // the price is a fixed figure, and route into the existing
-        // assessment flow instead (Make an Offer → email link →
-        // assessment.html).
+        // enquiry flow instead (Make an Offer → emailed to SCARLS).
         if (svc.requires_consultation) {
           openOfferModal(svc.name + (selectedPackage ? ' — ' + selectedPackage.name : ''));
           return;
