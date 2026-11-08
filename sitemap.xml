@@ -6,22 +6,22 @@
     <priority>1.00</priority>
   </url>
   <url>
-    <loc>https://scarlssystems.com/services.html</loc>
+    <loc>https://scarlssystems.com/services</loc>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
   </url>
   <url>
-    <loc>https://scarlssystems.com/about.html</loc>
+    <loc>https://scarlssystems.com/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
-    <loc>https://scarlssystems.com/work.html</loc>
+    <loc>https://scarlssystems.com/work</loc>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
   <url>
-    <loc>https://scarlssystems.com/contact.html</loc>
+    <loc>https://scarlssystems.com/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
