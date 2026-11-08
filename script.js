@@ -10,6 +10,7 @@
   /* ---------- Nav scroll state ---------- */
   var nav = document.getElementById('nav');
   function onScroll() {
+    if (!nav) return;
     if (window.scrollY > 24) {
       nav.classList.add('is-scrolled');
     } else {
@@ -22,13 +23,13 @@
   /* ---------- Mobile menu ---------- */
   var burger = document.getElementById('burger');
   var mobileMenu = document.getElementById('mobileMenu');
-  burger.addEventListener('click', function () {
+  if (burger && mobileMenu) burger.addEventListener('click', function () {
     var isOpen = mobileMenu.classList.toggle('is-open');
     burger.classList.toggle('is-open', isOpen);
     burger.setAttribute('aria-expanded', isOpen);
     document.body.style.overflow = isOpen ? 'hidden' : '';
   });
-  mobileMenu.querySelectorAll('a').forEach(function (link) {
+  if (mobileMenu) mobileMenu.querySelectorAll('a').forEach(function (link) {
     link.addEventListener('click', function () {
       mobileMenu.classList.remove('is-open');
       burger.classList.remove('is-open');
@@ -82,7 +83,7 @@
 
   var formError = document.getElementById('formError');
 
-  form.addEventListener('submit', function (e) {
+  if (form) form.addEventListener('submit', function (e) {
     e.preventDefault();
     if (!form.checkValidity()) {
       form.reportValidity();

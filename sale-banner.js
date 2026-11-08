@@ -400,6 +400,7 @@
       closePopup();
       var target = document.getElementById('stack');
       if (target) setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);
+      else window.location.href = 'services.html#stack';
     });
 
     // Fade in shortly after the page has loaded.

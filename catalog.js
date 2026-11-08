@@ -414,7 +414,9 @@
     if (askBtn) {
       askBtn.addEventListener('click', function () {
         closeServiceModal();
-        document.getElementById('contact').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        var contactEl = document.getElementById('contact');
+        if (contactEl) contactEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else window.location.href = 'contact.html';
       });
     }
   }
