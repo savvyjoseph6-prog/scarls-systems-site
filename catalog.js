@@ -105,6 +105,14 @@
   }
   function findService(id) { return CATALOG.services.filter(function (s) { return s.id === id; })[0]; }
 
+  // Quote / budget-approved checkouts used to be hard-coded as one-time. A service
+  // that is a monthly subscription (Meta Ads, Google Ads) must stay a subscription so
+  // the popup is card-only and the card is saved for the monthly re-charge.
+  function pricingModelForQuoted_(serviceId) {
+    var svc = findService(serviceId);
+    return svc && svc.pricing_model === 'subscription' ? 'subscription' : 'one_time';
+  }
+
   /* ---------------- Automatic sales (mirrors _shared/sales.ts on the server) ---------------- */
   // The server (verify-payment and submit-manual-payment) works out the sale
   // price on its own and rejects a card payment whose amount doesn't match it,
@@ -1200,7 +1208,7 @@
       stopBudgetChatPoll();
       closeBudgetChatModal();
       openCheckoutModal({
-        serviceId: data.checkout.serviceId, packageId: null, pricingModel: 'one_time',
+        serviceId: data.checkout.serviceId, packageId: null, pricingModel: pricingModelForQuoted_(data.checkout.serviceId),
         amountNaira: data.checkout.amountNaira, priceLabel: data.checkout.priceLabel,
         serviceName: data.checkout.serviceName, packageName: '',
         budgetToken: data.checkout.budgetToken
@@ -1239,7 +1247,7 @@
             stopBudgetChatPoll();
             closeBudgetChatModal();
             openCheckoutModal({
-              serviceId: data.checkout.serviceId, packageId: null, pricingModel: 'one_time',
+              serviceId: data.checkout.serviceId, packageId: null, pricingModel: pricingModelForQuoted_(data.checkout.serviceId),
               amountNaira: data.checkout.amountNaira, priceLabel: data.checkout.priceLabel,
               serviceName: data.checkout.serviceName, packageName: '',
               budgetToken: data.checkout.budgetToken
@@ -1441,7 +1449,7 @@
       stopAiQuotePoll();
       closeAiQuoteModal();
       openCheckoutModal({
-        serviceId: data.checkout.serviceId, packageId: null, pricingModel: 'one_time',
+        serviceId: data.checkout.serviceId, packageId: null, pricingModel: pricingModelForQuoted_(data.checkout.serviceId),
         amountNaira: data.checkout.amountNaira, priceLabel: data.checkout.priceLabel,
         serviceName: data.checkout.serviceName, packageName: '',
         quoteToken: data.checkout.quoteToken
@@ -1491,7 +1499,7 @@
             stopAiQuotePoll();
             closeAiQuoteModal();
             openCheckoutModal({
-              serviceId: data.checkout.serviceId, packageId: null, pricingModel: 'one_time',
+              serviceId: data.checkout.serviceId, packageId: null, pricingModel: pricingModelForQuoted_(data.checkout.serviceId),
               amountNaira: data.checkout.amountNaira, priceLabel: data.checkout.priceLabel,
               serviceName: data.checkout.serviceName, packageName: '',
               quoteToken: data.checkout.quoteToken
