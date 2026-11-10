@@ -152,6 +152,10 @@
     padding:7px 4px; border-radius:100px; border:1px solid var(--line); color:var(--silver-dim); }
   .ad-stage.done{ background:var(--accent-grad); border-color:transparent; color:#fff; }
   .ad-note{ font-size:13px; color:var(--silver); line-height:1.55; margin:0 0 12px; white-space:pre-wrap; }
+  .ad-days{ margin-bottom:12px; }
+  .ad-days-label{ margin:0 0 6px; font-size:13px; font-weight:600; color:var(--white); }
+  .ad-days-bar{ height:6px; border-radius:99px; background:var(--graphite-2); overflow:hidden; }
+  .ad-days-fill{ height:100%; background:var(--accent-grad); border-radius:99px; }
   .ad-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
   .ad-stat{ background:var(--graphite-1); border:1px solid var(--line-soft); border-radius:8px; padding:10px 8px; text-align:center; }
   .ad-stat b{ display:block; color:var(--white); font-size:18px; font-weight:600; }
@@ -414,6 +418,12 @@
       AD_STAGES.map(function (s, i) { return '<div class="ad-stage' + (i <= idx ? ' done' : '') + '">' + escapeHtml(s[1]) + '</div>'; }).join('') + '</div>';
     var VERDICTS = { ahead: 'Delivering better than promised', on_target: 'On target', optimising: 'Still optimising' };
     if (a.verdict && VERDICTS[a.verdict]) html += '<div class="ad-verdict ' + escapeHtml(a.verdict) + '">' + VERDICTS[a.verdict] + '</div>';
+    if (a.plannedDays && a.dayNumber) {
+      var pct = Math.round((a.dayNumber / a.plannedDays) * 100);
+      var dayLabel = a.finished ? 'Your ad run is complete (' + a.plannedDays + ' of ' + a.plannedDays + ' days)' : 'Day ' + a.dayNumber + ' of ' + a.plannedDays;
+      html += '<div class="ad-days"><p class="ad-days-label">' + escapeHtml(dayLabel) + '</p>' +
+        '<div class="ad-days-bar"><div class="ad-days-fill" style="width:' + (a.finished ? 100 : pct) + '%"></div></div></div>';
+    }
     if (a.note) html += '<p class="ad-note">' + escapeHtml(a.note) + '</p>';
     if (a.impressions > 0) {
       html += '<div class="ad-stats">' +
