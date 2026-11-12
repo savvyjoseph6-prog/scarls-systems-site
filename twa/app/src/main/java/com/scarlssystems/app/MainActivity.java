@@ -2,6 +2,7 @@ package com.scarlssystems.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -9,6 +10,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsResult;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -19,6 +23,8 @@ import com.google.firebase.messaging.FirebaseMessaging;
 public class MainActivity extends Activity {
     private static final String HOME = "https://scarlssystems.com/app/";
     private WebView web;
+    private ValueCallback<Uri[]> filePicker;
+    private static final int PICK = 77;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -44,6 +50,28 @@ public class MainActivity extends Activity {
             }
         });
 
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onJsConfirm(WebView v, String url, String message, JsResult r) {
+                new AlertDialog.Builder(MainActivity.this).setMessage(message).setCancelable(false)
+                        .setPositiveButton("OK", (d, w) -> r.confirm()).setNegativeButton("Cancel", (d, w) -> r.cancel()).show();
+                return true;
+            }
+            @Override
+            public boolean onJsAlert(WebView v, String url, String message, JsResult r) {
+                new AlertDialog.Builder(MainActivity.this).setMessage(message).setCancelable(false)
+                        .setPositiveButton("OK", (d, w) -> r.confirm()).show();
+                return true;
+            }
+            @Override
+            public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
+                if (filePicker != null) filePicker.onReceiveValue(null);
+                filePicker = cb;
+                try { startActivityForResult(p.createIntent(), PICK); } catch (Exception e) { filePicker = null; return false; }
+                return true;
+            }
+        });
+
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
@@ -57,6 +85,16 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         web.loadUrl(targetFrom(intent));
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        if (req == PICK && filePicker != null) {
+            filePicker.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data));
+            filePicker = null;
+            return;
+        }
+        super.onActivityResult(req, res, data);
     }
 
     private String targetFrom(Intent i) {
