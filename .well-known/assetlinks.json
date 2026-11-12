@@ -1,1 +1,1 @@
-[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.scarlssystems.app","sha256_cert_fingerprints":["REPLACE_WITH_SHA256_FINGERPRINT"]}}]
+[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.scarlssystems.app","sha256_cert_fingerprints":["2A:D3:5E:FB:F9:3C:37:08:FC:BD:25:F8:82:A1:E0:FD:42:C8:3F:AD:C9:95:A6:D5:99:16:74:80:4C:F9:51:0A"]}}]
