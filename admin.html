@@ -844,6 +844,27 @@
   function fmtSize(n) { n = Number(n) || 0; return n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
   var BRIEF_STATUS = { submitted: "Submitted", changes_requested: "Waiting on customer", approved: "Approved", draft: "Draft" };
 
+  function loadAppBox(p) {
+    var anchor = document.getElementById("d_briefBox");
+    if (!anchor) return;
+    var old = document.getElementById("d_appBox");
+    if (old) old.remove();
+    anchor.insertAdjacentHTML("beforebegin", '<div class="field" id="d_appBox"><label>Customer app</label><div class="sub">Checking…</div></div>');
+    authedFetch("/admin-app-installs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: p.projectId }) }).then(function (r) {
+      var box = document.getElementById("d_appBox");
+      if (!box) return;
+      var d = r.data || {};
+      if (!d.ok) { box.innerHTML = '<label>Customer app</label><div class="sub">Could not check.</div>'; return; }
+      var parts = [];
+      if (d.android) parts.push(d.android + " Android phone" + (d.android === 1 ? "" : "s"));
+      if (d.web) parts.push(d.web + " browser" + (d.web === 1 ? "" : "s"));
+      var txt = parts.length
+        ? '<span style="color:#7ee0a8;">Installed</span> · ' + escapeHtml(parts.join(", ")) + ' · gets push notifications' + (d.lastSeen ? ' · last seen ' + escapeHtml(fmtDay(d.lastSeen)) : "")
+        : (d.signedIn ? 'Signed in, but notifications are not turned on' : 'Not installed yet. They get a nudge on the site and in emails.');
+      box.innerHTML = '<label>Customer app</label><div class="sub">' + txt + '</div>';
+    }).catch(function () { var box = document.getElementById("d_appBox"); if (box) box.innerHTML = '<label>Customer app</label><div class="sub">Could not check.</div>'; });
+  }
+
   function loadBriefBox(p) {
     var box = document.getElementById("d_briefBox");
     if (!box) return;
@@ -1000,6 +1021,7 @@
     if (tcb) tcb.addEventListener("click", function () { closeDrawer(); chatOpenProject(p.projectId, (p.businessName || p.fullName) + " \u00b7 " + p.serviceName); });
     document.getElementById("drawerStatus").textContent = "";
     loadBriefBox(p);
+    loadAppBox(p);
     adsDrawerBox(p.projectId);
 
     document.getElementById("drawerSave").onclick = function () {
