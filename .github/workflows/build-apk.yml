@@ -11,6 +11,8 @@ jobs:
         with: { packages: '' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.7" }
+      - name: Check Firebase file
+        run: test -f twa/app/google-services.json || (echo 'twa/app/google-services.json is missing. Add it from the Firebase console.'; exit 1)
       - name: Restore signing key
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/scarls.jks"
       - name: Verify signing key
