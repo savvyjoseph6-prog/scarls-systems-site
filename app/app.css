@@ -27,3 +27,16 @@ input.code{text-align:center;font-size:28px;letter-spacing:10px}
 .m{max-width:85%;padding:9px 12px;border-radius:14px;font-size:15px;white-space:pre-wrap;word-wrap:break-word}.m small{display:block;color:var(--dim);font-size:11px;margin-bottom:2px}
 .m.team{background:var(--g3);align-self:flex-start}.m.you{background:#243468;align-self:flex-end}.m.event{align-self:center;color:var(--silver);font-size:13px;background:none}
 .back{margin-bottom:6px}
+
+#splash{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;transition:opacity .5s}
+#splash.out{opacity:0;pointer-events:none}
+.sp-logo{position:relative;width:112px;height:112px;display:flex;align-items:center;justify-content:center}
+.sp-logo img{width:96px;height:96px;border-radius:24px;position:relative;z-index:2;animation:sp-pop .9s cubic-bezier(.2,1.4,.4,1) both,sp-float 2.4s ease-in-out .9s infinite}
+.sp-logo i{position:absolute;inset:0;border-radius:50%;background:var(--grad);opacity:0;animation:sp-bubble 1.8s ease-out infinite}
+.sp-logo i:nth-child(2){animation-delay:.35s}.sp-logo i:nth-child(3){animation-delay:.7s}
+.sp-name{font-weight:700;letter-spacing:6px;font-size:13px;color:var(--white);animation:sp-fade 1s ease .5s both}
+@keyframes sp-pop{0%{transform:scale(.2);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes sp-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes sp-bubble{0%{transform:scale(.7);opacity:.45}100%{transform:scale(2.3);opacity:0}}
+@keyframes sp-fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sp-logo img,.sp-logo i,.sp-name{animation:none;opacity:1}.sp-logo i{display:none}}
