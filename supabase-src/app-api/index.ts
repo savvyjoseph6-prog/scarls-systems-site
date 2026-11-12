@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { sendWebPush } from "./webpush.ts";
+import { sendFcm, fcmConfigured } from "./fcm.ts";
 
 // Backend for the SCARLS customer app (https://scarlssystems.com/app/).
 //  - Customers sign in with their email: we email a 6-digit code, they type it in. No passwords.
@@ -135,11 +136,17 @@ async function vapid() {
 
 async function pushToEmail(db: any, email: string, payload: { title: string; body: string; url?: string; tag?: string }): Promise<number> {
   const keys = await vapid();
-  if (!keys) return 0;
   const { data: subs } = await db.from("app_push_subscriptions").select("*").ilike("email", likeEscape(email));
   let sent = 0;
   await Promise.allSettled((subs || []).map(async (s: any) => {
     try {
+      if (String(s.endpoint).startsWith("fcm:")) {
+        const status = await sendFcm(String(s.endpoint).slice(4), payload);
+        if (status === 404) await db.from("app_push_subscriptions").delete().eq("endpoint", s.endpoint);
+        else if (status >= 200 && status < 300) sent++;
+        return;
+      }
+      if (!keys) return;
       const status = await sendWebPush({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }, payload, keys);
       if (status === 404 || status === 410) await db.from("app_push_subscriptions").delete().eq("endpoint", s.endpoint);
       else if (status >= 200 && status < 300) sent++;
@@ -257,6 +264,12 @@ Deno.serve(async (req) => {
       case "push_subscribe": {
         const email = await sessionEmail(db, b.session);
         if (!email) return json({ ok: false, expired: true, error: "Please sign in again." });
+        if (b.fcm_token) {
+          const tok = String(b.fcm_token).slice(0, 4096);
+          if (tok.length < 20) return json({ ok: false, error: "Bad token." });
+          await db.from("app_push_subscriptions").upsert({ endpoint: "fcm:" + tok, email, p256dh: "-", auth: "-", user_agent: String(b.ua || "android-app").slice(0, 200) }, { onConflict: "endpoint" });
+          return json({ ok: true });
+        }
         const s = b.subscription || {};
         const endpoint = String(s.endpoint || ""), p256dh = String(s.keys?.p256dh || ""), authKey = String(s.keys?.auth || "");
         if (!/^https:\/\//.test(endpoint) || !p256dh || !authKey) return json({ ok: false, error: "Bad subscription." });

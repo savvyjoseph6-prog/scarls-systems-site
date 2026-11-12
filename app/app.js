@@ -52,9 +52,11 @@
 
   function logout() {
     var t = S.session;
-    if (t) api({ action: "logout", session: t });
-    ls("del", "scarls_session"); S.session = null; S.projects = [];
-    unsubscribePush().then(function () { loginScreen("email"); });
+    unsubscribePush().then(function () {
+      if (t) api({ action: "logout", session: t });
+      ls("del", "scarls_session"); S.session = null; S.projects = [];
+      loginScreen("email");
+    });
   }
 
   /* ---------- list ---------- */
@@ -139,7 +141,16 @@
   /* ---------- push ---------- */
   function b64u(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; var b = atob(s), o = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) o[i] = b.charCodeAt(i); return o; }
   function pushSupported() { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+  function nativeToken() { try { return window.ScarlsNative ? String(window.ScarlsNative.getToken() || "") : ""; } catch (e) { return ""; } }
+  function nativeRegister(tries) {
+    if (!window.ScarlsNative || !S.session) return;
+    var t = nativeToken();
+    if (!t) { if ((tries || 0) < 15) setTimeout(function () { nativeRegister((tries || 0) + 1); }, 2000); return; }
+    if (ls("get", "scarls_fcm") === S.email + "|" + t) return;
+    api({ action: "push_subscribe", session: S.session, fcm_token: t, ua: "android-app" }).then(function (r) { if (r && r.ok) ls("set", "scarls_fcm", S.email + "|" + t); });
+  }
   function pushPrompt() {
+    if (window.ScarlsNative) { nativeRegister(0); return; }
     var box = $("pushbox"); if (!box || !pushSupported() || Notification.permission === "denied") return;
     navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
       if (sub) { if (S.session) subscribe(true); return; }
@@ -162,6 +173,7 @@
     }).catch(function () {});
   }
   function unsubscribePush() {
+    if (window.ScarlsNative) { var t = nativeToken(); ls("del", "scarls_fcm"); if (t) api({ action: "push_unsubscribe", session: S.session, endpoint: "fcm:" + t }); return Promise.resolve(); }
     if (!pushSupported()) return Promise.resolve();
     return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (s) { if (s) { api({ action: "push_unsubscribe", session: S.session, endpoint: s.endpoint }); return s.unsubscribe(); } }).catch(function () {});
   }
@@ -169,6 +181,7 @@
   /* ---------- routing ---------- */
   function route() {
     if (!S.session) return loginScreen("email");
+    nativeRegister(0);
     var m = /p=([0-9a-f-]{36})/i.exec(location.hash);
     var go = function () { if (m) projectScreen(m[1]); else listScreen(); };
     if (S.projects.length) go(); else { root.innerHTML = '<div class="wrap"><p class="muted">Loading…</p></div>'; loadList().then(function (ok) { if (ok) go(); }); }
