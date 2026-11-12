@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "512887773683",
+    "project_id": "scarls",
+    "storage_bucket": "scarls.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:512887773683:android:55b2ea8c5061003ef85a86",
+        "android_client_info": {
+          "package_name": "com.scarlssystems.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlQ9zB0B6MN6laECvo-NY5kguPk9pn9b4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
