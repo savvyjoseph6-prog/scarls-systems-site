@@ -13,6 +13,20 @@ jobs:
         with: { gradle-version: "8.7" }
       - name: Restore signing key
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/scarls.jks"
+      - name: Verify signing key
+        env:
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "Decoded keystore size in bytes: $(stat -c %s "$RUNNER_TEMP/scarls.jks")"
+          echo "Password length: ${#KS_PASS}"
+          if keytool -list -keystore "$RUNNER_TEMP/scarls.jks" -storepass "$KS_PASS" > "$RUNNER_TEMP/ks-check.txt" 2>&1; then
+            echo "KEYSTORE AND PASSWORD MATCH"
+            grep -E "Keystore type|SHA-256" "$RUNNER_TEMP/ks-check.txt"
+          else
+            echo "KEYSTORE CHECK FAILED:"
+            head -5 "$RUNNER_TEMP/ks-check.txt"
+            exit 1
+          fi
       - name: Build
         working-directory: twa
         env:
