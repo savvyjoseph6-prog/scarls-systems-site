@@ -1,5 +1,5 @@
 /* SCARLS customer app service worker: push notifications + offline shell */
-var CACHE = "scarls-app-v1";
+var CACHE = "scarls-app-v2";
 var SHELL = ["/app/", "/app/app.css", "/app/app.js", "/app/icons/icon-192.png"];
 self.addEventListener("install", function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).catch(function () {})); self.skipWaiting(); });
 self.addEventListener("activate", function (e) {
