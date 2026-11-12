@@ -1,0 +1,25 @@
+name: 2 - Build SCARLS app (APK)
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.7" }
+      - name: Restore signing key
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/scarls.jks"
+      - name: Build
+        working-directory: twa
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/scarls.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          APP_VERSION_CODE: ${{ github.run_number }}
+        run: gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with: { name: scarls-app-apk, path: twa/app/build/outputs/apk/release/*.apk, retention-days: 30 }
