@@ -8,17 +8,14 @@ jobs:
         run: |
           PASS=$(openssl rand -hex 16)
           keytool -genkeypair -v -keystore scarls.jks -alias scarls -keyalg RSA -keysize 2048 -validity 10000 -storepass "$PASS" -keypass "$PASS" -dname "CN=SCARLS SYSTEMS, O=SCARLS SYSTEMS, C=NG"
-          echo "::add-mask::$PASS"
-          base64 -w0 scarls.jks > scarls.jks.b64
+          { echo "KEYSTORE_PASSWORD=$PASS"; echo "KEY_ALIAS=scarls"; echo -n "KEYSTORE_BASE64="; base64 -w0 scarls.jks; echo; } > scarls-key-info.txt
           {
             echo "## Signing key created"
             echo "Add these three GitHub secrets (Settings > Secrets and variables > Actions):"
-            echo "- KEYSTORE_PASSWORD = \`$PASS\`"
-            echo "- KEY_ALIAS = \`scarls\`"
-            echo "- KEYSTORE_BASE64 = the contents of the file in the artifact below"
+            echo "The password and key are inside the private artifact below (scarls-key-info.txt)."
             echo
             echo "SHA-256 fingerprint (needed for assetlinks.json):"
             keytool -list -v -keystore scarls.jks -storepass "$PASS" | grep "SHA256:"
           } >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
-        with: { name: scarls-signing-key-KEEP-PRIVATE, path: scarls.jks.b64, retention-days: 1 }
+        with: { name: scarls-signing-key-KEEP-PRIVATE, path: scarls-key-info.txt, retention-days: 1 }
