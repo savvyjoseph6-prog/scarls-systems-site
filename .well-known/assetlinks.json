@@ -1,1 +1,13 @@
-[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.scarlssystems.app","sha256_cert_fingerprints":["2A:D3:5E:FB:F9:3C:37:08:FC:BD:25:F8:82:A1:E0:FD:42:C8:3F:AD:C9:95:A6:D5:99:16:74:80:4C:F9:51:0A"]}}]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.scarlssystems.app",
+      "sha256_cert_fingerprints": [
+        "F5:52:B3:C9:8F:C8:71:AE:95:F2:52:AB:CA:55:BD:8D:3C:D3:4B:27:D5:E6:28:33:1D:99:9B:FF:92:C9:A3:12",
+        "2A:D3:5E:FB:F9:3C:37:08:FC:BD:25:F8:82:A1:E0:FD:42:C8:3F:AD:C9:95:A6:D5:99:16:74:80:4C:F9:51:0A"
+      ]
+    }
+  }
+]
