@@ -114,5 +114,13 @@ public class MainActivity extends Activity {
     private class Bridge {
         @JavascriptInterface
         public String getToken() { return prefs().getString("fcm", ""); }
+
+        @JavascriptInterface
+        public int getVersion() {
+            try {
+                android.content.pm.PackageInfo i = getPackageManager().getPackageInfo(getPackageName(), 0);
+                return Build.VERSION.SDK_INT >= 28 ? (int) i.getLongVersionCode() : i.versionCode;
+            } catch (Exception e) { return 0; }
+        }
     }
 }
