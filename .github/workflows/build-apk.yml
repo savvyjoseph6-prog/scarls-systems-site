@@ -40,3 +40,7 @@ jobs:
         run: gradle assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with: { name: scarls-app-apk, path: twa/app/build/outputs/apk/release/*.apk, retention-days: 30 }
+      - name: Version number for this build
+        run: |
+          echo "## Version number of this build: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "After you upload the APK to downloads/scarls.apk, set \"latest\": ${{ github.run_number }} in app/version.json so installed apps show an Update prompt." >> $GITHUB_STEP_SUMMARY

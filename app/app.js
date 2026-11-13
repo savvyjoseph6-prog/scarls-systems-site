@@ -67,9 +67,30 @@
     });
   }
 
+  /* ---------- update prompt (Android app only) ---------- */
+  var UPDATE = null;
+  function checkUpdate() {
+    if (!window.ScarlsNative || typeof window.ScarlsNative.getVersion !== "function") return;
+    var mine = Number(window.ScarlsNative.getVersion()) || 0;
+    fetch("/app/version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (v) {
+      if (v && Number(v.latest) > mine) {
+        UPDATE = { required: !!v.required || Number(v.minimum) > mine, notes: v.notes || "A new version of the SCARLS app is ready." };
+        if (UPDATE.required) updateWall(); else if (!S.pid && $("updbox")) drawUpdate();
+      }
+    }).catch(function () {});
+  }
+  function drawUpdate() {
+    var b = $("updbox"); if (!b || !UPDATE) return;
+    b.innerHTML = '<div class="card"><b style="color:#f6f6f7">Update available</b><p class="muted" style="margin:4px 0 0">' + esc(UPDATE.notes) + '</p><a class="btn" href="/get-app.html">Update now</a></div>';
+  }
+  function updateWall() {
+    stopTimer();
+    root.innerHTML = '<div class="wrap"><div class="top"><div class="brand">SCARLS SYSTEMS</div></div><div class="card"><div class="bar"></div><h2>Please update</h2><p class="muted">' + esc(UPDATE.notes) + ' This version is no longer supported.</p><a class="btn" href="/get-app.html">Update now</a></div></div>';
+  }
+
   function listScreen() {
     stopTimer(); S.pid = null;
-    var h = '<div class="wrap"><div class="top"><div class="brand">SCARLS SYSTEMS</div><button class="link" id="out">Sign out</button></div><h2 style="margin:0 0 12px">Your projects</h2><div id="pushbox"></div>';
+    var h = '<div class="wrap"><div class="top"><div class="brand">SCARLS SYSTEMS</div><button class="link" id="out">Sign out</button></div><h2 style="margin:0 0 12px">Your projects</h2><div id="updbox"></div><div id="pushbox"></div>';
     if (!S.projects.length) h += '<div class="card muted">No projects yet.</div>';
     S.projects.forEach(function (p) {
       h += '<div class="card proj" data-id="' + esc(p.id) + '"><div class="row"><h3>' + esc(p.serviceName) + '</h3><span class="pill ' + esc(p.status) + '">' + esc(LABEL[p.status] || p.status) + '</span></div>' +
@@ -79,6 +100,7 @@
     root.innerHTML = h;
     $("out").onclick = logout;
     [].forEach.call(root.querySelectorAll(".proj"), function (el) { el.onclick = function () { location.hash = "p=" + el.getAttribute("data-id"); }; });
+    drawUpdate();
     pushPrompt();
   }
 
@@ -193,4 +215,5 @@
     navigator.serviceWorker.addEventListener("message", function (e) { if (e.data && e.data.goto) { var m = /#(.*)$/.exec(e.data.goto); location.hash = m ? m[1] : ""; } });
   }
   route();
+  checkUpdate();
 })();
