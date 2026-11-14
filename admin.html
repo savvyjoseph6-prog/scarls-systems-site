@@ -820,14 +820,72 @@
         }).join("") + '</tbody></table></div>'
       : '<div class="empty">Nothing in this view.</div>';
 
-    document.getElementById("pageBody").innerHTML = filterRow + body;
+    var newBtn = canEdit("projects") ? '<div style="margin-bottom:12px;"><button type="button" class="btn primary" id="newProjectBtn">+ New project</button></div>' : "";
+    document.getElementById("pageBody").innerHTML = newBtn + filterRow + body;
 
+    var nb = document.getElementById("newProjectBtn");
+    if (nb) nb.addEventListener("click", openNewProjectDrawer);
     Array.prototype.forEach.call(document.querySelectorAll(".filter-row button"), function (btn) {
       btn.addEventListener("click", function () { projectFilter = btn.getAttribute("data-f"); drawProjectsTable(); });
     });
     Array.prototype.forEach.call(document.querySelectorAll("tbody tr"), function (row) {
       row.addEventListener("click", function () { openProjectDrawer(row.getAttribute("data-id")); });
     });
+  }
+
+  /* ---------------- Create a project by hand ---------------- */
+
+  function openNewProjectDrawer() {
+    if (!canEdit("projects")) return;
+    var services = {};
+    allProjects.forEach(function (p) { if (p.serviceName) services[p.serviceName] = 1; });
+    var dl = Object.keys(services).sort().map(function (n) { return '<option value="' + escapeHtml(n) + '"></option>'; }).join("");
+
+    document.getElementById("drawerTitle").textContent = "New project";
+    document.getElementById("drawerSub").textContent = "Create a project by hand, for clients who paid outside the site";
+    document.getElementById("drawerBody").innerHTML =
+      '<div class="field"><label>Client name *</label><input id="np_name" type="text" placeholder="Full name"></div>' +
+      '<div class="field"><label>Client email * <span class="sub" style="font-weight:400;">(they sign in to the app with this)</span></label><input id="np_email" type="email" placeholder="name@example.com"></div>' +
+      '<div class="field"><label>WhatsApp</label><input id="np_wa" type="text" placeholder="+234..."></div>' +
+      '<div class="field"><label>Business name</label><input id="np_biz" type="text"></div>' +
+      '<div class="field"><label>Service *</label><input id="np_service" type="text" list="np_services" placeholder="e.g. Landing Page"><datalist id="np_services">' + dl + '</datalist></div>' +
+      '<div class="field"><label>Package</label><input id="np_package" type="text" placeholder="e.g. Standard"></div>' +
+      '<div class="field"><label>Amount paid (&#8358;) <span class="sub" style="font-weight:400;">(optional, for your records)</span></label><input id="np_amount" type="number" min="0" step="any"></div>' +
+      '<div class="field"><label>Start at stage</label><select id="np_status">' +
+        '<option value="brief">Brief: client fills in their details first</option>' +
+        '<option value="in_progress">In progress: we are already working</option>' +
+        '<option value="paid">Paid: we will contact them</option></select></div>' +
+      '<div class="field"><label>Due date</label><input id="np_due" type="date"></div>' +
+      '<div class="field"><label>Notes <span class="sub" style="font-weight:400;">(only you see this)</span></label><textarea id="np_notes" placeholder="e.g. Paid by transfer on 12 Nov"></textarea></div>' +
+      '<div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input id="np_email_send" type="checkbox" checked style="width:auto;"> Email the client their project link</label></div>';
+    setDrawerFooter("save", "Create project");
+    var statusEl = document.getElementById("drawerStatus");
+    statusEl.textContent = ""; statusEl.className = "save-status";
+
+    document.getElementById("drawerSave").onclick = function () {
+      var v = function (id) { return document.getElementById(id).value.trim(); };
+      var payload = {
+        fullName: v("np_name"), email: v("np_email"), whatsapp: v("np_wa"), businessName: v("np_biz"),
+        serviceName: v("np_service"), packageName: v("np_package"), amount: v("np_amount"),
+        status: document.getElementById("np_status").value, dueDate: v("np_due"), notes: v("np_notes"),
+        sendEmail: document.getElementById("np_email_send").checked
+      };
+      if (!payload.fullName || !payload.email || !payload.serviceName) { statusEl.textContent = "Name, email and service are required."; statusEl.className = "save-status err"; return; }
+      var btn = document.getElementById("drawerSave");
+      btn.disabled = true; statusEl.textContent = "Creating…"; statusEl.className = "save-status";
+      authedFetch("/admin-create-project", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        .then(function (r) {
+          btn.disabled = false;
+          var d = r.data || {};
+          if (!d.ok) { statusEl.textContent = d.error || "Could not create the project."; statusEl.className = "save-status err"; return; }
+          statusEl.textContent = d.emailed ? "Created. Email sent." : (d.emailError || "Created.");
+          statusEl.className = "save-status ok";
+          loadProjects(function () { drawProjectsTable(); setTimeout(closeDrawer, 1200); });
+        })
+        .catch(function () { btn.disabled = false; statusEl.textContent = "Network error. Try again."; statusEl.className = "save-status err"; });
+    };
+    scrim.classList.add("open");
+    drawer.classList.add("open");
   }
 
   var scrim = document.getElementById("scrim");
